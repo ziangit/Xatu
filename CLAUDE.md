@@ -29,6 +29,9 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
 - Preview-tier vs turn-tier separation: turn-tier conditions may never determine
   `bring`/`lead`. The editor must not offer that combination.
 - `ownTeam` stores the verbatim Showdown export string; it must round-trip losslessly.
+- **The schema is plumbing, never UI.** Drag-and-drop composition is the primary
+  input; JSON exists only as a copy/paste export artifact. No product surface shows
+  or edits JSON, schema field names, or predicate vocabulary. See docs/UI-SPEC.md §0.
 - Lenient validation: unknown species/moves warn, never block. The author is the
   authority; xatu is not a legality checker.
 - No accounts/login in v1. Public read always. No cron jobs, no vercel.json, no LLM

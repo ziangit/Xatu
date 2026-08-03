@@ -156,6 +156,12 @@ pure, well-tested function in a shared module; the extension's core dependency.
 - The reader's clickable walkthrough is a plain progressive-disclosure component —
   condition buttons reveal branches. No quiz mode exists or is planned; do not add a
   hidden-answer abstraction or reserve props for one.
+- **The schema is plumbing, never a product surface.** The board (drag-and-drop) is
+  the primary input; JSON is an export artifact only — copied and pasted, never
+  displayed or edited. No JSON textareas, no predicate names, no schema field names,
+  no plan-comparison views anywhere in the product. A /playground page that rendered
+  the schema was built and deliberately deleted (2026-08-03) for anchoring the wrong
+  metaphor — do not rebuild it. The UI contract lives in docs/UI-SPEC.md.
 
 ## Key decisions
 
