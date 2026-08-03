@@ -34,6 +34,9 @@ Leave `// Phase N plugs in here` markers. Don't build phase 3 concerns into phas
   ② and ⑥ encoded; ②'s "lead under a turn-tier condition" trap encoded as a preview
   guard. 24 tests green (`npm test`), typecheck clean.
 - Quiz mode (old Phase 4) dropped from all docs.
+- Dev playground at `/playground` (app/playground/page.tsx): live JSON
+  import/validation, advisory warnings, rendered matchups with Showdown sprites, and
+  a per-matchup selectPlan simulator. Test bench only — not product UI.
 
 ## Open questions
 - One friction point found while encoding ②: "if Kingambit ever switches in → Haze"
