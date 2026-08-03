@@ -27,9 +27,10 @@ Reference for the shape of the content this replaces:
 
 - **Guide editor** — direct-manipulation, battle-screen-shaped (mock team preview, mock
   battlefield). Not a node graph. Autosaves; valid while incomplete; sparse by design.
-- **Reader view** — reads like the article it replaces: accordion of matchups, bring/lead
+- **Reader view** — reads like the article it replaces: accordion of matchups, lead/back
   as sprites, gameplan paragraph, branches as terse action lines with expandable
-  `reason`, clickable walkthrough of turn-1 conditions, prominent copyable team export.
+  `reason`, a clickable walkthrough of turn-1 conditions (plain progressive
+  disclosure), prominent copyable team export.
 - **Paste-first sharing** — the guide as JSON text is the canonical artifact; copy to
   clipboard, paste to import. Built before the hosted path.
 - **Hosted publishing** — anonymous publish → short URL; edit token returned once (kept
@@ -38,7 +39,9 @@ Reference for the shape of the content this replaces:
 - **Matching** — `matchOpponent(observedSpecies, matchups)`: fuzzy, IDF-weighted,
   returns top 3 with scores. The future extension's core dependency; barely used in v1
   but implemented and tested now.
-- **Quiz mode** (phase 4) — the walkthrough with answers hidden and scoring.
+
+The phases are 1 (schema) → 2 (editor) → 3 (reader + hosting), and **Phase 3 is the
+finished product** — there is no phase after it.
 
 ## Non-goals (explicitly out of scope — do not build, do not design in hooks for)
 
@@ -53,6 +56,9 @@ Reference for the shape of the content this replaces:
   the schema doesn't have and quietly pressures the author to "fill in the graph," the
   opposite of the sparse-by-design intent.
 - **Accounts, login, or user profiles** in v1. Anonymous publish + an edit token.
+- **Quiz mode.** Dropped from the plan entirely. The reader's clickable walkthrough is
+  a plain progressive-disclosure component — no `quiz` prop, no hidden-answer
+  abstraction, nothing reserved for a mode we aren't building.
 - **The browser extension.** Separate project, later. But the schema, the paste format,
   and the matching function are all shared with it, so get those right.
 
