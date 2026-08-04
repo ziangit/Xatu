@@ -1,5 +1,10 @@
 # Session handoff
 
+> Session ended 2026-08-03. Working tree clean; everything committed and pushed to
+> https://github.com/ziangit/Xatu (HEAD: a9b1de1). The user left BEFORE reviewing
+> docs/UI-SPEC.md — the next session's first move is to ask for their reaction to it
+> (especially §6's open questions), not to start building.
+
 **Current phase:** Between Phase 1 and Phase 2. Schema is implemented and gated
 (yoshimap ② and ⑥ encode cleanly; 24 tests green). The Phase 2 UI direction has been
 reframed: the board is the primary input, JSON is an export artifact only, the schema
