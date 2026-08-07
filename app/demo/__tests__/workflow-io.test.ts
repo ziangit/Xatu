@@ -1,0 +1,195 @@
+import { describe, expect, it } from "vitest";
+import { decodeWorkflow, encodeWorkflow } from "../workflow-io";
+import type { SimSetup, TurnNode } from "../storage";
+
+const MY = ["Tyranitar", "Excadrill", "Milotic", "Gholdengo", "Sinistcha", "Staraptor"];
+const OPP = ["Aerodactyl", "Charizard", "Garchomp", "Sylveon", "Kingambit", "Dragonite"];
+
+const team = (name: string, species: string[]) => ({
+  id: name,
+  name,
+  format: "[Gen 9 Champions] VGC 2026 Reg M-B",
+  exportText: species.join("\n\n"),
+  parsed: species.map((s) => ({ species: s, moves: [] })),
+});
+
+const setup: SimSetup = { my: team("Sand", MY), opp: team("Zard", OPP) };
+
+const side = (front: string[], back: string[], fainted: string[] = []) => ({
+  front,
+  back,
+  fainted,
+});
+
+// T1 with an alternate T1, the main line continuing to T2 with a faint.
+const nodes: TurnNode[] = [
+  {
+    id: "a",
+    turn: 1,
+    parentId: null,
+    my: side(["Tyranitar", "Excadrill"], ["Milotic", "Gholdengo"]),
+    opp: side(["Aerodactyl", "Kingambit"], ["Garchomp", "Sylveon"]),
+  },
+  {
+    id: "b",
+    turn: 2,
+    parentId: "a",
+    my: {
+      ...side(["Milotic", "Excadrill"], ["Gholdengo"], ["Tyranitar"]),
+      moves: { Milotic: "Icy Wind", Excadrill: "High Horsepower" },
+      targets: { Excadrill: "foe:Aerodactyl", Milotic: "ally:Excadrill" },
+    },
+    opp: side(["Aerodactyl", "Kingambit"], ["Garchomp", "Sylveon"]),
+    note: "Sac Tyranitar to keep sand up; Milotic answers Torkoal.",
+  },
+  {
+    id: "c",
+    turn: 1,
+    parentId: null,
+    my: side(["Gholdengo", "Milotic"], ["Tyranitar", "Staraptor"]),
+    opp: side(["Charizard", "Sylveon"], ["Aerodactyl", "Kingambit"]),
+  },
+];
+
+describe("workflow codec", () => {
+  it("round-trips the graph: turns, tree shape, placements, and notes survive", () => {
+    const result = decodeWorkflow(encodeWorkflow(setup, nodes));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings).toEqual([]);
+    const out = result.nodes;
+    expect(out).toHaveLength(3);
+    expect(out.map((n) => n.turn)).toEqual([1, 2, 1]);
+    expect(out[1].parentId).toBe(out[0].id);
+    expect(out[2].parentId).toBeNull();
+    expect(out[1].my).toEqual(nodes[1].my); // includes declared moves + targets
+    expect(out[1].my.moves).toEqual({
+      Milotic: "Icy Wind",
+      Excadrill: "High Horsepower",
+    });
+    expect(out[1].my.targets).toEqual({
+      Excadrill: "foe:Aerodactyl",
+      Milotic: "ally:Excadrill",
+    });
+    expect(out[0].my.moves).toBeUndefined();
+    expect(out[1].note).toBe(nodes[1].note);
+    expect(out[0].note).toBeUndefined();
+    expect(out[2].opp.front).toEqual(["Charizard", "Sylveon"]);
+    expect(result.setup.my.parsed.map((m) => m.species)).toEqual(MY);
+  });
+
+  it("stays compact — a few hundred bytes, not KB", () => {
+    expect(encodeWorkflow(setup, nodes).length).toBeLessThan(700);
+  });
+
+  it("still accepts the legacy verbose form", () => {
+    const legacy = JSON.stringify({ version: 1, setup, nodes });
+    const result = decodeWorkflow(legacy);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.nodes).toHaveLength(3);
+  });
+
+  it("rejects garbage with an error message", () => {
+    expect(decodeWorkflow("not json")).toMatchObject({ ok: false });
+    expect(decodeWorkflow('{"v":3}')).toMatchObject({ ok: false });
+  });
+
+  it("rejects structurally broken v2 payloads instead of throwing", () => {
+    const base = `"my":{"n":"A","f":"","s":["Pikachu"]},"op":{"n":"B","f":"","s":["Eevee"]}`;
+    expect(decodeWorkflow(`{"v":2,${base},"t":["nope"]}`)).toMatchObject({ ok: false });
+    expect(decodeWorkflow(`{"v":2,${base},"t":[[0,1,2]]}`)).toMatchObject({ ok: false });
+    expect(
+      decodeWorkflow(
+        `{"v":2,"my":{"n":"A","f":"","s":[]},"op":{"n":"B","f":"","s":["Eevee"]},"t":[[0,"0","0"]]}`,
+      ),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("rejects non-existent Pokémon by name", () => {
+    const json = JSON.stringify({
+      v: 2,
+      my: { n: "A", f: "", s: ["Tyranitar", "Newmon2027"] },
+      op: { n: "B", f: "", s: OPP },
+      t: [[0, "01", "01"]],
+    });
+    const result = decodeWorkflow(json);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("Newmon2027");
+  });
+
+  it("imports rule-breaking states with warnings: overflow, duplicates, bad refs", () => {
+    const json = JSON.stringify({
+      v: 2,
+      my: { n: "A", f: "", s: MY },
+      op: { n: "B", f: "", s: OPP },
+      // front of 3, a mon repeated in front and back, a digit off the roster,
+      // and a forward parent reference
+      t: [
+        [0, "012|03", "09|1"],
+        [5, "01|23", "01|23"],
+      ],
+    });
+    const result = decodeWorkflow(json);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const n = result.nodes[0];
+    expect(n.my.front).toEqual(["Tyranitar", "Excadrill"]); // overflow dropped
+    expect(n.my.back).toEqual(["Gholdengo"]); // duplicate kept first placement
+    expect(n.opp.front).toEqual(["Aerodactyl"]); // "9" off the roster — dropped
+    expect(result.nodes[1].turn).toBe(1); // bad parent → alternate turn 1
+    expect(result.warnings.length).toBeGreaterThanOrEqual(4);
+    expect(result.warnings.join(" ")).toContain("Milotic moved to the bench");
+    expect(result.warnings.join(" ")).toContain("invalid parent reference");
+  });
+
+  it("drops moves declared for Pokémon not in front, with a warning", () => {
+    const json = JSON.stringify({
+      v: 2,
+      my: { n: "A", f: "", s: MY },
+      op: { n: "B", f: "", s: OPP },
+      // On turn 1: Milotic (2) has a move but sits on the bench; Tyranitar is legal.
+      t: [
+        [0, "01|23", "01|23"],
+        [1, "01|34||0:Rock Slide,2:Scald", "01|23"],
+      ],
+    });
+    const result = decodeWorkflow(json);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.nodes[1].my.moves).toEqual({ Tyranitar: "Rock Slide" });
+    expect(result.warnings.join(" ")).toContain("isn't in front");
+  });
+
+  it("drops move targets that aren't on the field, keeping the move", () => {
+    const json = JSON.stringify({
+      v: 2,
+      my: { n: "A", f: "", s: MY },
+      op: { n: "B", f: "", s: OPP },
+      // Tyranitar targets foe 4 (Kingambit), who is NOT in the opposing front.
+      t: [
+        [0, "01|23", "01|23"],
+        [1, "01|23||0:Rock Slide>f4", "01|23"],
+      ],
+    });
+    const result = decodeWorkflow(json);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.nodes[1].my.moves).toEqual({ Tyranitar: "Rock Slide" });
+    expect(result.nodes[1].my.targets).toBeUndefined();
+    expect(result.warnings.join(" ")).toContain("target isn't on the field");
+  });
+
+  it("drops moves declared on turn 0 — team preview is positions only", () => {
+    const json = JSON.stringify({
+      v: 2,
+      my: { n: "A", f: "", s: MY },
+      op: { n: "B", f: "", s: OPP },
+      t: [[0, "01|23||0:Rock Slide", "01|23"]],
+    });
+    const result = decodeWorkflow(json);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.nodes[0].my.moves).toBeUndefined();
+    expect(result.warnings.join(" ")).toContain("team preview");
+  });
+});

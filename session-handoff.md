@@ -1,48 +1,62 @@
 # Session handoff
 
-> Session ended 2026-08-03. Working tree clean; everything committed and pushed to
-> https://github.com/ziangit/Xatu (HEAD: a9b1de1). The user left BEFORE reviewing
-> docs/UI-SPEC.md — the next session's first move is to ask for their reaction to it
-> (especially §6's open questions), not to start building.
+> Updated 2026-08-06. The project pivoted: instead of building Phase 2 from
+> docs/UI-SPEC.md, the user drove an interactive **matchup simulation builder**
+> (reference sketch: `xatu.png` in repo root) built iteratively at `/demo`.
+> docs/UI-SPEC.md was never reviewed and is now partially superseded — do not
+> build from it without asking.
 
-**Current phase:** Between Phase 1 and Phase 2. Schema is implemented and gated
-(yoshimap ② and ⑥ encode cleanly; 24 tests green). The Phase 2 UI direction has been
-reframed: the board is the primary input, JSON is an export artifact only, the schema
-never appears in any product surface (see docs/UI-SPEC.md §0 — this is a hard
-constraint, also in CLAUDE.md).
+**Current state:** A working two-page tool, evolved through many rounds of
+user feedback (all in the 2026-08-06 session):
 
-**Next concrete step:** User is reviewing docs/UI-SPEC.md (Matchup Designer, guide
-shell, reader view — written 2026-08-03). **No UI code until they react to it.**
-After approval, remaining work in order: finish Phase 1 (`lib/match/` matchOpponent +
-tests; `lib/team/` Showdown import via `Team.import`), then build Phase 2 per the
-spec.
+- **`/demo` (Page 1)** — pick My Team + Opposing Team: champscope-style import
+  panel (pokepast.es link via `/api/pokepaste` proxy, Showdown export, or bare
+  species list), or reuse saved/preset teams (localStorage). Champscope-style
+  collapsible team detail. Red **Simulate** → `/demo/sim`.
+- **`/demo/sim`** — the board: turn columns **Turn 0 (team preview, positions
+  only) → Turn 1 → Turn 2 (max)**; one state card per node (roster row +
+  Front 2 + Back 2 per side, aligned 64px columns, 560px cards); SVG
+  parent→child edges (amber dashed = branch); **⑂ branch = alternate of the
+  same turn** (multiple turn-0 roots legal); bring-4 lock from turn 0;
+  right-click = faint; per-card collapsible note with save button; front-slot
+  picker = moves (Showdown type colors via lazy `@pkmn/dex`, spread/self moves
+  skip the target step) + target (on-field four) + switch-out (swap with back)
+  + bench; chips stack one per line: attacker icon + move + → target icon.
+- **Workflow JSON codec** (`app/demo/workflow-io.ts`): compact v2 format —
+  teams as name+species, nodes as `[parentIdx, myState, oppState, note?]`,
+  side state as `"front|back|fainted|moves"` digit groups, moves as
+  `digit:Name>f1` target suffixes; turn = tree depth. Import: structurally
+  broken or **unknown-species payloads are rejected** (icon-sheet-as-dex
+  check); rule-breaking states are **sanitized with an amber warnings banner**.
+  Legacy verbose form still accepted. Save/resume via localStorage.
+- **`/demo/lookup`** — earlier demo of the reader-side flow (paste opposing
+  team → matchOpponent → plan → turn toggles). Kept, linked from Page 1.
 
-## Phase plan (build in order, ship each; Phase 3 is the finished product)
+**Phase 1 lib work is done:** `lib/match/matchOpponent` (IDF-weighted fuzzy,
+required-tag multiplier, forme candidates, top-3) and `lib/team/importTeamText`
+(lenient, lossless exportText) with real tests. 46 tests green total.
 
-1. **Schema + paste round-trip** — schema done; matchOpponent + team import remain
-2. **Editor** — the Matchup Designer per docs/UI-SPEC.md: battle-scene direct
-   manipulation, three verbs (drag to posts / drag enemies as conditions / click
-   moves + drag switches), spotlight for alternate plans, tier guard-rail offering
-   the preview-guard conversion in author language
-3. **Reader view + hosting** — article register per docs/UI-SPEC.md §4; Supabase,
-   short links, edit tokens, OG cards
+## Known divergences from the original docs (deliberate, user-directed)
+- Sim workflow JSON is its own format, NOT the `lib/schema/` guide schema.
+  Reconciliation (compile board → plans/rules, or new document type) is an
+  open decision the user was told about.
+- Unknown Pokémon **block** sim import (dev-phase choice) — CLAUDE.md's
+  "warn, never block" rule still governs the guide schema side.
+- **Damage calc**: user wants to discuss in future; answer given was
+  `@smogon/calc` (local library, no API). Building it requires amending the
+  "no battle computation" non-goal in CLAUDE.md/PRODUCT.md first.
+- Turn cap (0–2), turn-0 preview semantics, and branching-as-same-turn are
+  sim-tool concepts the schema doesn't model yet.
 
-## Done so far
-- Next.js 16 scaffold, harness docs, remote https://github.com/ziangit/Xatu.
-- `lib/schema/` complete per the 2026-08-03 revisions (rules inside Plan,
-  species-keyed actions, lead+back, specificity-ordered guards, draft/published
-  split, schemaVersion-branching import, advisory warnings). Acceptance fixture:
-  `lib/schema/fixtures/yoshimap-sand-staraptor.ts`. 24 tests, typecheck, lint green.
-- **/playground built, then deliberately deleted** — it made JSON the primary surface
-  and anchored the wrong metaphor. Do not rebuild it; its coverage lives in vitest.
-- docs/UI-SPEC.md written (workbench + article registers, full surface-by-surface
-  spec, §5 typing inventory, §6 open questions). frontend-design skill was read
-  first; dark-dashboard aesthetic rejected per user.
-- Dev server port pinned to 7317 in package.json.
+## Next candidates (none committed to)
+- Reconcile workflow format with lib/schema, or promote it to a first-class
+  document type.
+- Compressed share codes (deflate + base64url → ~150–250 chars, URL fragment).
+- Mega/Tera as recorded per-mon state (currently note text only).
+- Damage calc discussion (see above).
+- Hosting phase (Supabase, short links) per original plan.
 
-## Open questions (awaiting user's spec review — see docs/UI-SPEC.md §6)
-- Per-species notes vs. "only gameplan and why are typed"
-- T2+ pad occupants as unrecorded stage direction (second gesture) — acceptable?
-- "Switches in" vs. "already out" toggle on T2+ enemy placements
-- Scene furniture replacing the brief's "small dropdown" for extra predicates
-- Turn-agnostic branches still pin to a turn (schema limitation, carried forward)
+## Stack additions this session
+`@pkmn/img` (minisprite icon sheet + species-existence check), `@pkmn/dex`
+(move type colors + targeting shapes, lazy-loaded client-side). Dev server:
+port 7317. `xatu.png` (repo root) = the user's reference sketch for the tool.
