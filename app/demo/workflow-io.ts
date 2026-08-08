@@ -9,7 +9,8 @@ import type { SideState, SimSetup, StoredTeam, TurnNode } from "./storage";
  * - turn numbers are tree depth (a child is always parent.turn + 1; an
  *   alternate shares its sibling's parent, so depth still works);
  * - Pokémon are indexed 0–5 into their roster, so a side state packs into
- *   "front|back|fainted" digit groups, e.g. "01|23" or "0|23|1";
+ *   "front|back|fainted|moves|mega" digit groups, e.g. "01|23" or "0|23|1";
+ *   trailing empty groups are stripped, so older 4-group payloads still read;
  * - node ids are array positions; a node is [parentIndex (1-based, 0 = root),
  *   myState, oppState, note?]. Parents always precede children.
  *
@@ -87,7 +88,14 @@ function encodeSide(
         })
         .join(",")
     : "";
-  return [group(side.front), group(side.back), group(side.fainted), moves]
+  // A recorded Mega rides in a 5th group as the front Pokémon's roster digit.
+  const mega =
+    side.mega &&
+    side.front.includes(side.mega) &&
+    roster.indexOf(side.mega) >= 0
+      ? String(roster.indexOf(side.mega))
+      : "";
+  return [group(side.front), group(side.back), group(side.fainted), moves, mega]
     .join("|")
     .replace(/\|+$/, "");
 }
@@ -136,7 +144,7 @@ function decodeSide(
   label: string,
   warn: (msg: string) => void,
 ): SideState {
-  const [f = "", b = "", ft = "", mv = ""] = code.split("|");
+  const [f = "", b = "", ft = "", mv = "", mg = ""] = code.split("|");
   const seen = new Set<string>();
   const list = (digits: string, cap: number, group: string) => {
     const out: string[] = [];
@@ -147,11 +155,15 @@ function decodeSide(
         continue;
       }
       if (seen.has(species)) {
-        warn(`${label}: ${species} was placed twice — kept its first placement.`);
+        warn(
+          `${label}: ${species} was placed twice — kept its first placement.`,
+        );
         continue;
       }
       if (out.length >= cap) {
-        warn(`${label}: ${group} had more than ${cap} — ${species} moved to the bench.`);
+        warn(
+          `${label}: ${group} had more than ${cap} — ${species} moved to the bench.`,
+        );
         continue;
       }
       seen.add(species);
@@ -180,7 +192,9 @@ function decodeSide(
         continue;
       }
       if (!side.front.includes(species)) {
-        warn(`${label}: ${species} has a move but isn't in front — move dropped.`);
+        warn(
+          `${label}: ${species} has a move but isn't in front — move dropped.`,
+        );
         continue;
       }
       moves[species] = match[2];
@@ -200,6 +214,16 @@ function decodeSide(
     if (Object.keys(moves).length > 0) side.moves = moves;
     if (Object.keys(targets).length > 0) side.targets = targets;
   }
+  if (mg) {
+    const species = roster[Number(mg)];
+    if (!species) {
+      warn(`${label}: the recorded Mega points off the roster — dropped.`);
+    } else if (!side.front.includes(species)) {
+      warn(`${label}: ${species} Megas but isn't in front — dropped.`);
+    } else {
+      side.mega = species;
+    }
+  }
   return side;
 }
 
@@ -216,7 +240,9 @@ function validateTargets(
     const parsed = parseTargetRef(ref);
     const onField =
       parsed &&
-      (parsed.kind === "ally" ? side.front : foe.front).includes(parsed.species);
+      (parsed.kind === "ally" ? side.front : foe.front).includes(
+        parsed.species,
+      );
     if (!side.moves?.[attacker] || !onField) {
       warn(`${label}: ${attacker}'s move target isn't on the field — dropped.`);
       delete side.targets[attacker];
@@ -248,7 +274,11 @@ export function decodeWorkflow(text: string): DecodeResult {
   }
 
   // Legacy verbose form — validate species, then pass through.
-  const legacy = data as { version?: number; setup?: SimSetup; nodes?: TurnNode[] };
+  const legacy = data as {
+    version?: number;
+    setup?: SimSetup;
+    nodes?: TurnNode[];
+  };
   if (legacy.version === 1 && legacy.setup && Array.isArray(legacy.nodes)) {
     if (!legacy.setup.my?.parsed || !legacy.setup.opp?.parsed) {
       return { ok: false, error: "The workflow's teams are malformed." };
@@ -262,7 +292,12 @@ export function decodeWorkflow(text: string): DecodeResult {
   }
 
   const compact = data as Partial<CompactWorkflow>;
-  if (compact.v !== 2 || !compact.my || !compact.op || !Array.isArray(compact.t)) {
+  if (
+    compact.v !== 2 ||
+    !compact.my ||
+    !compact.op ||
+    !Array.isArray(compact.t)
+  ) {
     return { ok: false, error: "That isn't a workflow document." };
   }
   const validTeam = (t: CompactTeam | undefined) =>
@@ -300,38 +335,54 @@ export function decodeWorkflow(text: string): DecodeResult {
   };
   const ids = compact.t.map(() => crypto.randomUUID());
   const turns: number[] = [];
-  const nodes: TurnNode[] = compact.t.map(([parent, myCode, opCode, note], i) => {
-    let parentIdx = -1;
-    if (parent > 0 && parent <= i) {
-      parentIdx = parent - 1;
-    } else if (parent !== 0) {
-      warn(`Card ${i + 1}: invalid parent reference — treated as an alternate turn 1.`);
-    }
-    turns[i] = parentIdx >= 0 ? turns[parentIdx] + 1 : 1;
-    // Display numbering starts at turn 0 — the team-preview node.
-    const label = `Card ${i + 1} (turn ${turns[i] - 1})`;
-    const my = decodeSide(myCode, myRoster, opRoster, `${label}, my side`, warn);
-    const opp = decodeSide(opCode, opRoster, myRoster, `${label}, opposing side`, warn);
-    if (turns[i] === 1) {
-      // Turn 0 is team preview: positions only, no declared moves.
-      for (const side of [my, opp]) {
-        if (side.moves) {
-          warn(`${label}: moves aren't recorded at team preview — dropped.`);
-          delete side.moves;
-          delete side.targets;
+  const nodes: TurnNode[] = compact.t.map(
+    ([parent, myCode, opCode, note], i) => {
+      let parentIdx = -1;
+      if (parent > 0 && parent <= i) {
+        parentIdx = parent - 1;
+      } else if (parent !== 0) {
+        warn(
+          `Card ${i + 1}: invalid parent reference — treated as an alternate turn 1.`,
+        );
+      }
+      turns[i] = parentIdx >= 0 ? turns[parentIdx] + 1 : 1;
+      // Display numbering starts at turn 0 — the team-preview node.
+      const label = `Card ${i + 1} (turn ${turns[i] - 1})`;
+      const my = decodeSide(
+        myCode,
+        myRoster,
+        opRoster,
+        `${label}, my side`,
+        warn,
+      );
+      const opp = decodeSide(
+        opCode,
+        opRoster,
+        myRoster,
+        `${label}, opposing side`,
+        warn,
+      );
+      if (turns[i] === 1) {
+        // Turn 0 is team preview: positions only, no declared moves.
+        for (const side of [my, opp]) {
+          if (side.moves) {
+            warn(`${label}: moves aren't recorded at team preview — dropped.`);
+            delete side.moves;
+            delete side.targets;
+          }
         }
       }
-    }
-    validateTargets(my, opp, `${label}, my side`, warn);
-    validateTargets(opp, my, `${label}, opposing side`, warn);
-    return {
-      id: ids[i],
-      turn: turns[i],
-      parentId: parentIdx >= 0 ? ids[parentIdx] : null,
-      my,
-      opp,
-      ...(typeof note === "string" && note ? { note } : {}),
-    };
-  });
+      validateTargets(my, opp, `${label}, my side`, warn);
+      validateTargets(opp, my, `${label}, opposing side`, warn);
+      return {
+        id: ids[i],
+        turn: turns[i],
+        parentId: parentIdx >= 0 ? ids[parentIdx] : null,
+        my,
+        opp,
+        ...(typeof note === "string" && note ? { note } : {}),
+      };
+    },
+  );
   return { ok: true, setup, nodes, warnings };
 }

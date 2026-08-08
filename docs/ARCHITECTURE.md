@@ -142,6 +142,120 @@ pure, well-tested function in a shared module; the extension's core dependency.
   `lib/schema/warnings.ts` and are display-only — never enforced at parse, publish, or
   import time.
 
+## Board rules (`app/demo/board.ts`, 2026-08-08)
+
+Three rules the author shouldn't have to maintain by hand. They live in a pure,
+unit-tested module (`app/demo/__tests__/board.test.ts`) — the sim page only wires
+them up.
+
+- **A Pokémon that switches in can't also move.** Switching *is* the turn's
+  action. `switchedInSpecies(side, parentSide)` derives it — front members that
+  weren't in front on the parent card — so nothing extra is stored. The picker
+  refuses moves and Mega for them and the chip reads "switched in"; a switch also
+  clears both Pokémon's declared moves.
+- **Positions carry into the next turn.** A turn starts where the previous one
+  ended, so a positional edit cascades to descendants via `cascadePositions` —
+  but only into slots that still hold the old occupant, so a downstream
+  arrangement the author chose themselves survives. Alternates share their
+  sibling's parent and therefore inherit too. `addNextTurn` carries positions,
+  faints and Megas forward but **not** moves: a move is that turn's action.
+- **Mega Evolution is recordable.** `SideState.mega` names the Pokémon that is
+  Mega Evolved on that side, declared on the turn it happens (a Mega and a move
+  share a turn — the picker stays open after toggling it) and carried forward,
+  since a Mega-Evolved Pokémon stays Mega on the field or the bench. On the board
+  it renders as the Mega forme's sprite plus a ⟡ on the chip.
+
+Still no battle computation: the dex is consulted only for *whether an item is
+the Mega Stone for its holder* (`Dex.items.get(item).megaStone`, same class of
+metadata as move type colors) so the option can be offered. No forme stats, no
+legality check, no once-per-battle enforcement — that's the author's business.
+
+**Codec change (still v2):** a side packs as
+`front|back|fainted|moves|mega`, mega being the front Pokémon's roster digit.
+Trailing empty groups are stripped, so every previously copied payload still
+imports; a Mega pointing off-roster or at a benched Pokémon is dropped with a
+warning, like every other sanitized field.
+
+## Navigation rule — no page is a dead end (2026-08-08, after user feedback)
+
+Every page must be exitable without the browser back button, and the way out has
+to be *visible* — a wordmark that happens to be a link does not count, because it
+doesn't look like one. The chrome lives in **`app/nav.tsx`**:
+
+- `<Wordmark tag?>` — the "xatu" wordmark, always a link to `/`, underlined on
+  hover, with a title attribute.
+- `<HeaderNav>` — renders `⌂ home` first, then the page-specific links passed as
+  children, then `<AccountLink />` (account state everywhere, not just the landing
+  page). Links are `whitespace-nowrap shrink-0` so a long page title can't wrap the
+  nav onto two lines.
+- `<NavLink href>` — a page-specific header link at the nav's weight.
+- `<HomeLink>` — the home link on its own, for headers that can't use
+  `HeaderNav` wholesale (`/login`). The icon is a drawn SVG house: the `⌂`
+  character renders as a lopsided box in most UI fonts — do not go back to it.
+- `Wordmark heading={false}` on pages whose own `h1` is their content (the
+  board's matchup title, the lookup page's guide title) — one `h1` per page.
+
+Top bar composition, after "the top bar is crowded as heck" (2026-08-08):
+
+- Labels are plain nouns — `home` / `builder` / `matchups`. No arrows, no
+  possessives; four decorated links read as a wall of text.
+- The account is an **initial-avatar menu** (`AccountLink`), not `email + sign
+  out` spelled out inline. A 24px circle is fixed-width no matter how long the
+  address is; the email, "My matchups" and "Sign out" live in the popover
+  (Escape and click-outside close it). It renders its own leading hairline, so
+  local-only builds (`getSupabase()` → null) show no dangling divider.
+
+Motion vocabulary (`app/globals.css`, added 2026-08-08 at the user's request) —
+small and fast, so it reads as responsiveness, not decoration. All four are
+disabled wholesale under `prefers-reduced-motion`:
+
+| class | for |
+| --- | --- |
+| `.rise-in` | content arriving (cards, grouped rows, panels) — fade + 6px rise |
+| `.fade-in` | arriving content **whose position is measured** — opacity only |
+| `.pop-in` | menus/popovers, anchored at their trigger |
+| `.grow-in` | something revealed in place (import panel, choice box, help) |
+| `.step-1…4` | stagger delay for a short sequence |
+
+`.fade-in` exists because the board's cards feed the SVG edge layout: the edges
+are measured on the next frame, so a card that moves while animating would have
+its connector drawn in the wrong place. Never give a measured element a
+transform animation.
+
+Two more rules that came out of the same pass:
+
+- **No layout shift from async state.** The account widget sits in a fixed-width
+  slot (`w-14`) and `supabaseConfigured()` answers synchronously, so the header
+  never reflows (or pops an avatar in) when the session check resolves. Same rule
+  for status text that appears after an action: the board's save line lives in a
+  fixed-height row (`h-5`) that always says something ("not saved yet — Save
+  keeps this board"), so the first save doesn't shove the board down and the row
+  isn't a mystery gap before it. A conditionally-rendered status line is a layout
+  shift waiting to happen — reserve the row instead.
+- **Reference text is a disclosure, not a banner.** The board's rules live behind
+  "▸ how the board works", collapsed by default — a paragraph of instructions
+  across the top of a tool is read once and then it is noise.
+
+**Never `window.confirm` / `window.alert`.** The native dialog is unstyleable,
+says "localhost:7317 says", and blocks the page. Destructive actions confirm in
+place with `InlineConfirm` (`app/ui.tsx`): the row's own controls swap for
+"Delete from this browser and your account?" + Delete/cancel. Used by the
+`/matchups` delete and the builder's opponent ✕.
+
+The board header is three stacked bands — (1) wordmark + site nav, (2) matchup
+title with the opponent switcher under it / board actions right, (3) the usage
+hint full width. Cramming them into one row put the site nav, the switcher and
+Reset/Import/Copy/Save in a single ambiguous strip; keep them separated.
+
+Use these in every new page's header; do not hand-roll one. The only exceptions are
+`/` (it *is* home) and `/login` (its own account page, so it hand-rolls the nav
+without `AccountLink` — it still shows the wordmark and `⌂ home`). The same rule
+applies inside flows: every multi-step panel needs a cancel/back affordance
+(ImportPanel's cancel, TeamSlot's "← back").
+
+`scratchpad/check-nav.mjs`-style CDP checks can assert this: load each route and
+require at least one visible `a[href="/"]`.
+
 ## Known constraints & gotchas
 
 - Regulations rotate every few months and invalidate guides — `regulation` is a
@@ -162,6 +276,71 @@ pure, well-tested function in a shared module; the extension's core dependency.
   no plan-comparison views anywhere in the product. A /playground page that rendered
   the schema was built and deliberately deleted (2026-08-03) for anchoring the wrong
   metaphor — do not rebuild it. The UI contract lives in docs/UI-SPEC.md.
+
+## One team vs. many teams (decided 2026-08-08)
+
+The sim tool's unit of work is a **board**: one team pair (`setup.my` + `setup.opp`)
+plus its turn tree, stored as one `SavedMatchup` in localStorage and one `matchups`
+row in the account. "My team vs. many opposing teams" is expressed by **grouping
+boards, not nesting them**: every board sharing the same `setup.my.id` is one group
+(`groupByMyTeam` in `app/demo/storage.ts`).
+
+Decisions and why:
+
+- **Group, don't nest.** The alternative — one document holding N opponents — would
+  need a jsonb migration, a new table shape, and new save/sync/delete semantics for a
+  nested child. Grouping needs none of that: boards saved before this existed group
+  themselves, and boards pulled down from the account group identically. It is also
+  already the shape `docs/PRODUCT.md` wants for a published guide (`ownTeam` + N
+  matchups), so a group compiles into a guide later with no data change.
+- **A group is derived, never stored.** No group record, no group id, nothing to keep
+  in sync or repair. The only requirement it places on the rest of the app is a stable
+  team identity, hence:
+- **`rememberTeam` returns the canonical team.** Re-importing identical export text
+  reuses the first `StoredTeam.id`, so a team keeps one identity across imports and its
+  boards keep grouping together. Callers must use the returned team, not the one they
+  passed in.
+- **`nodes: []` means "lined up, not planned yet."** Adding an opponent on `/demo`
+  creates its board immediately with no nodes; the sim page seeds a fresh board on
+  open. This keeps the matchup library the single record of "my team vs. these teams"
+  instead of introducing a parallel roster key.
+- **Visiting an opponent must not fake a plan.** The sim page's opponent switcher
+  auto-saves before moving, but only when the board differs *both* from what's stored
+  *and* from a fresh board. The comparison uses `encodeWorkflow` (the compact codec is
+  id-free, so it is a stable structural fingerprint) — not deep equality on nodes.
+- **Multi-team paste lives in `lib/team/import-many.ts`**, pure and framework-free like
+  the rest of `lib/`, with unit tests. Recognised: `=== [format] name ===` delimited
+  exports (pokepaste folders / Showdown backups), one comma-separated species list per
+  line, and several pokepaste links (the links are resolved by the caller — CORS forces
+  the `/api/pokepaste` proxy). A format tag inside a `===` header is deliberately
+  **ignored**: `FORMATS` in the UI stays the closed authority.
+- Ambiguity is not guessed: blank-line-separated blocks are *not* treated as multiple
+  teams, because that is exactly how one team separates its six sets.
+- Fallback team name is the first two species ("Aerodactyl + Charizard") — how people
+  refer to opposing archetypes anyway.
+- Pairings are mirrored to the account as soon as they're created (signed in), before
+  any plan exists. A failed mirror is **not** surfaced on `/demo`: the row simply stays
+  browser-only on `/matchups`, where an upload button is the honest signal.
+
+Entry points (a list view must be able to *start* work, not only show it) —
+`/demo` reads intent from the query string, via `window.location.search` rather than
+`useSearchParams` so the page needs no Suspense boundary:
+
+| link | meaning |
+| --- | --- |
+| `/demo?new=1` | new matchup — clear the team and show the picker |
+| `/demo?team=<teamId>` | plan with this team of mine |
+| `/demo?team=<teamId>&add=1` | …and open the add-opponents box immediately |
+
+Reached from: **＋ New matchup** (`/matchups` header), **＋ add teams** (per group
+header on `/matchups` — a button, not a link, because it first pulls the group's
+freshest board local so an account-only group can resolve `?team=`), **＋ add
+opponent** (the board's switcher row), and **＋ new matchup with a different team**
+on `/demo` itself (a button that clears state in place — an in-page `Link` to
+`/demo?new=1` would not re-run the mount effect).
+
+Unchanged by this: no battle computation anywhere near it, and the group is storage +
+presentation only — nothing about it reaches the guide schema in `lib/schema/`.
 
 ## Key decisions
 

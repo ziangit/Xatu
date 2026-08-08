@@ -11,6 +11,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 let client: SupabaseClient | null | undefined;
 
+/**
+ * Whether accounts exist in this build — answerable synchronously (the vars are
+ * inlined at build time) and without constructing a client, so the header can
+ * reserve the account widget's space on the very first paint instead of popping
+ * it in when the session check resolves.
+ */
+export function supabaseConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}
+
 export function getSupabase(): SupabaseClient | null {
   if (client !== undefined) return client;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

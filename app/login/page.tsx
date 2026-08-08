@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "../auth/client";
+// The account widget is deliberately absent here — this page IS the account
+// page — so the nav is hand-rolled instead of using HeaderNav.
+import { HomeLink, Wordmark } from "../nav";
 
 // Sign in / create account. Both paths — Google OAuth and email/password —
 // go through Supabase Auth; xatu never sees or stores a password. Accounts
@@ -87,15 +90,16 @@ export default function LoginPage() {
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
       <main className="mx-auto max-w-sm px-6 py-16">
         <header className="flex items-baseline justify-between">
-          <Link href="/" className="font-display text-lg font-bold tracking-tight">
-            xatu
-          </Link>
-          <Link
-            href="/demo"
-            className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-          >
-            builder →
-          </Link>
+          <Wordmark />
+          <nav className="flex items-center gap-4">
+            <HomeLink />
+            <Link
+              href="/demo"
+              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+            >
+              builder
+            </Link>
+          </nav>
         </header>
 
         {!checked ? null : !supabase ? (
@@ -132,8 +136,8 @@ export default function LoginPage() {
               {mode === "signin" ? "Sign in" : "Create an account"}
             </h1>
             <p className="mt-1 text-xs leading-relaxed text-stone-400">
-              An account syncs your teams and matchups across browsers. Only
-              you can see them. Everything also works without one.
+              An account syncs your teams and matchups across browsers. Only you
+              can see them. Everything also works without one.
             </p>
 
             <button

@@ -1,8 +1,119 @@
 # Session handoff
 
-> Updated 2026-08-08 (start of day, end of overnight session). **Accounts are
-> live and working** (user-directed; CLAUDE.md and PRODUCT.md amended), and the
-> site is **deployed to production**. Resume from "Next candidates" below.
+> Updated 2026-08-08 (afternoon). **One team vs. many opposing teams is
+> built** — see the section directly below. Accounts are live, the site is
+> deployed to production, and the Supabase URL-config item below is still the
+> user's to do.
+
+## 2026-08-08: one team vs. many teams
+
+The builder now plans **one of your teams against many opponents**, and one
+paste can add several opposing teams at once. Rationale and the rules that
+follow from it are written up in **docs/ARCHITECTURE.md → "One team vs. many
+teams"** — read that before changing any of it. Summary of the mechanism:
+
+- A **group** = every `SavedMatchup` sharing `setup.my.id`. Derived, never
+  stored (`groupByMyTeam` in `app/demo/storage.ts`); old and cloud-pulled
+  boards group themselves. A group is also the future published guide
+  (`ownTeam` + N matchups), so no migration was needed.
+- `rememberTeam` now **returns the canonical team** — same export text reuses
+  the first id, so grouping is stable across re-imports. Use its return value.
+- `nodes: []` = "opponent lined up, not planned yet". `/demo` creates the board
+  on add; the sim page seeds a fresh board on open.
+- **`/demo`**: My Team (one, replaceable) + **Opposing teams** list — add via
+  import (multi), "Use existing", per-row `plan →` / `✕`, status chip
+  (`no plan yet` / `N states`). Red button opens the first unplanned opponent.
+  "Your other teams" at the bottom switches which of your teams you're
+  planning with.
+- **Multi-team paste** (`lib/team/import-many.ts`, pure + unit-tested, 11 new
+  tests): `=== [format] name ===` delimited exports, one comma-separated
+  species list per line, or several pokepast.es links (one per line, fetched
+  through the existing proxy). Blank-line blocks are NOT split (that's how one
+  team separates its sets). Header format tags are ignored — `FORMATS` stays
+  the authority. Fallback name = first two species.
+- **`/demo/sim`**: opponent switcher in the header (‹ / dropdown / › and
+  "2 of 3 · 1 planned"). Switching auto-saves first, but only if the board
+  differs from both the stored copy and a fresh board — comparison via
+  `encodeWorkflow` (id-free, so a stable fingerprint). Merely visiting an
+  opponent never turns "no plan yet" into a plan.
+- **`/matchups`**: rows grouped under a my-team header (sprites, name,
+  "N matchups") with a group-level **upload all (N)**; rows show the opponent,
+  badges, upload, delete as before.
+- Cloud: adding a pairing mirrors it immediately when signed in (before any
+  plan exists); removing on `/demo` deletes the account copy too. A failed
+  mirror is silent by design — the row stays browser-only on `/matchups`.
+- **Motion + polish pass (user feedback: hint text too long, avatar "blink and
+  suddenly appears", "add some animation", "no import option at /demo")** —
+  (1) the board's instruction paragraph is now "▸ how the board works",
+  collapsed by default; (2) the account widget lives in a fixed-width slot and
+  `supabaseConfigured()` resolves synchronously, so the bar no longer reflows or
+  pops the avatar in (verified: nav width + link positions identical before and
+  after the session check); (3) a small motion vocabulary in globals.css
+  (`.rise-in` / `.fade-in` / `.pop-in` / `.grow-in` / `.step-1…4`) applied to
+  panels, popovers, rows and the board's turn columns, all off under
+  reduced-motion — `.fade-in` is opacity-only for measured elements (board
+  cards feed the SVG edge layout); (4) `/demo` now shows real **＋ import** /
+  **switch team** / **use existing** buttons on both sections instead of a faint
+  "replace" link, and the team card's sprites shrank to 0.7 so the team's own
+  name actually fits. Table + rules in docs/ARCHITECTURE.md.
+- **Board styled after the landing hero (user liked the hero's graph/arrow and
+  asked the board to match)** — the SVG edges were already the hero's exact
+  geometry (origin dot, bezier, 1.75 stroke, amber dashed branch, triangular
+  markers); what was missing: cards now `self-start` so they hug their content
+  (which also gives the edges a real curve instead of a flat arrow), a hairline
+  + "vs" between the two sides, the alternate label in amber caps with wide
+  tracking ("⑂ ALTERNATE TURN 1 · AFTER TURN 0"), and move chips as `rounded-md`
+  10px pills. Fixed chip-row height went 19px → 22px (still fixed — the edge
+  measurement depends on deterministic heights).
+- **Board rules: switch-in, carry-forward, Mega (user feedback: "when tyranitar
+  switch in, it should not make a move… the next turn should have the previous
+  turn front and back as default… for any mon that have a mega stone, it should
+  have a mega as an option (and move as well)")** — new pure module
+  `app/demo/board.ts` + 12 unit tests: `switchedInSpecies` (derived from the
+  parent card, so no new stored state) and `cascadePositions` (propagates a
+  positional edit down the tree, but only into slots that still hold the old
+  occupant, so downstream edits survive). `SideState.mega` records the Mega
+  Evolved Pokémon — offered only for a holder of its own Mega Stone (dex
+  `megaStone` metadata), coexists with a move (picker stays open), renders as the
+  Mega forme sprite + ⟡, and carries forward. Codec stays v2 with a 5th
+  `mega` group; old payloads still import. Details in docs/ARCHITECTURE.md →
+  "Board rules". Verified in-browser: switch → "switched in" chip and a picker
+  that refuses moves → next turn shows the switched-in Pokémon → Mega + Rock
+  Slide on the same turn → all three persisted correctly on Save.
+- **Board save-status row (user feedback: unsaved boards left "a gap between
+  the top part and downside teams" because the saved-as line is added later)** —
+  the line is now a fixed-height row that always renders: "not saved yet — Save
+  keeps this board" → "saved as … · time · synced to your account" → amber sync
+  failure. Verified the board's TURN 0 label and first card sit at identical
+  y-positions before and after the first save.
+- **No native dialogs; compact top bar (user feedback: "why is this window
+  popping" + "the top bar is crowded as heck")** — `window.confirm` is gone:
+  `InlineConfirm` in `app/ui.tsx` turns the row itself into the question
+  (`/matchups` delete, builder opponent ✕). The bar is now `home · builder ·
+  matchups │ (avatar)` — plain-noun labels, and the account collapsed into an
+  initial-avatar popover holding the email / My matchups / Sign out. Both rules
+  are in docs/ARCHITECTURE.md under the navigation section.
+- **Entry points (user feedback: "where is the button for New Match Up and add
+  more teams for current match up?")** — `/matchups` gained a red **＋ New
+  matchup** button and a per-group **＋ add teams**; the board gained **＋ add
+  opponent**; `/demo` gained **＋ new matchup with a different team**. They all
+  route through `/demo`'s new query-string intents (`?new=1`, `?team=<id>`,
+  `?team=<id>&add=1`) — table in docs/ARCHITECTURE.md. Rule of thumb recorded
+  there: a list view must be able to *start* work, not only display it.
+- **Navigation (user feedback: "no back to home page button, don't let me
+  remind you all these stuff")** — shared chrome now lives in `app/nav.tsx`
+  (`Wordmark`, `HeaderNav`, `NavLink`). Every page shows a visible `⌂ home`
+  plus a hover-underlined wordmark: /demo, /demo/sim, /demo/lookup, /matchups,
+  /login. Nav links are nowrap/shrink-0 so a long title can't wrap them.
+  **The standing rule is written in docs/ARCHITECTURE.md → "Navigation rule —
+  no page is a dead end": use these components in every new page, don't
+  hand-roll a header.** The home icon is a drawn SVG house (`⌂` renders as a
+  lopsided box — don't go back to it), and the board header is now three
+  stacked bands (site nav / title + switcher + board actions / hint) instead of
+  one cramped strip.
+- Verified in a real browser over CDP (Node's built-in WebSocket, no new deps):
+  import team → 3 opponents from one paste → Simulate → switcher → note saved
+  → grouped `/matchups`. 57 vitest tests, tsc, and eslint all green.
 
 ## Production deployment (added late 2026-08-07)
 
@@ -69,12 +180,16 @@
   email/password enabled with default confirmations; localhost:7317 is in
   the redirect allow list. Service-role key: never used anywhere, by rule.
 
-## Next candidates for 2026-08-08 (none committed to)
+## Next candidates (none committed to)
 
 - **Team sync** — mirror saved teams (localStorage `xatu-demo:teams`) to the
-  `teams` table like matchups; "Use existing" list could then show account
-  teams too.
-- Rename saved matchups (names are auto "My Team vs Opp Team").
+  `teams` table like matchups; "Use existing" would then show account teams
+  too. This is the natural follow-on now that opponents are a library: it was
+  explicitly held back from the one-vs-many pass.
+- Rename saved matchups / teams (names are auto "My Team vs Opp Team", and a
+  single import with no name typed still gets the slot label "My Team").
+- Reader view over a whole group — the group is exactly the "vs. archetypes"
+  section of an RMT, so it is the obvious input for the Phase 3 reader.
 - Auto-pull account matchups on sign-in (currently /matchups fetches on
   view; sim resume is local-first).
 - Legality soft-warning per regulation (needs a legal-species list per reg —
@@ -91,7 +206,9 @@
 **Current state:** A working two-page tool, evolved through many rounds of
 user feedback (all in the 2026-08-06 session):
 
-- **`/demo` (Page 1)** — pick My Team + Opposing Team: champscope-style import
+- **`/demo` (Page 1)** — *(single-pair flow, superseded 2026-08-08 by one team
+  vs. many — see the top section; the import/reuse mechanics below still hold)*
+  pick My Team + Opposing Team: champscope-style import
   panel (pokepast.es link via `/api/pokepaste` proxy, Showdown export, or bare
   species list), or reuse saved/preset teams (localStorage). Champscope-style
   collapsible team detail. Red **Simulate** → `/demo/sim`.

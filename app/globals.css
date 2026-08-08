@@ -51,11 +51,85 @@
   stroke-dashoffset: 140;
   animation: land-draw 0.6s ease-out forwards;
 }
+/* App motion vocabulary — deliberately small and fast (≤220ms), so it reads as
+   responsiveness rather than decoration. Everything here is disabled under
+   prefers-reduced-motion.
+
+   .rise-in  content arriving: cards, rows, panels
+   .pop-in   menus and popovers, anchored at their trigger
+   .grow-in  something the user just revealed in place (note editors, boxes)
+   .step-N   stagger delay for a short sequence (turn columns, list rows) */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes grow-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+.rise-in {
+  opacity: 0;
+  animation: rise-in 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+/* Opacity only — for elements whose position is measured (the board's cards
+   feed the SVG edge layout, so they must not move while animating). */
+.fade-in {
+  opacity: 0;
+  animation: land-fade 0.22s ease-out forwards;
+}
+.pop-in {
+  transform-origin: top right;
+  animation: pop-in 0.14s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.grow-in {
+  transform-origin: top;
+  animation: grow-in 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.step-1 {
+  animation-delay: 0.04s;
+}
+.step-2 {
+  animation-delay: 0.08s;
+}
+.step-3 {
+  animation-delay: 0.12s;
+}
+.step-4 {
+  animation-delay: 0.16s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .land-rise,
-  .land-fade {
+  .land-fade,
+  .rise-in,
+  .fade-in,
+  .pop-in,
+  .grow-in {
     animation: none;
     opacity: 1;
+    transform: none;
   }
   .land-draw {
     animation: none;

@@ -2,8 +2,22 @@ import { describe, expect, it } from "vitest";
 import { decodeWorkflow, encodeWorkflow } from "../workflow-io";
 import type { SimSetup, TurnNode } from "../storage";
 
-const MY = ["Tyranitar", "Excadrill", "Milotic", "Gholdengo", "Sinistcha", "Staraptor"];
-const OPP = ["Aerodactyl", "Charizard", "Garchomp", "Sylveon", "Kingambit", "Dragonite"];
+const MY = [
+  "Tyranitar",
+  "Excadrill",
+  "Milotic",
+  "Gholdengo",
+  "Sinistcha",
+  "Staraptor",
+];
+const OPP = [
+  "Aerodactyl",
+  "Charizard",
+  "Garchomp",
+  "Sylveon",
+  "Kingambit",
+  "Dragonite",
+];
 
 const team = (name: string, species: string[]) => ({
   id: name,
@@ -82,6 +96,62 @@ describe("workflow codec", () => {
     expect(encodeWorkflow(setup, nodes).length).toBeLessThan(700);
   });
 
+  it("round-trips a recorded Mega, with or without a move", () => {
+    const withMega: TurnNode[] = [
+      nodes[0],
+      {
+        ...nodes[1],
+        my: {
+          ...side(["Tyranitar", "Excadrill"], ["Milotic", "Gholdengo"]),
+          moves: { Tyranitar: "Rock Slide" },
+          mega: "Tyranitar",
+        },
+      },
+    ];
+    const out = decodeWorkflow(encodeWorkflow(setup, withMega));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.warnings).toEqual([]);
+    expect(out.nodes[1].my.mega).toBe("Tyranitar");
+    expect(out.nodes[1].my.moves).toEqual({ Tyranitar: "Rock Slide" });
+    expect(out.nodes[0].my.mega).toBeUndefined();
+
+    // A Mega with no move declared still survives (empty 4th group).
+    const megaOnly: TurnNode[] = [
+      nodes[0],
+      {
+        ...nodes[1],
+        my: {
+          ...side(["Tyranitar", "Excadrill"], ["Milotic", "Gholdengo"]),
+          mega: "Tyranitar",
+        },
+      },
+    ];
+    const bare = decodeWorkflow(encodeWorkflow(setup, megaOnly));
+    expect(bare.ok).toBe(true);
+    if (!bare.ok) return;
+    expect(bare.nodes[1].my.mega).toBe("Tyranitar");
+    expect(bare.nodes[1].my.moves).toBeUndefined();
+  });
+
+  it("drops a Mega recorded for a Pokémon that isn't in front, with a warning", () => {
+    const bogus = JSON.stringify({
+      v: 2,
+      my: { n: "Sand", f: "", s: MY },
+      op: { n: "Zard", f: "", s: OPP },
+      // front|back|fainted|moves|mega — Tyranitar (0) is on the bench but
+      // flagged as the Mega, so the 5th group must be dropped with a warning.
+      t: [[0, "12|34|||0", "01|23"]],
+    });
+    const out = decodeWorkflow(bogus);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.nodes[0].my.mega).toBeUndefined();
+    expect(out.warnings.join(" ")).toMatch(
+      /Tyranitar Megas but isn't in front/,
+    );
+  });
+
   it("still accepts the legacy verbose form", () => {
     const legacy = JSON.stringify({ version: 1, setup, nodes });
     const result = decodeWorkflow(legacy);
@@ -96,8 +166,12 @@ describe("workflow codec", () => {
 
   it("rejects structurally broken v2 payloads instead of throwing", () => {
     const base = `"my":{"n":"A","f":"","s":["Pikachu"]},"op":{"n":"B","f":"","s":["Eevee"]}`;
-    expect(decodeWorkflow(`{"v":2,${base},"t":["nope"]}`)).toMatchObject({ ok: false });
-    expect(decodeWorkflow(`{"v":2,${base},"t":[[0,1,2]]}`)).toMatchObject({ ok: false });
+    expect(decodeWorkflow(`{"v":2,${base},"t":["nope"]}`)).toMatchObject({
+      ok: false,
+    });
+    expect(decodeWorkflow(`{"v":2,${base},"t":[[0,1,2]]}`)).toMatchObject({
+      ok: false,
+    });
     expect(
       decodeWorkflow(
         `{"v":2,"my":{"n":"A","f":"","s":[]},"op":{"n":"B","f":"","s":["Eevee"]},"t":[[0,"0","0"]]}`,

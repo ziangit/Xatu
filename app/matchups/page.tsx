@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AccountLink } from "../auth/AccountLink";
+import { HeaderNav, NavLink, Wordmark } from "../nav";
+import { InlineConfirm } from "../ui";
 import { MonIcon } from "../demo/components";
 import {
   deleteCloudMatchup,
@@ -17,10 +18,12 @@ import {
   setActiveMatchupId,
   upsertMatchup,
   type SavedMatchup,
+  type StoredTeam,
 } from "../demo/storage";
 
-// My matchups: every saved board in one list — the ones in this browser and
-// the ones synced to the signed-in account — with where each copy lives.
+// My matchups: every saved board — the ones in this browser and the ones
+// synced to the signed-in account — grouped under the team of mine they were
+// built with, because one team is planned against many opponents.
 
 interface Row {
   id: string;
@@ -30,10 +33,40 @@ interface Row {
   inCloud: boolean;
 }
 
-function mergeRows(
-  local: SavedMatchup[],
-  cloud: SavedMatchup[] | null,
-): Row[] {
+interface Group {
+  teamId: string;
+  team: StoredTeam;
+  rows: Row[];
+  savedAt: string;
+}
+
+/** Same grouping rule as the builder, applied to merged browser+account rows. */
+function groupRows(rows: Row[]): Group[] {
+  const groups = new Map<string, Group>();
+  for (const row of rows) {
+    const teamId = row.entry.setup.my.id;
+    const group = groups.get(teamId);
+    if (!group) {
+      groups.set(teamId, {
+        teamId,
+        team: row.entry.setup.my,
+        rows: [row],
+        savedAt: row.entry.savedAt,
+      });
+      continue;
+    }
+    group.rows.push(row);
+    if (row.entry.savedAt > group.savedAt) {
+      group.savedAt = row.entry.savedAt;
+      group.team = row.entry.setup.my;
+    }
+  }
+  return [...groups.values()].sort((a, b) =>
+    b.savedAt.localeCompare(a.savedAt),
+  );
+}
+
+function mergeRows(local: SavedMatchup[], cloud: SavedMatchup[] | null): Row[] {
   const rows = new Map<string, Row>();
   for (const m of local) {
     rows.set(m.id, { id: m.id, entry: m, inBrowser: true, inCloud: false });
@@ -59,6 +92,8 @@ export default function MatchupsPage() {
     "loading" | "off" | "ok" | { error: string }
   >("loading");
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** Row awaiting its in-place delete confirmation (never window.confirm). */
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const refresh = async () => {
     const local = loadMatchups();
@@ -101,14 +136,36 @@ export default function MatchupsPage() {
     else if (result !== "off") setCloud({ error: result });
   };
 
-  const remove = async (row: Row) => {
-    const places = [
-      row.inBrowser && "this browser",
-      row.inCloud && "your account",
-    ]
+  /** Add more opposing teams to a team's group, on the builder. The freshest
+   * board is pulled local first so `/demo?team=` can resolve an account-only
+   * group to a team. */
+  const addTeams = (group: Group) => {
+    upsertMatchup(group.rows[0].entry);
+    router.push(`/demo?team=${encodeURIComponent(group.teamId)}&add=1`);
+  };
+
+  /** Whole group at once — a team's plans are worth syncing together. */
+  const uploadAll = async (pending: Row[]) => {
+    setBusyId(pending[0]?.id ?? null);
+    for (const row of pending) {
+      const result = await upsertCloudMatchup(row.entry);
+      if (result !== "ok" && result !== "off") {
+        setCloud({ error: result });
+        break;
+      }
+    }
+    setBusyId(null);
+    void refresh();
+  };
+
+  /** Where a delete would land — spelled out in the inline confirmation. */
+  const placesOf = (row: Row) =>
+    [row.inBrowser && "this browser", row.inCloud && "your account"]
       .filter(Boolean)
       .join(" and ");
-    if (!window.confirm(`Delete “${row.entry.name}” from ${places}?`)) return;
+
+  const remove = async (row: Row) => {
+    setConfirmId(null);
     setBusyId(row.id);
     if (row.inBrowser) deleteMatchup(row.id);
     if (row.inCloud) {
@@ -124,24 +181,22 @@ export default function MatchupsPage() {
       <main className="mx-auto max-w-3xl px-6 py-12">
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
-            <Link
-              href="/"
-              className="font-display text-lg font-bold tracking-tight"
-            >
-              xatu
-            </Link>
+            <Wordmark />
             <p className="text-xs text-stone-400">my matchups</p>
           </div>
-          <span className="flex items-center gap-4">
-            <AccountLink />
-            <Link
-              href="/demo"
-              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-            >
-              builder →
-            </Link>
-          </span>
+          <HeaderNav>
+            <NavLink href="/demo">builder</NavLink>
+          </HeaderNav>
         </header>
+
+        <div className="mt-4 flex justify-end">
+          <Link
+            href="/demo?new=1"
+            className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
+          >
+            ＋ New matchup
+          </Link>
+        </div>
 
         {cloud === "off" && (
           <p className="mt-4 text-xs leading-relaxed text-stone-400">
@@ -173,66 +228,129 @@ export default function MatchupsPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-6 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
-            {rows.map((row) => (
-              <div key={row.id} className="flex items-center gap-3 px-4 py-3">
-                <button
-                  onClick={() => open(row)}
-                  title={`open ${row.entry.name}`}
-                  className="flex min-w-0 flex-1 flex-col gap-1 text-left hover:opacity-75"
+          <div className="mt-6 space-y-6">
+            {groupRows(rows).map((group, gi) => {
+              const pending = group.rows.filter(
+                (r) => r.inBrowser && !r.inCloud,
+              );
+              return (
+                <section
+                  key={group.teamId}
+                  className={`rise-in step-${Math.min(gi + 1, 4)} rounded-lg border border-stone-200 bg-white`}
                 >
-                  <span className="flex items-baseline gap-2">
-                    <span className="min-w-0 truncate text-sm font-medium text-stone-800">
-                      {row.entry.name}
-                    </span>
-                    <span className="shrink-0 text-[10px] text-stone-400">
-                      {new Date(row.entry.savedAt).toLocaleDateString()}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="flex">
-                      {row.entry.setup.my.parsed.slice(0, 6).map((p, i) => (
-                        <MonIcon key={i} species={p.species} scale={0.5} />
+                  <header className="flex items-center gap-3 border-b border-stone-100 bg-[#fcfcfa] px-4 py-2.5">
+                    <span className="flex shrink-0">
+                      {group.team.parsed.slice(0, 6).map((p, i) => (
+                        <MonIcon key={i} species={p.species} scale={0.55} />
                       ))}
                     </span>
-                    <span className="text-[10px] text-stone-300">vs</span>
-                    <span className="flex">
-                      {row.entry.setup.opp.parsed.slice(0, 6).map((p, i) => (
-                        <MonIcon key={i} species={p.species} scale={0.5} />
-                      ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-stone-800">
+                        {group.team.name}
+                      </span>
+                      <span className="text-[10px] text-stone-400">
+                        {group.rows.length} matchup
+                        {group.rows.length === 1 ? "" : "s"}
+                      </span>
                     </span>
-                  </span>
-                </button>
-                <span className="flex shrink-0 gap-1">
-                  {row.inBrowser && (
-                    <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500">
-                      browser
-                    </span>
-                  )}
-                  {row.inCloud && (
-                    <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-700">
-                      account
-                    </span>
-                  )}
-                </span>
-                {cloud === "ok" && row.inBrowser && !row.inCloud && (
-                  <button
-                    onClick={() => upload(row)}
-                    disabled={busyId === row.id}
-                    className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
-                  >
-                    upload
-                  </button>
-                )}
-                <button
-                  onClick={() => remove(row)}
-                  disabled={busyId === row.id}
-                  className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-stone-300 hover:text-red-600 disabled:opacity-40"
-                >
-                  delete
-                </button>
-              </div>
-            ))}
+                    {cloud === "ok" && pending.length > 0 && (
+                      <button
+                        onClick={() => uploadAll(pending)}
+                        disabled={busyId !== null}
+                        className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
+                      >
+                        upload all ({pending.length})
+                      </button>
+                    )}
+                    <button
+                      onClick={() => addTeams(group)}
+                      title={`add opposing teams to plan against ${group.team.name}`}
+                      className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                    >
+                      ＋ add teams
+                    </button>
+                  </header>
+                  <div className="divide-y divide-stone-100">
+                    {group.rows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-stone-50/60"
+                      >
+                        <button
+                          onClick={() => open(row)}
+                          title={`open ${row.entry.name}`}
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left transition-opacity hover:opacity-70"
+                        >
+                          <span className="shrink-0 text-[10px] text-stone-300">
+                            vs
+                          </span>
+                          <span className="flex shrink-0">
+                            {row.entry.setup.opp.parsed
+                              .slice(0, 6)
+                              .map((p, i) => (
+                                <MonIcon
+                                  key={i}
+                                  species={p.species}
+                                  scale={0.5}
+                                />
+                              ))}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
+                            {row.entry.setup.opp.name}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-stone-400">
+                            {row.entry.nodes.length > 0
+                              ? new Date(row.entry.savedAt).toLocaleDateString()
+                              : "no plan yet"}
+                          </span>
+                        </button>
+                        {confirmId === row.id ? (
+                          <InlineConfirm
+                            question={`Delete from ${placesOf(row)}?`}
+                            busy={busyId === row.id}
+                            onConfirm={() => void remove(row)}
+                            onCancel={() => setConfirmId(null)}
+                          />
+                        ) : (
+                          <>
+                            <span className="flex shrink-0 gap-1">
+                              {row.inBrowser && (
+                                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500">
+                                  browser
+                                </span>
+                              )}
+                              {row.inCloud && (
+                                <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-700">
+                                  account
+                                </span>
+                              )}
+                            </span>
+                            {cloud === "ok" &&
+                              row.inBrowser &&
+                              !row.inCloud && (
+                                <button
+                                  onClick={() => upload(row)}
+                                  disabled={busyId === row.id}
+                                  className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
+                                >
+                                  upload
+                                </button>
+                              )}
+                            <button
+                              onClick={() => setConfirmId(row.id)}
+                              disabled={busyId === row.id}
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-stone-300 transition-colors hover:text-red-600 disabled:opacity-40"
+                            >
+                              delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
 

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import Link from "next/link";
 import { Icons } from "@pkmn/img";
 import { selectPlan } from "@/lib/schema";
 import type { ParsedMon, Plan, Rule, TurnCondition } from "@/lib/schema";
 import { formeCandidates, matchOpponent } from "@/lib/match";
 import { importTeamText } from "@/lib/team";
+import { HeaderNav, NavLink, Wordmark } from "../../nav";
 import { demoGuide, SAMPLE_TEAMS } from "../demo-data";
 
 // Demo of the lookup flow: paste the opposing team (Showdown export or
@@ -137,7 +137,9 @@ export default function DemoPage() {
       setFetching(true);
       setPasteError(null);
       try {
-        const res = await fetch(`/api/pokepaste?url=${encodeURIComponent(input)}`);
+        const res = await fetch(
+          `/api/pokepaste?url=${encodeURIComponent(input)}`,
+        );
         if (!res.ok) throw new Error(await res.text());
         loadTeam(await res.text());
       } catch {
@@ -164,7 +166,9 @@ export default function DemoPage() {
   const observedExpanded = observedSpecies.flatMap(formeCandidates);
   const observedSet = new Set(observedExpanded);
 
-  const matches = opponent ? matchOpponent(observedSpecies, demoGuide.matchups) : [];
+  const matches = opponent
+    ? matchOpponent(observedSpecies, demoGuide.matchups)
+    : [];
   const matched = matches[0];
   const plan: Plan | undefined = matched
     ? selectPlan(observedExpanded, matched.matchup.plans)
@@ -172,7 +176,9 @@ export default function DemoPage() {
 
   const conditionAvailable = (c: TurnCondition): boolean => {
     const sp = opponentSpeciesOf(c);
-    return sp === undefined || formeCandidates(sp).some((k) => observedSet.has(k));
+    return (
+      sp === undefined || formeCandidates(sp).some((k) => observedSet.has(k))
+    );
   };
 
   const ruleFires = (planId: string, rule: Rule): boolean =>
@@ -196,27 +202,25 @@ export default function DemoPage() {
         {/* Header */}
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">
+            <Wordmark heading={false} />
+            <h1 className="mt-1 text-lg font-semibold tracking-tight">
               {demoGuide.title}
             </h1>
             <p className="text-xs text-stone-400">
               by {demoGuide.authorName} · {demoGuide.regulation}
             </p>
           </div>
-          <Link
-            href="/demo"
-            className="ml-auto mr-4 text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-          >
-            ← builder
-          </Link>
-          {opponent && (
-            <button
-              onClick={reset}
-              className="text-xs font-medium text-stone-500 underline-offset-2 hover:text-stone-900 hover:underline"
-            >
-              change team
-            </button>
-          )}
+          <HeaderNav>
+            <NavLink href="/demo">builder</NavLink>
+            {opponent && (
+              <button
+                onClick={reset}
+                className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+              >
+                change team
+              </button>
+            )}
+          </HeaderNav>
         </header>
 
         {/* ── Paste in the opposing team ── */}
@@ -228,7 +232,9 @@ export default function DemoPage() {
             <textarea
               value={pasteInput}
               onChange={(e) => setPasteInput(e.target.value)}
-              placeholder={"Paste a Showdown team export or a pokepast.es link…"}
+              placeholder={
+                "Paste a Showdown team export or a pokepast.es link…"
+              }
               rows={8}
               spellCheck={false}
               className="mt-2 w-full resize-y rounded-md border border-stone-200 bg-white p-3 font-mono text-xs text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
@@ -282,7 +288,10 @@ export default function DemoPage() {
               </div>
               <div className="mt-2 flex flex-wrap gap-x-1 gap-y-2">
                 {opponent.map((m, i) => (
-                  <div key={`${m.species}-${i}`} className="w-[84px] text-center">
+                  <div
+                    key={`${m.species}-${i}`}
+                    className="w-[84px] text-center"
+                  >
                     <MonIcon species={m.species} scale={2} />
                     <p className="-mt-1 truncate text-[11px] text-stone-500">
                       {m.species}

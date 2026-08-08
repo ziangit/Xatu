@@ -3,8 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { Icons } from "@pkmn/img";
 import { Team } from "@pkmn/sets";
-import type { ParsedMon } from "@/lib/schema";
-import { importTeamText } from "@/lib/team";
+import { importTeams, teamLabel } from "@/lib/team";
 import type { StoredTeam } from "./storage";
 
 /** Showdown team-preview pixel icon, from the hotlinked icon sheet. */
@@ -65,44 +64,22 @@ export const FORMATS = [
 const POKEPASTE_RE = /^https?:\/\/pokepast\.es\/\w+\/?$/;
 
 /**
- * Flexible team input: Showdown/teambuilder export, or a bare species list
- * ("Charizard, Kingambit, Sylveon, ..."). Pokepaste links are resolved by the
- * caller before reaching here.
- */
-function parseFlexible(
-  text: string,
-): { exportText: string; parsed: ParsedMon[] } | null {
-  const input = text.trim();
-  if (!input) return null;
-  if (!input.includes("\n") && input.includes(",")) {
-    const names = input
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 6);
-    if (names.length > 0 && names.every((n) => /^[^@,]{1,30}$/.test(n))) {
-      return {
-        exportText: names.join("\n\n"),
-        parsed: names.map((species) => ({ species, moves: [] })),
-      };
-    }
-  }
-  return importTeamText(input);
-}
-
-/**
  * Champscope-style import panel: cream card, small-caps labels, format
- * dropdown, one big textarea, red action button.
+ * dropdown, one big textarea, red action button. Always hands back an array —
+ * `multi` only changes the copy and lets several teams through at once.
  */
 export function ImportPanel({
   label,
   onImport,
   onCancel,
+  multi = false,
 }: {
   label: string;
-  onImport: (team: Omit<StoredTeam, "id">) => void;
+  onImport: (teams: Omit<StoredTeam, "id">[]) => void;
   /** Renders a cancel button that backs out of the panel. */
   onCancel?: () => void;
+  /** Accept several teams from one paste (opposing-team lists). */
+  multi?: boolean;
 }) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState(FORMATS[0]);
@@ -111,45 +88,85 @@ export function ImportPanel({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    let input = text.trim();
+    const input = text.trim();
     if (!input) return;
     setError(null);
-    if (POKEPASTE_RE.test(input)) {
+
+    // Pokepaste links (one per line in multi mode) are fetched server-side;
+    // each paste can itself hold several teams.
+    const lines = input
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    let sources = [input];
+    if (lines.length > 0 && lines.every((l) => POKEPASTE_RE.test(l))) {
+      const links = multi ? lines : lines.slice(0, 1);
       setBusy(true);
       try {
-        const res = await fetch(`/api/pokepaste?url=${encodeURIComponent(input)}`);
-        if (!res.ok) throw new Error();
-        input = await res.text();
+        sources = await Promise.all(
+          links.map(async (link) => {
+            const res = await fetch(
+              `/api/pokepaste?url=${encodeURIComponent(link)}`,
+            );
+            if (!res.ok) throw new Error(link);
+            return res.text();
+          }),
+        );
       } catch {
-        setError("Couldn't fetch that paste — check the link.");
+        setError(
+          multi && links.length > 1
+            ? "Couldn't fetch one of those pastes — check the links."
+            : "Couldn't fetch that paste — check the link.",
+        );
         setBusy(false);
         return;
       }
       setBusy(false);
     }
-    const team = parseFlexible(input);
-    if (!team) {
+
+    const teams = sources.flatMap(importTeams);
+    if (teams.length === 0) {
       setError("That doesn't parse as a team export or a species list.");
       return;
     }
-    onImport({
-      name: name.trim() || label,
-      format,
-      exportText: team.exportText,
-      parsed: team.parsed,
-    });
+    const kept = multi ? teams : teams.slice(0, 1);
+    onImport(
+      kept.map((team, i) => ({
+        // In multi mode every team needs its own name, so the header name or
+        // the species fallback wins; the name field is only a single-team nicety.
+        name:
+          (multi ? team.name : name.trim() || team.name) ||
+          (multi || kept.length > 1 ? teamLabel(team.parsed) : label) ||
+          `${label} ${i + 1}`,
+        format,
+        exportText: team.exportText,
+        parsed: team.parsed,
+      })),
+    );
   };
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
+    <div className="grow-in rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
       <h3 className="text-sm font-bold uppercase tracking-wide text-stone-800">
         Import — {label}
       </h3>
       <p className="mt-1 text-xs leading-relaxed text-stone-500">
-        Paste a team — a pokepast.es link, a Showdown/teambuilder export, or
-        just species names separated by commas.
+        {multi ? (
+          <>
+            Paste one team or many — several pokepast.es links (one per line), a
+            multi-team export split by <code>=== name ===</code> lines, or one
+            comma-separated species list per line.
+          </>
+        ) : (
+          <>
+            Paste a team — a pokepast.es link, a Showdown/teambuilder export, or
+            just species names separated by commas.
+          </>
+        )}
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div
+        className={`mt-3 grid gap-3 ${multi ? "grid-cols-1" : "grid-cols-2"}`}
+      >
         <label className="block">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
             Format
@@ -164,7 +181,7 @@ export function ImportPanel({
             ))}
           </select>
         </label>
-        <label className="block">
+        <label className={multi ? "hidden" : "block"}>
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
             Team name (optional)
           </span>
@@ -178,7 +195,9 @@ export function ImportPanel({
       </div>
       <label className="mt-3 block">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-          Team — pokepaste, export, or species names
+          {multi
+            ? "Teams — pokepaste links, exports, or species names"
+            : "Team — pokepaste, export, or species names"}
         </span>
         <textarea
           value={text}
@@ -186,7 +205,9 @@ export function ImportPanel({
           rows={7}
           spellCheck={false}
           placeholder={
-            "Charizard @ Charizardite Y\nAbility: Blaze\n- Heat Wave\n...\n\n— or —  Charizard, Basculegion, Kingambit, Sylveon, Rillaboom, Farigiraf"
+            multi
+              ? "https://pokepast.es/aaaaaaaaaaaaaaaa\nhttps://pokepast.es/bbbbbbbbbbbbbbbb\n\n— or —  one archetype per line:\nAerodactyl, Charizard, Kingambit, Sylveon, Rillaboom, Farigiraf\nMiraidon, Iron Hands, Farigiraf, Incineroar, Flutter Mane, Landorus"
+              : "Charizard @ Charizardite Y\nAbility: Blaze\n- Heat Wave\n...\n\n— or —  Charizard, Basculegion, Kingambit, Sylveon, Rillaboom, Farigiraf"
           }
           className="mt-1 w-full resize-y rounded border border-stone-300 bg-white p-2.5 font-mono text-[11px] leading-relaxed text-stone-700 placeholder:text-stone-300 focus:border-stone-500 focus:outline-none"
         />
@@ -195,9 +216,9 @@ export function ImportPanel({
         <button
           onClick={submit}
           disabled={busy || !text.trim()}
-          className="rounded bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-85 disabled:opacity-30"
+          className="rounded bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98] disabled:opacity-30"
         >
-          {busy ? "Fetching…" : "Import"}
+          {busy ? "Fetching…" : multi ? "Add teams" : "Import"}
         </button>
         {onCancel && (
           <button
@@ -222,7 +243,9 @@ const STAT_LABEL: [key: string, label: string][] = [
   ["spe", "Spe"],
 ];
 
-function evLine(evs: Partial<Record<string, number>> | undefined): string | null {
+function evLine(
+  evs: Partial<Record<string, number>> | undefined,
+): string | null {
   if (!evs) return null;
   const parts = STAT_LABEL.filter(([k]) => (evs[k] ?? 0) > 0).map(
     ([k, label]) => `${evs[k]} ${label}`,
@@ -268,9 +291,15 @@ export function TeamPanel({
         <span className="text-[10px] text-stone-400">
           {collapsed ? "" : isOpen ? "▾" : "▸"}
         </span>
+        {/* 0.7 scale: at full size the six icons plus the format badge left the
+            team's own name no room to render in a half-width column. */}
         <span className="flex shrink-0">
           {team.parsed.map((m, i) => (
-            <MonIcon key={`${m.species}-${i}`} species={m.species} scale={1} />
+            <MonIcon
+              key={`${m.species}-${i}`}
+              species={m.species}
+              scale={0.7}
+            />
           ))}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-stone-800">

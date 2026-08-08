@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AccountLink } from "../../auth/AccountLink";
+import { HeaderNav, NavLink, Wordmark } from "../../nav";
+import { cascadePositions, stripMove, switchedInSpecies } from "../board";
 import { MonIcon, TYPE_COLORS } from "../components";
 import { upsertCloudMatchup } from "../cloud";
 import { decodeWorkflow, encodeWorkflow, parseTargetRef } from "../workflow-io";
 import {
+  findPairMatchup,
   loadActiveMatchupId,
   loadMatchups,
   loadSetup,
@@ -44,20 +46,7 @@ function freshNodes(setup: SimSetup): TurnNode[] {
   return [t1, t2, t3];
 }
 
-/** A declared move belongs to a front Pokémon — leaving the front clears it
- * (and its target). */
-function stripMove(side: SideState, species: string): SideState {
-  if (!side.moves?.[species] && !side.targets?.[species]) return side;
-  const moves = { ...side.moves };
-  delete moves[species];
-  const targets = { ...side.targets };
-  delete targets[species];
-  return {
-    ...side,
-    moves: Object.keys(moves).length > 0 ? moves : undefined,
-    targets: Object.keys(targets).length > 0 ? targets : undefined,
-  };
-}
+/** Board rules live in ./board — pure and unit-tested. */
 
 /**
  * Click a roster Pokémon to place or unplace it: unplaced → Front (if free)
@@ -75,7 +64,8 @@ function togglePlace(side: SideState, species: string): SideState {
   if (side.back.includes(species)) {
     return { ...side, back: side.back.filter((s) => s !== species) };
   }
-  if (side.front.length < 2) return { ...side, front: [...side.front, species] };
+  if (side.front.length < 2)
+    return { ...side, front: [...side.front, species] };
   if (side.back.length < 2) return { ...side, back: [...side.back, species] };
   return side; // both groups full
 }
@@ -131,10 +121,14 @@ function MovePicker({
   allyFront,
   foeFront,
   backChoices,
+  switchedIn,
+  megaForme,
+  megaActive,
   anchor,
   onMove,
   onTarget,
   onSwitchIn,
+  onMega,
   onBench,
   onClose,
 }: {
@@ -146,11 +140,18 @@ function MovePicker({
   foeFront: string[];
   /** Back-row Pokémon that can switch in for this one. */
   backChoices: string[];
+  /** This Pokémon came in on this turn — switching in IS its action, so it
+   * can't also move or Mega Evolve. */
+  switchedIn: boolean;
+  /** Its Mega forme, when it holds the matching stone (null otherwise). */
+  megaForme: string | null;
+  megaActive: boolean;
   /** Viewport coordinates to pin the panel at (from the clicked anchor). */
   anchor: { left: number; top: number };
   onMove: (move: string | null) => void;
   onTarget: (ref: string | null) => void;
   onSwitchIn: (incoming: string) => void;
+  onMega: (on: boolean) => void;
   onBench: () => void;
   onClose: () => void;
 }) {
@@ -194,7 +195,7 @@ function MovePicker({
       />
       {/* Fixed positioning escapes the board's scroll-clipping entirely. */}
       <div
-        className="fixed z-50 max-h-[60vh] w-44 overflow-y-auto rounded-md border border-stone-200 bg-white p-1 shadow-lg"
+        className="pop-in fixed z-50 max-h-[60vh] w-44 overflow-y-auto rounded-md border border-stone-200 bg-white p-1 shadow-lg"
         style={{
           left: Math.min(anchor.left, window.innerWidth - 192),
           top: anchor.top,
@@ -202,20 +203,44 @@ function MovePicker({
       >
         {stage === "move" ? (
           <>
-            {moves.map((m) => (
-              <button
-                key={m}
-                onClick={() => pickMove(m)}
-                className="mb-0.5 block w-full rounded px-2 py-1 text-left text-[11px] font-semibold text-white hover:opacity-85"
-                style={{ backgroundColor: moveColor(m) }}
-              >
-                {m}
-              </button>
-            ))}
-            {moves.length === 0 && (
-              <p className="px-2 py-1 text-[10px] text-stone-400">
-                no moves in this import
+            {switchedIn ? (
+              <p className="px-2 py-1 text-[10px] leading-relaxed text-stone-500">
+                {species} switched in this turn — switching is its action, so it
+                can&rsquo;t also move.
               </p>
+            ) : (
+              <>
+                {/* Mega first: it happens alongside the turn's move, so the
+                    panel stays open after toggling it. */}
+                {megaForme && (
+                  <button
+                    onClick={() => onMega(!megaActive)}
+                    className={`mb-1 flex w-full items-center gap-1 rounded px-2 py-1 text-left text-[11px] font-semibold ${
+                      megaActive
+                        ? "bg-violet-600 text-white hover:opacity-85"
+                        : "border border-violet-300 text-violet-700 hover:bg-violet-50"
+                    }`}
+                  >
+                    <MonIcon species={megaForme} scale={0.6} />
+                    {megaActive ? "⟡ Mega — recorded" : "⟡ Mega Evolve"}
+                  </button>
+                )}
+                {moves.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => pickMove(m)}
+                    className="mb-0.5 block w-full rounded px-2 py-1 text-left text-[11px] font-semibold text-white hover:opacity-85"
+                    style={{ backgroundColor: moveColor(m) }}
+                  >
+                    {m}
+                  </button>
+                ))}
+                {moves.length === 0 && (
+                  <p className="px-2 py-1 text-[10px] text-stone-400">
+                    no moves in this import
+                  </p>
+                )}
+              </>
             )}
             {backChoices.length > 0 && (
               <p className="mt-1 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-stone-400">
@@ -235,15 +260,17 @@ function MovePicker({
                 <span className="truncate">switch to {b}</span>
               </button>
             ))}
-            <button
-              onClick={() => {
-                onMove(null);
-                onClose();
-              }}
-              className="mt-1 block w-full rounded px-2 py-1 text-left text-[11px] text-stone-500 hover:bg-stone-100"
-            >
-              no move — just position
-            </button>
+            {!switchedIn && (
+              <button
+                onClick={() => {
+                  onMove(null);
+                  onClose();
+                }}
+                className="mt-1 block w-full rounded px-2 py-1 text-left text-[11px] text-stone-500 hover:bg-stone-100"
+              >
+                no move — just position
+              </button>
+            )}
             <button
               onClick={() => {
                 onBench();
@@ -322,7 +349,9 @@ function SideBoard({
   title,
   roster,
   movesFor,
+  megaFormeFor,
   state,
+  parentState,
   foeFront,
   brought,
   allowMoves,
@@ -333,6 +362,7 @@ function SideBoard({
   onPickMove,
   onPickTarget,
   onSwitchIn,
+  onMega,
   onToggle,
   onFaint,
   onRemove,
@@ -341,7 +371,11 @@ function SideBoard({
   roster: string[];
   /** The Pokémon's possible moves, from the imported set (may be empty). */
   movesFor: (species: string) => string[];
+  /** Its Mega forme when it holds the stone, else null (dex metadata only). */
+  megaFormeFor: (species: string) => string | null;
   state: SideState;
+  /** The same side one turn earlier — anything newly in front switched in. */
+  parentState: SideState | null;
   /** The other side's front pair — move targets come from the on-field four. */
   foeFront: string[];
   /** After turn 0, only the four brought Pokémon are selectable (null = no restriction). */
@@ -361,6 +395,7 @@ function SideBoard({
   onPickMove: (species: string, move: string | null) => void;
   onPickTarget: (species: string, ref: string | null) => void;
   onSwitchIn: (outgoing: string, incoming: string) => void;
+  onMega: (species: string | null) => void;
   onToggle: (species: string) => void;
   onFaint: (species: string) => void;
   onRemove: (species: string) => void;
@@ -369,8 +404,14 @@ function SideBoard({
     const type = moveMetaOf?.(move)?.type ?? null;
     return (type && TYPE_COLORS[type]) || "#a8a29e";
   };
+  const switchedIn = new Set(switchedInSpecies(state, parentState));
+  /** On the field, a Mega-Evolved Pokémon is shown as its Mega forme. */
+  const shownAs = (s: string) =>
+    (state.mega === s ? megaFormeFor(s) : null) ?? s;
   const inState = (s: string) =>
-    state.front.includes(s) || state.back.includes(s) || state.fainted.includes(s);
+    state.front.includes(s) ||
+    state.back.includes(s) ||
+    state.fainted.includes(s);
 
   return (
     <div>
@@ -437,10 +478,20 @@ function SideBoard({
                       top: r.bottom + 4,
                     });
                   }}
-                  title={`${s} — declare a move or send back`}
-                  className="h-[34px] w-[46px] rounded border border-stone-300 bg-white pl-0.5 hover:border-stone-500"
+                  title={
+                    switchedIn.has(s)
+                      ? `${s} — switched in this turn`
+                      : `${s} — declare a move, Mega, or send back`
+                  }
+                  className={`h-[34px] w-[46px] rounded border bg-white pl-0.5 hover:border-stone-500 ${
+                    state.mega === s
+                      ? "border-violet-400"
+                      : switchedIn.has(s)
+                        ? "border-dashed border-sky-300"
+                        : "border-stone-300"
+                  }`}
                 >
-                  <MonIcon species={s} scale={1} />
+                  <MonIcon species={shownAs(s)} scale={1} />
                 </button>
               ) : (
                 // Team preview: the slot is just a position — click sends back.
@@ -457,7 +508,7 @@ function SideBoard({
         <div className="ml-[42px] mt-1 space-y-1">
           {[0, 1].map((slotIndex) => {
             const s = state.front[slotIndex];
-            if (!s) return <div key={slotIndex} className="h-[19px]" />;
+            if (!s) return <div key={slotIndex} className="h-[22px]" />;
             const move = state.moves?.[s];
             // A target renders only while it's still one of the on-field four.
             const targetRef = state.targets?.[s]
@@ -471,7 +522,7 @@ function SideBoard({
                 ? targetRef.species
                 : null;
             return (
-              <div key={s} className="flex h-[19px] items-center">
+              <div key={s} className="flex h-[22px] items-center">
                 <button
                   onClick={(e) => {
                     const r = e.currentTarget.getBoundingClientRect();
@@ -481,19 +532,28 @@ function SideBoard({
                     });
                   }}
                   title={
-                    move
-                      ? `${s}: ${move}${targetSpecies ? ` → ${targetSpecies}` : ""}`
-                      : `${s} — declare a move`
+                    switchedIn.has(s)
+                      ? `${s} switched in this turn — no move`
+                      : move
+                        ? `${s}: ${state.mega === s ? "Mega, " : ""}${move}${targetSpecies ? ` → ${targetSpecies}` : ""}`
+                        : `${s} — declare a move or Mega`
                   }
-                  className={`flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                  className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none transition-opacity ${
                     move
                       ? "text-white"
-                      : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                      : switchedIn.has(s)
+                        ? "bg-sky-50 text-sky-700 hover:bg-sky-100"
+                        : state.mega === s
+                          ? "bg-violet-600 text-white hover:opacity-85"
+                          : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                   }`}
-                  style={move ? { backgroundColor: moveColor(move) } : undefined}
+                  style={
+                    move ? { backgroundColor: moveColor(move) } : undefined
+                  }
                 >
-                  <MonIcon species={s} scale={0.5} />
-                  {move ?? "+ move"}
+                  <MonIcon species={shownAs(s)} scale={0.5} />
+                  {state.mega === s && <span title="Mega Evolves">⟡</span>}
+                  {switchedIn.has(s) ? "switched in" : (move ?? "+ move")}
                   {move && targetSpecies && (
                     <>
                       <span className="opacity-80">→</span>
@@ -511,10 +571,14 @@ function SideBoard({
                     allyFront={state.front}
                     foeFront={foeFront}
                     backChoices={state.back}
+                    switchedIn={switchedIn.has(s)}
+                    megaForme={megaFormeFor(s)}
+                    megaActive={state.mega === s}
                     anchor={pickerAnchor}
                     onMove={(m) => onPickMove(s, m)}
                     onTarget={(ref) => onPickTarget(s, ref)}
                     onSwitchIn={(incoming) => onSwitchIn(s, incoming)}
+                    onMega={(on) => onMega(on ? s : null)}
                     onBench={() => onRemove(s)}
                     onClose={() => onOpenPicker(null)}
                   />
@@ -574,6 +638,9 @@ export default function SimPage() {
   );
   /** Cloud copy of the last save: off (signed out), ok, or an error message. */
   const [cloudState, setCloudState] = useState<"off" | "ok" | string>("off");
+  /** Every board built with the same team of mine — the opponent switcher. */
+  const [group, setGroup] = useState<SavedMatchup[]>([]);
+  const [showHelp, setShowHelp] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -591,12 +658,18 @@ export default function SimPage() {
   const [moveMetaOf, setMoveMetaOf] = useState<
     ((move: string) => MoveMeta | null) | null
   >(null);
+  /** species+item → its Mega forme name, once the dex is loaded. */
+  const [megaFormeOf, setMegaFormeOf] = useState<
+    ((species: string, item?: string) => string | null) | null
+  >(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef(new Map<string, HTMLDivElement>());
 
-  // The dex supplies move metadata only — type (for Showdown colors) and
-  // targeting shape (so spread/self moves skip the target prompt). Loaded
-  // lazily so the board renders immediately; nothing is computed with it.
+  // The dex supplies metadata only — a move's type (for Showdown colors) and
+  // targeting shape (so spread/self moves skip the target prompt), and whether
+  // an item is the Mega Stone for the Pokémon holding it (so the option can be
+  // offered at all). Loaded lazily so the board renders immediately; nothing is
+  // computed with it and no forme's stats are ever consulted.
   useEffect(() => {
     let alive = true;
     import("@pkmn/dex").then(({ Dex }) => {
@@ -604,6 +677,16 @@ export default function SimPage() {
       setMoveMetaOf(() => (name: string) => {
         const move = Dex.moves.get(name);
         return move.exists ? { type: move.type, target: move.target } : null;
+      });
+      setMegaFormeOf(() => (species: string, item?: string) => {
+        if (!item) return null;
+        const stone = Dex.items.get(item).megaStone as
+          Record<string, string> | string | undefined;
+        if (!stone) return null;
+        // The field is a { baseSpecies: megaForme } map in this dex version.
+        if (typeof stone === "string") return stone;
+        const base = Dex.species.get(species).baseSpecies || species;
+        return stone[species] ?? stone[base] ?? null;
       });
     });
     return () => {
@@ -629,22 +712,26 @@ export default function SimPage() {
         setReady(true);
         return;
       }
-      // Resume the library entry that was opened (or, failing that, the most
-      // recent save of this exact team pair); otherwise start fresh.
-      const matches = (m: SavedMatchup) =>
-        m.setup.my.id === s.my.id &&
-        m.setup.opp.id === s.opp.id &&
-        m.nodes.length > 0;
+      // Resume the library entry that was opened (or, failing that, this exact
+      // team pair); otherwise start fresh. An entry with no nodes is a pairing
+      // lined up on the setup page but never planned — seed a fresh board.
       const library = loadMatchups();
       const activeId = loadActiveMatchupId();
       const entry =
         (activeId
-          ? library.find((m) => m.id === activeId && matches(m))
-          : undefined) ?? library.find(matches);
+          ? library.find(
+              (m) =>
+                m.id === activeId &&
+                m.setup.my.id === s.my.id &&
+                m.setup.opp.id === s.opp.id,
+            )
+          : undefined) ?? findPairMatchup(library, s.my.id, s.opp.id);
       setSetup(s);
+      setGroup(library.filter((m) => m.setup.my.id === s.my.id));
       if (entry) {
-        setNodes(entry.nodes);
-        setSavedAt(entry.savedAt);
+        const planned = entry.nodes.length > 0;
+        setNodes(planned ? entry.nodes : freshNodes(s));
+        setSavedAt(planned ? entry.savedAt : null);
         setMatchup({ id: entry.id, name: entry.name });
         setActiveMatchupId(entry.id);
       } else {
@@ -711,6 +798,12 @@ export default function SimPage() {
     );
   }
 
+  // Where this board sits among the opponents planned with the same team.
+  const groupIdx = group.findIndex((m) =>
+    matchup ? m.id === matchup.id : m.setup.opp.id === setup.opp.id,
+  );
+  const plannedCount = group.filter((m) => m.nodes.length > 0).length;
+
   const rows = layoutRows(nodes);
   const maxTurn = Math.max(...nodes.map((n) => n.turn));
   const maxRow = Math.max(...[...rows.values()], 0);
@@ -736,7 +829,10 @@ export default function SimPage() {
 
   /** Bring 6, pick 4: once turn 0 (team preview) has all four slots filled,
    * later turns of that line may only use those four. */
-  const broughtOf = (node: TurnNode, side: "my" | "opp"): Set<string> | null => {
+  const broughtOf = (
+    node: TurnNode,
+    side: "my" | "opp",
+  ): Set<string> | null => {
     if (node.turn <= 1) return null;
     const rootSide = rootOf(node)[side];
     const four = [...rootSide.front, ...rootSide.back];
@@ -746,6 +842,28 @@ export default function SimPage() {
   // Functional update: move + target changes can land in the same tick.
   const update = (id: string, fn: (n: TurnNode) => TurnNode) =>
     setNodes((prev) => prev.map((n) => (n.id === id ? fn(n) : n)));
+
+  /**
+   * A positional edit (place, faint, switch) also updates the turns after it:
+   * the next turn's default is where this turn ended. Descendants the author
+   * changed themselves keep their own arrangement — see cascadePositions.
+   */
+  const updateSide = (
+    nodeId: string,
+    sideKey: "my" | "opp",
+    fn: (side: SideState) => SideState,
+  ) =>
+    setNodes((prev) => {
+      const node = prev.find((n) => n.id === nodeId);
+      if (!node) return prev;
+      const before = node[sideKey];
+      const after = fn(before);
+      if (after === before) return prev;
+      const next = prev.map((n) =>
+        n.id === nodeId ? { ...n, [sideKey]: after } : n,
+      );
+      return cascadePositions(next, nodeId, sideKey, before, after);
+    });
 
   const setSideMove = (
     nodeId: string,
@@ -761,25 +879,41 @@ export default function SimPage() {
       return { ...n, [sideKey]: next };
     });
 
-  /** Switch: a back Pokémon takes the front slot; the outgoing one goes to
-   * the back (its declared move clears — it's no longer acting). */
+  /**
+   * Switch: a back Pokémon takes the front slot and the outgoing one goes to
+   * the back. Both lose any declared move — the outgoing one isn't acting, and
+   * the incoming one spent its turn switching in (it also can't Mega).
+   */
   const swapFrontBack = (
     nodeId: string,
     sideKey: "my" | "opp",
     outgoing: string,
     incoming: string,
   ) =>
-    update(nodeId, (n) => {
-      const side = n[sideKey];
+    updateSide(nodeId, sideKey, (side) => {
       const fi = side.front.indexOf(outgoing);
       const bi = side.back.indexOf(incoming);
-      if (fi < 0 || bi < 0) return n;
+      if (fi < 0 || bi < 0) return side;
       const front = [...side.front];
       const back = [...side.back];
       front[fi] = incoming;
       back[bi] = outgoing;
-      return { ...n, [sideKey]: stripMove({ ...side, front, back }, outgoing) };
+      // A Mega already recorded on this side stays — a Mega-Evolved Pokémon is
+      // still Mega on the bench. Only the action (a move) clears.
+      return stripMove(stripMove({ ...side, front, back }, outgoing), incoming);
     });
+
+  /** Records that a front Pokémon Mega Evolves this turn (it can still move).
+   * One per side per card; picking another replaces it. */
+  const setSideMega = (
+    nodeId: string,
+    sideKey: "my" | "opp",
+    species: string | null,
+  ) =>
+    update(nodeId, (n) => ({
+      ...n,
+      [sideKey]: { ...n[sideKey], mega: species ?? undefined },
+    }));
 
   const setSideTarget = (
     nodeId: string,
@@ -801,18 +935,29 @@ export default function SimPage() {
       };
     });
 
-  /** Extend the line: a child at turn+1 carrying this turn's state forward. */
-  const addNextTurn = (parent: TurnNode) =>
+  /**
+   * Extend the line: a child at turn+1 starting from where this turn ended —
+   * same positions, faints and Megas, but no moves. A declared move is that
+   * turn's action; the next turn gets its own.
+   */
+  const addNextTurn = (parent: TurnNode) => {
+    const carry = (side: SideState): SideState => ({
+      front: [...side.front],
+      back: [...side.back],
+      fainted: [...side.fainted],
+      ...(side.mega ? { mega: side.mega } : {}),
+    });
     setNodes([
       ...nodes,
       {
         id: crypto.randomUUID(),
         turn: parent.turn + 1,
         parentId: parent.id,
-        my: structuredClone(parent.my),
-        opp: structuredClone(parent.opp),
+        my: carry(parent.my),
+        opp: carry(parent.opp),
       },
     ]);
+  };
 
   /** Branch: an ALTERNATE of this same turn (same parent, same turn). */
   const addAlternate = (node: TurnNode) =>
@@ -856,8 +1001,41 @@ export default function SimPage() {
     setActiveMatchupId(entry.id);
     setMatchup({ id: entry.id, name: entry.name });
     setSavedAt(entry.savedAt);
+    setGroup(loadMatchups().filter((m) => m.setup.my.id === setup.my.id));
     // Signed in → mirror the save to the account; local save already landed.
     void upsertCloudMatchup(entry).then(setCloudState);
+    return entry;
+  };
+
+  /**
+   * Has the author actually written anything that isn't stored yet? The codec
+   * is id-free, so encoding is a stable way to compare boards — and a board
+   * still identical to a fresh one counts as unwritten, so merely visiting an
+   * opponent never turns "no plan yet" into a saved plan.
+   */
+  const hasUnsavedWork = () => {
+    const current = encodeWorkflow(setup, nodes);
+    if (current === encodeWorkflow(setup, freshNodes(setup))) return false;
+    const stored = group.find((m) => m.id === matchup?.id);
+    if (!stored || stored.nodes.length === 0) return true;
+    return current !== encodeWorkflow(stored.setup, stored.nodes);
+  };
+
+  /** Move to another opponent of the same team, saving the current board first
+   * if it holds work. Same route, so the state is swapped in place. */
+  const switchTo = (entry: SavedMatchup) => {
+    if (entry.id === matchup?.id) return;
+    if (hasUnsavedWork()) save();
+    const planned = entry.nodes.length > 0;
+    saveSetup(entry.setup);
+    setActiveMatchupId(entry.id);
+    setSetup(entry.setup);
+    setNodes(planned ? entry.nodes : freshNodes(entry.setup));
+    setSavedAt(planned ? entry.savedAt : null);
+    setMatchup({ id: entry.id, name: entry.name });
+    setCloudState("off");
+    setExpandedNotes(new Set());
+    setMovePicker(null);
   };
 
   /** Save button in the note editor: trim, collapse, persist to the browser. */
@@ -892,6 +1070,9 @@ export default function SimPage() {
     setSetup(result.setup);
     setNodes(result.nodes);
     saveSetup(result.setup);
+    setGroup(
+      loadMatchups().filter((m) => m.setup.my.id === result.setup.my.id),
+    );
     // An imported board is a new, not-yet-saved matchup.
     setActiveMatchupId(null);
     setMatchup(null);
@@ -905,71 +1086,159 @@ export default function SimPage() {
   return (
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
       <main className="mx-auto max-w-7xl px-6 py-10">
-        <header className="flex items-center justify-between border-b border-stone-200 pb-4">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">
-              {setup.my.name}{" "}
-              <span className="font-normal text-stone-400">vs.</span>{" "}
-              {setup.opp.name}
-            </h1>
-            <p className="text-xs text-stone-400">
-              turn 0 picks your four at preview · from turn 1, click a front
-              slot to declare its move (optional; spread moves aim themselves)
-              · right-click to faint · ⑂ records an alternate version of that
-              turn · turn 2 is the last
-            </p>
+        {/* Three bands, so the site nav, the board's own actions, and the
+            matchup switcher never read as one jumbled strip. */}
+        <header className="border-b border-stone-200 pb-4">
+          <div className="flex items-center justify-between gap-4">
+            <Wordmark heading={false} />
+            <HeaderNav>
+              <NavLink href="/demo">builder</NavLink>
+              <NavLink href="/matchups">matchups</NavLink>
+            </HeaderNav>
           </div>
-          <div className="flex items-center gap-2">
-            <AccountLink />
-            <Link
-              href="/demo"
-              className="px-2 text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-            >
-              ← teams
-            </Link>
+
+          <div className="mt-4 flex items-end justify-between gap-6">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-semibold tracking-tight">
+                {setup.my.name}{" "}
+                <span className="font-normal text-stone-400">vs.</span>{" "}
+                {setup.opp.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {group.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => switchTo(group[groupIdx - 1])}
+                      disabled={groupIdx <= 0}
+                      title="previous opponent"
+                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
+                    >
+                      ‹
+                    </button>
+                    <select
+                      value={groupIdx >= 0 ? group[groupIdx].id : ""}
+                      onChange={(e) => {
+                        const next = group.find((m) => m.id === e.target.value);
+                        if (next) switchTo(next);
+                      }}
+                      className="max-w-[22rem] rounded border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 focus:border-stone-500 focus:outline-none"
+                    >
+                      {groupIdx < 0 && (
+                        <option value="">this board (unsaved)</option>
+                      )}
+                      {group.map((m, i) => (
+                        <option key={m.id} value={m.id}>
+                          {i + 1}. vs {m.setup.opp.name}
+                          {m.nodes.length > 0 ? "" : " · no plan yet"}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => switchTo(group[groupIdx + 1])}
+                      disabled={groupIdx < 0 || groupIdx >= group.length - 1}
+                      title="next opponent"
+                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
+                    >
+                      ›
+                    </button>
+                    <span className="text-[10px] text-stone-400">
+                      {groupIdx >= 0
+                        ? `${groupIdx + 1} of ${group.length}`
+                        : ""}
+                      {plannedCount > 0 && ` · ${plannedCount} planned`}
+                    </span>
+                  </>
+                )}
+                <Link
+                  href={`/demo?team=${encodeURIComponent(setup.my.id)}&add=1`}
+                  title={`add another opposing team to plan against ${setup.my.name}`}
+                  className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
+                >
+                  + add opponent
+                </Link>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={resetBoard}
+                className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => {
+                  setShowImport(!showImport);
+                  setImportError(null);
+                }}
+                className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+              >
+                Import
+              </button>
+              <button
+                onClick={copyJson}
+                className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+              >
+                Copy JSON
+              </button>
+              <button
+                onClick={() => save()}
+                className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          {/* The rules of the board are reference material, not a banner —
+              collapsed by default, remembered for the session. */}
+          <div className="mt-3">
             <button
-              onClick={resetBoard}
-              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+              onClick={() => setShowHelp(!showHelp)}
+              className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
             >
-              Reset
+              {showHelp ? "▾" : "▸"} how the board works
             </button>
-            <button
-              onClick={() => {
-                setShowImport(!showImport);
-                setImportError(null);
-              }}
-              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
-            >
-              Import
-            </button>
-            <button
-              onClick={copyJson}
-              className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
-            >
-              Copy JSON
-            </button>
-            <button
-              onClick={() => save()}
-              className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white hover:opacity-85"
-            >
-              Save
-            </button>
+            {showHelp && (
+              <ul className="grow-in mt-2 grid gap-x-8 gap-y-1 text-[11px] leading-relaxed text-stone-500 sm:grid-cols-2">
+                <li>· turn 0 is team preview — pick the four you bring</li>
+                <li>· from turn 1, click a front slot to declare its move</li>
+                <li>· moves are optional; spread moves aim themselves</li>
+                <li>· a Pokémon that switches in can&rsquo;t also move</li>
+                <li>· a Mega Stone holder can Mega and move the same turn</li>
+                <li>· positions carry into the next turn automatically</li>
+                <li>· right-click a Pokémon to faint it</li>
+                <li>· ⑂ records an alternate version of that same turn</li>
+                <li>· turn 2 is the last</li>
+              </ul>
+            )}
           </div>
         </header>
-        {savedAt && matchup && (
-          <p className="mt-1 text-right text-[10px] text-stone-400">
-            saved as “{matchup.name}” · {new Date(savedAt).toLocaleTimeString()}
-            {cloudState === "ok" && " · synced to your account"}
-          </p>
-        )}
-        {cloudState !== "ok" && cloudState !== "off" && (
-          <p className="mt-1 text-right text-[10px] text-amber-700">
-            saved to this browser, but the account sync failed: {cloudState}
-          </p>
-        )}
+        {/* Fixed-height status line: always occupies its row, so the first save
+            doesn't push the board down (and the row isn't a blank gap before
+            one). Never empty — unsaved is itself worth saying. */}
+        <div className="flex h-5 items-center justify-end text-[10px]">
+          {cloudState !== "ok" && cloudState !== "off" ? (
+            <p
+              className="truncate text-amber-700"
+              title={`account sync failed: ${cloudState}`}
+            >
+              saved to this browser, but the account sync failed: {cloudState}
+            </p>
+          ) : savedAt && matchup ? (
+            <p className="truncate text-stone-400">
+              saved as “{matchup.name}” ·{" "}
+              {new Date(savedAt).toLocaleTimeString()}
+              {cloudState === "ok" && " · synced to your account"}
+            </p>
+          ) : (
+            <p className="text-stone-300">
+              not saved yet — Save keeps this board
+            </p>
+          )}
+        </div>
 
         {importWarnings.length > 0 && (
-          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="grow-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-baseline justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-700">
                 Imported with fixes
@@ -990,7 +1259,7 @@ export default function SimPage() {
         )}
 
         {showImport && (
-          <div className="mt-4 rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
+          <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
               Import a matchup workflow
             </p>
@@ -1017,7 +1286,7 @@ export default function SimPage() {
           </div>
         )}
 
-        <div className="mt-6 overflow-x-auto pb-4">
+        <div className="mt-4 overflow-x-auto pb-4">
           <div ref={wrapRef} className="relative w-max">
             <svg className="pointer-events-none absolute inset-0 h-full w-full">
               <defs>
@@ -1068,227 +1337,261 @@ export default function SimPage() {
                 gridTemplateRows: `auto repeat(${maxRow + 1}, auto)`,
               }}
             >
-            {Array.from({ length: maxTurn }, (_, i) => (
-              <p
-                key={i}
-                className="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
-                style={{ gridColumn: i + 1, gridRow: 1 }}
-              >
-                {i === 0 ? "Turn 0 · team preview" : `Turn ${i}`}
-              </p>
-            ))}
-
-            {nodes.map((node) => {
-              const row = (rows.get(node.id) ?? 0) + 2;
-              const parent = node.parentId ? byId.get(node.parentId) : null;
-              const isAlternate = firstSiblingId(node) !== node.id;
-              const removable = node.parentId !== null || rootCount > 1;
-              return (
-                <div
-                  key={node.id}
-                  ref={(el) => {
-                    if (el) cardRefs.current.set(node.id, el);
-                    else cardRefs.current.delete(node.id);
-                  }}
-                  className="relative rounded-lg border border-stone-200 bg-white p-3"
-                  style={{ gridColumn: node.turn, gridRow: row }}
+              {Array.from({ length: maxTurn }, (_, i) => (
+                <p
+                  key={i}
+                  className="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
+                  style={{ gridColumn: i + 1, gridRow: 1 }}
                 >
-                  {isAlternate && (
-                    <p className="mb-1.5 text-[10px] font-medium text-amber-600">
-                      ⑂ alternate turn {node.turn - 1}
-                      {parent ? ` (after turn ${parent.turn - 1})` : ""}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <SideBoard
-                      title="My Team"
-                      roster={setup.my.parsed.map((m) => m.species)}
-                      movesFor={(s) =>
-                        setup.my.parsed.find((m) => m.species === s)?.moves ?? []
-                      }
-                      state={node.my}
-                      foeFront={node.opp.front}
-                      brought={broughtOf(node, "my")}
-                      allowMoves={node.turn > 1}
-                      moveMetaOf={moveMetaOf}
-                      pickerFor={
-                        movePicker?.nodeId === node.id && movePicker.side === "my"
-                          ? movePicker.species
-                          : null
-                      }
-                      pickerAnchor={movePicker?.anchor ?? null}
-                      onOpenPicker={(s, anchor) =>
-                        setMovePicker(
-                          s && anchor
-                            ? { nodeId: node.id, side: "my", species: s, anchor }
-                            : null,
-                        )
-                      }
-                      onPickMove={(s, m) => setSideMove(node.id, "my", s, m)}
-                      onPickTarget={(s, ref) =>
-                        setSideTarget(node.id, "my", s, ref)
-                      }
-                      onSwitchIn={(out, inc) =>
-                        swapFrontBack(node.id, "my", out, inc)
-                      }
-                      onToggle={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          my: togglePlace(n.my, s),
-                        }))
-                      }
-                      onFaint={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          my: toggleFaint(n.my, s),
-                        }))
-                      }
-                      onRemove={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          my: togglePlace(n.my, s),
-                        }))
-                      }
-                    />
-                    <SideBoard
-                      title="Opposing Team"
-                      roster={setup.opp.parsed.map((m) => m.species)}
-                      movesFor={(s) =>
-                        setup.opp.parsed.find((m) => m.species === s)?.moves ??
-                        []
-                      }
-                      state={node.opp}
-                      foeFront={node.my.front}
-                      brought={broughtOf(node, "opp")}
-                      allowMoves={node.turn > 1}
-                      moveMetaOf={moveMetaOf}
-                      pickerFor={
-                        movePicker?.nodeId === node.id &&
-                        movePicker.side === "opp"
-                          ? movePicker.species
-                          : null
-                      }
-                      pickerAnchor={movePicker?.anchor ?? null}
-                      onOpenPicker={(s, anchor) =>
-                        setMovePicker(
-                          s && anchor
-                            ? {
-                                nodeId: node.id,
-                                side: "opp",
-                                species: s,
-                                anchor,
-                              }
-                            : null,
-                        )
-                      }
-                      onPickMove={(s, m) => setSideMove(node.id, "opp", s, m)}
-                      onPickTarget={(s, ref) =>
-                        setSideTarget(node.id, "opp", s, ref)
-                      }
-                      onSwitchIn={(out, inc) =>
-                        swapFrontBack(node.id, "opp", out, inc)
-                      }
-                      onToggle={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          opp: togglePlace(n.opp, s),
-                        }))
-                      }
-                      onFaint={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          opp: toggleFaint(n.opp, s),
-                        }))
-                      }
-                      onRemove={(s) =>
-                        update(node.id, (n) => ({
-                          ...n,
-                          opp: togglePlace(n.opp, s),
-                        }))
-                      }
-                    />
-                  </div>
+                  {i === 0 ? "Turn 0 · team preview" : `Turn ${i}`}
+                </p>
+              ))}
 
-                  <div className="mt-2">
-                    {expandedNotes.has(node.id) ? (
-                      <div>
+              {nodes.map((node) => {
+                const row = (rows.get(node.id) ?? 0) + 2;
+                const parent = node.parentId ? byId.get(node.parentId) : null;
+                const isAlternate = firstSiblingId(node) !== node.id;
+                const removable = node.parentId !== null || rootCount > 1;
+                return (
+                  <div
+                    key={node.id}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(node.id, el);
+                      else cardRefs.current.delete(node.id);
+                    }}
+                    // Cards arrive left-to-right so the tree reads as a
+                    // sequence; the delay is capped so nothing feels slow.
+                    // `self-start` keeps a card the height of its content
+                    // instead of stretching to the tallest card in its row.
+                    className={`fade-in step-${Math.min(node.turn, 4)} relative self-start rounded-lg border border-stone-200 bg-white p-3`}
+                    style={{ gridColumn: node.turn, gridRow: row }}
+                  >
+                    {isAlternate && (
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
+                        ⑂ alternate turn {node.turn - 1}
+                        {parent ? ` · after turn ${parent.turn - 1}` : ""}
+                      </p>
+                    )}
+                    {/* The two sides read as a matchup, so they're separated by
+                        a hairline and a "vs" — same device as the landing hero. */}
+                    <div className="relative grid grid-cols-2 gap-6">
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-stone-100"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-1 py-0.5 text-[9px] uppercase tracking-widest text-stone-300"
+                      >
+                        vs
+                      </span>
+                      <SideBoard
+                        title="My Team"
+                        roster={setup.my.parsed.map((m) => m.species)}
+                        movesFor={(s) =>
+                          setup.my.parsed.find((m) => m.species === s)?.moves ??
+                          []
+                        }
+                        megaFormeFor={(s) =>
+                          megaFormeOf?.(
+                            s,
+                            setup.my.parsed.find((m) => m.species === s)?.item,
+                          ) ?? null
+                        }
+                        state={node.my}
+                        parentState={parent ? parent.my : null}
+                        foeFront={node.opp.front}
+                        brought={broughtOf(node, "my")}
+                        allowMoves={node.turn > 1}
+                        moveMetaOf={moveMetaOf}
+                        pickerFor={
+                          movePicker?.nodeId === node.id &&
+                          movePicker.side === "my"
+                            ? movePicker.species
+                            : null
+                        }
+                        pickerAnchor={movePicker?.anchor ?? null}
+                        onOpenPicker={(s, anchor) =>
+                          setMovePicker(
+                            s && anchor
+                              ? {
+                                  nodeId: node.id,
+                                  side: "my",
+                                  species: s,
+                                  anchor,
+                                }
+                              : null,
+                          )
+                        }
+                        onPickMove={(s, m) => setSideMove(node.id, "my", s, m)}
+                        onPickTarget={(s, ref) =>
+                          setSideTarget(node.id, "my", s, ref)
+                        }
+                        onSwitchIn={(out, inc) =>
+                          swapFrontBack(node.id, "my", out, inc)
+                        }
+                        onMega={(s) => setSideMega(node.id, "my", s)}
+                        onToggle={(s) =>
+                          updateSide(node.id, "my", (side) =>
+                            togglePlace(side, s),
+                          )
+                        }
+                        onFaint={(s) =>
+                          updateSide(node.id, "my", (side) =>
+                            toggleFaint(side, s),
+                          )
+                        }
+                        onRemove={(s) =>
+                          updateSide(node.id, "my", (side) =>
+                            togglePlace(side, s),
+                          )
+                        }
+                      />
+                      <SideBoard
+                        title="Opposing Team"
+                        roster={setup.opp.parsed.map((m) => m.species)}
+                        movesFor={(s) =>
+                          setup.opp.parsed.find((m) => m.species === s)
+                            ?.moves ?? []
+                        }
+                        megaFormeFor={(s) =>
+                          megaFormeOf?.(
+                            s,
+                            setup.opp.parsed.find((m) => m.species === s)?.item,
+                          ) ?? null
+                        }
+                        state={node.opp}
+                        parentState={parent ? parent.opp : null}
+                        foeFront={node.my.front}
+                        brought={broughtOf(node, "opp")}
+                        allowMoves={node.turn > 1}
+                        moveMetaOf={moveMetaOf}
+                        pickerFor={
+                          movePicker?.nodeId === node.id &&
+                          movePicker.side === "opp"
+                            ? movePicker.species
+                            : null
+                        }
+                        pickerAnchor={movePicker?.anchor ?? null}
+                        onOpenPicker={(s, anchor) =>
+                          setMovePicker(
+                            s && anchor
+                              ? {
+                                  nodeId: node.id,
+                                  side: "opp",
+                                  species: s,
+                                  anchor,
+                                }
+                              : null,
+                          )
+                        }
+                        onPickMove={(s, m) => setSideMove(node.id, "opp", s, m)}
+                        onPickTarget={(s, ref) =>
+                          setSideTarget(node.id, "opp", s, ref)
+                        }
+                        onSwitchIn={(out, inc) =>
+                          swapFrontBack(node.id, "opp", out, inc)
+                        }
+                        onMega={(s) => setSideMega(node.id, "opp", s)}
+                        onToggle={(s) =>
+                          updateSide(node.id, "opp", (side) =>
+                            togglePlace(side, s),
+                          )
+                        }
+                        onFaint={(s) =>
+                          updateSide(node.id, "opp", (side) =>
+                            toggleFaint(side, s),
+                          )
+                        }
+                        onRemove={(s) =>
+                          updateSide(node.id, "opp", (side) =>
+                            togglePlace(side, s),
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-2">
+                      {expandedNotes.has(node.id) ? (
+                        <div>
+                          <button
+                            onClick={() => toggleNote(node.id)}
+                            className="text-[10px] font-medium text-stone-400 hover:text-stone-600"
+                          >
+                            ▾ note
+                          </button>
+                          <textarea
+                            value={node.note ?? ""}
+                            onChange={(e) =>
+                              update(node.id, (n) => ({
+                                ...n,
+                                note: e.target.value,
+                              }))
+                            }
+                            rows={Math.max(
+                              3,
+                              (node.note ?? "").split("\n").length + 1,
+                            )}
+                            placeholder="Why this line, what to watch for — optional"
+                            className="mt-1 w-full resize-y rounded border border-stone-200 bg-stone-50 p-2 text-[11px] leading-relaxed text-stone-700 field-sizing-content placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
+                          />
+                          <div className="mt-1 flex justify-end">
+                            <button
+                              onClick={() => commitNote(node.id)}
+                              className="rounded bg-stone-900 px-2.5 py-1 text-[10px] font-medium text-white hover:opacity-80"
+                            >
+                              save note
+                            </button>
+                          </div>
+                        </div>
+                      ) : node.note?.trim() ? (
                         <button
                           onClick={() => toggleNote(node.id)}
-                          className="text-[10px] font-medium text-stone-400 hover:text-stone-600"
+                          className="flex w-full items-baseline gap-1 text-left"
                         >
-                          ▾ note
+                          <span className="text-[10px] text-stone-400">▸</span>
+                          <span className="min-w-0 flex-1 truncate text-[11px] text-stone-500 hover:text-stone-700">
+                            {node.note}
+                          </span>
                         </button>
-                        <textarea
-                          value={node.note ?? ""}
-                          onChange={(e) =>
-                            update(node.id, (n) => ({
-                              ...n,
-                              note: e.target.value,
-                            }))
-                          }
-                          rows={Math.max(
-                            3,
-                            (node.note ?? "").split("\n").length + 1,
-                          )}
-                          placeholder="Why this line, what to watch for — optional"
-                          className="mt-1 w-full resize-y rounded border border-stone-200 bg-stone-50 p-2 text-[11px] leading-relaxed text-stone-700 field-sizing-content placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
-                        />
-                        <div className="mt-1 flex justify-end">
-                          <button
-                            onClick={() => commitNote(node.id)}
-                            className="rounded bg-stone-900 px-2.5 py-1 text-[10px] font-medium text-white hover:opacity-80"
-                          >
-                            save note
-                          </button>
-                        </div>
-                      </div>
-                    ) : node.note?.trim() ? (
-                      <button
-                        onClick={() => toggleNote(node.id)}
-                        className="flex w-full items-baseline gap-1 text-left"
-                      >
-                        <span className="text-[10px] text-stone-400">▸</span>
-                        <span className="min-w-0 flex-1 truncate text-[11px] text-stone-500 hover:text-stone-700">
-                          {node.note}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => toggleNote(node.id)}
-                        className="text-[10px] text-stone-300 hover:text-stone-500"
-                      >
-                        + note
-                      </button>
-                    )}
-                  </div>
+                      ) : (
+                        <button
+                          onClick={() => toggleNote(node.id)}
+                          className="text-[10px] text-stone-300 hover:text-stone-500"
+                        >
+                          + note
+                        </button>
+                      )}
+                    </div>
 
-                  <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
-                    {(childCount.get(node.id) ?? 0) === 0 && node.turn < 3 && (
+                    <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
+                      {(childCount.get(node.id) ?? 0) === 0 &&
+                        node.turn < 3 && (
+                          <button
+                            onClick={() => addNextTurn(node)}
+                            className="rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400"
+                          >
+                            + turn {node.turn}
+                          </button>
+                        )}
                       <button
-                        onClick={() => addNextTurn(node)}
-                        className="rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400"
+                        onClick={() => addAlternate(node)}
+                        className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 hover:border-amber-400"
                       >
-                        + turn {node.turn}
+                        ⑂ branch
                       </button>
-                    )}
-                    <button
-                      onClick={() => addAlternate(node)}
-                      className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 hover:border-amber-400"
-                    >
-                      ⑂ branch
-                    </button>
-                    {removable && (
-                      <button
-                        onClick={() => removeSubtree(node.id)}
-                        className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
-                      >
-                        remove
-                      </button>
-                    )}
+                      {removable && (
+                        <button
+                          onClick={() => removeSubtree(node.id)}
+                          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
+                        >
+                          remove
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           </div>
         </div>

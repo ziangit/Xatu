@@ -22,6 +22,12 @@ export interface SideState {
   /** Optional move target per attacker: "ally:Species" | "foe:Species",
    * one of the four Pokémon on the field. Only meaningful with a move. */
   targets?: Record<string, string>;
+  /** The Pokémon that is Mega Evolved on this side as of this card — declared
+   * on the turn it happens (a Mega and a move share the same turn) and carried
+   * forward, since a Mega-Evolved Pokémon stays Mega. Recording only: xatu
+   * never reasons about what the forme does, and the game's one-per-battle
+   * limit is the author's business, not ours. */
+  mega?: string;
 }
 
 export interface TurnNode {
@@ -39,13 +45,31 @@ export interface SimSetup {
   opp: StoredTeam;
 }
 
-/** One saved matchup board — a team pair plus its turn tree. The browser
- * keeps a library of these; a future account sync maps each to a DB row. */
+/**
+ * One saved matchup board — a team pair plus its turn tree. The browser keeps
+ * a library of these and each maps 1:1 to a `matchups` row in the account.
+ *
+ * "One team vs many teams" is expressed by GROUPING, not nesting: every entry
+ * sharing the same `setup.my.id` is one group (see `groupByMyTeam`). An entry
+ * with `nodes: []` is a pairing the author has lined up but not planned yet —
+ * the sim page seeds a fresh board for it on open.
+ */
 export interface SavedMatchup {
   id: string;
   name: string;
   setup: SimSetup;
   nodes: TurnNode[];
+  savedAt: string;
+}
+
+/** All the boards built with one of the author's teams, newest first. */
+export interface MatchupGroup {
+  /** `setup.my.id` — stable across re-imports of the same export text. */
+  teamId: string;
+  /** The freshest copy of the team as saved on one of its boards. */
+  team: StoredTeam;
+  matchups: SavedMatchup[];
+  /** Most recent `savedAt` in the group. */
   savedAt: string;
 }
 
@@ -88,11 +112,21 @@ export const loadSetup = () => read<SimSetup>(KEYS.setup);
 export const saveSetup = (setup: SimSetup) => write(KEYS.setup, setup);
 
 export const loadSavedTeams = () => read<StoredTeam[]>(KEYS.teams) ?? [];
-export function rememberTeam(team: StoredTeam) {
-  const teams = loadSavedTeams().filter(
-    (t) => t.exportText !== team.exportText,
+
+/**
+ * Remembers a team and returns the canonical copy — importing the same export
+ * text twice reuses the first id, so a team keeps one identity and its boards
+ * keep grouping together.
+ */
+export function rememberTeam(team: StoredTeam): StoredTeam {
+  const teams = loadSavedTeams();
+  const existing = teams.find((t) => t.exportText === team.exportText);
+  const canonical = existing ? { ...team, id: existing.id } : team;
+  write(
+    KEYS.teams,
+    [canonical, ...teams.filter((t) => t.id !== canonical.id)].slice(0, 40),
   );
-  write(KEYS.teams, [team, ...teams].slice(0, 12));
+  return canonical;
 }
 
 /** The matchup library, newest first. Migrates the legacy single-slot save
@@ -117,6 +151,51 @@ export function loadMatchups(): SavedMatchup[] {
 export function upsertMatchup(matchup: SavedMatchup) {
   const rest = loadMatchups().filter((m) => m.id !== matchup.id);
   write(KEYS.matchups, [matchup, ...rest]);
+}
+
+/**
+ * One team vs many: bucket boards by the author's team. Purely derived — no
+ * separate group record to keep in sync, so boards saved before grouping
+ * existed (and boards pulled down from the account) group themselves.
+ */
+export function groupByMyTeam(matchups: SavedMatchup[]): MatchupGroup[] {
+  const groups = new Map<string, MatchupGroup>();
+  for (const m of matchups) {
+    const teamId = m.setup.my.id;
+    const group = groups.get(teamId);
+    if (!group) {
+      groups.set(teamId, {
+        teamId,
+        team: m.setup.my,
+        matchups: [m],
+        savedAt: m.savedAt,
+      });
+      continue;
+    }
+    group.matchups.push(m);
+    if (m.savedAt > group.savedAt) {
+      group.savedAt = m.savedAt;
+      group.team = m.setup.my;
+    }
+  }
+  for (const group of groups.values()) {
+    group.matchups.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  }
+  return [...groups.values()].sort((a, b) =>
+    b.savedAt.localeCompare(a.savedAt),
+  );
+}
+
+/** The board for a team pair, if the author already has one. */
+export function findPairMatchup(
+  matchups: SavedMatchup[],
+  myId: string,
+  oppId: string,
+): SavedMatchup | undefined {
+  const pair = matchups.filter(
+    (m) => m.setup.my.id === myId && m.setup.opp.id === oppId,
+  );
+  return pair.find((m) => m.nodes.length > 0) ?? pair[0];
 }
 
 export function deleteMatchup(id: string) {
