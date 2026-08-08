@@ -1,10 +1,29 @@
 # Session handoff
 
-> Updated 2026-08-07 (end of session). **Accounts are live and working**
-> (user-directed; CLAUDE.md and PRODUCT.md amended). The user's Supabase project
-> is created, schema applied, Google OAuth configured, and the user has signed
-> in with Google successfully (megazchomp@gmail.com). Resume from "Next
-> candidates" below — the user said "we're working on the rest of it tomorrow."
+> Updated 2026-08-08 (start of day, end of overnight session). **Accounts are
+> live and working** (user-directed; CLAUDE.md and PRODUCT.md amended), and the
+> site is **deployed to production**. Resume from "Next candidates" below.
+
+## Production deployment (added late 2026-08-07)
+
+- **Live at https://xatu-six.vercel.app** — the user created the Vercel
+  project ("xatu", team michaels-projects-1009e4b5) via dashboard GitHub
+  import; pushes to main auto-deploy. Repo is `vercel link`ed locally
+  (`.vercel/` is gitignored; CLI logged in as ziangit).
+- Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL` + `ANON_KEY`) added to
+  Vercel Production + Preview via CLI and verified live — /login shows the
+  real form in production. Reminder: `.env.local` is gitignored, so any new
+  env var must also be added to Vercel or prod silently runs local-only
+  (that's exactly what happened; anon key in client bundles is by design).
+- **Vercel Analytics enabled** — `@vercel/analytics` + `<Analytics />` in
+  app/layout.tsx (commit 79bab26); deployment serves /_vercel/insights/
+  script.js (the tag is injected at runtime, so don't grep the HTML for it).
+- **OPEN ITEM (user's dashboard, not done yet as of exit)**: Supabase →
+  Authentication → URL Configuration — set Site URL to
+  https://xatu-six.vercel.app and add it (or `/**`) to the Redirect URLs
+  allow list, keeping localhost:7317. Until then, Google sign-in FROM
+  PRODUCTION completes but redirects back to localhost. Email/password on
+  production is unaffected. Verify Google login on prod after this.
 
 ## 2026-08-07 session: what exists now
 
