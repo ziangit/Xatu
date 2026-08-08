@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { yoshimapGuide } from "@/lib/schema/fixtures/yoshimap-sand-staraptor";
 import { importTeamText } from "@/lib/team";
-import { ImportPanel, TeamPanel, FORMATS } from "./components";
+import { ImportPanel, MonIcon, TeamPanel, FORMATS } from "./components";
 import { SAMPLE_TEAMS } from "./demo-data";
 import {
+  deleteMatchup,
+  loadMatchups,
   loadSavedTeams,
   rememberTeam,
   saveSetup,
+  setActiveMatchupId,
+  type SavedMatchup,
   type StoredTeam,
 } from "./storage";
 
@@ -142,11 +146,35 @@ export default function SetupPage() {
   const router = useRouter();
   const [my, setMy] = useState<StoredTeam | null>(null);
   const [opp, setOpp] = useState<StoredTeam | null>(null);
+  const [matchups, setMatchups] = useState<SavedMatchup[]>([]);
+
+  useEffect(() => {
+    // localStorage is browser-only; defer the read past the effect body.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setMatchups(loadMatchups());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const simulate = () => {
     if (!my || !opp) return;
     saveSetup({ my, opp });
+    setActiveMatchupId(null);
     router.push("/demo/sim");
+  };
+
+  const openMatchup = (m: SavedMatchup) => {
+    saveSetup(m.setup);
+    setActiveMatchupId(m.id);
+    router.push("/demo/sim");
+  };
+
+  const removeMatchup = (id: string) => {
+    deleteMatchup(id);
+    setMatchups(loadMatchups());
   };
 
   return (
@@ -183,6 +211,51 @@ export default function SetupPage() {
             Simulate
           </button>
         </div>
+
+        {matchups.length > 0 && (
+          <section className="mt-12">
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
+              Saved matchups
+            </h2>
+            <div className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+              {matchups.map((m) => (
+                <div key={m.id} className="flex items-center gap-2 px-3 py-2">
+                  <button
+                    onClick={() => openMatchup(m)}
+                    title={`open ${m.name}`}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-75"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
+                      {m.name}
+                    </span>
+                    <span className="flex shrink-0">
+                      {m.setup.my.parsed.slice(0, 6).map((p, i) => (
+                        <MonIcon key={i} species={p.species} scale={0.5} />
+                      ))}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-stone-300">
+                      vs
+                    </span>
+                    <span className="flex shrink-0">
+                      {m.setup.opp.parsed.slice(0, 6).map((p, i) => (
+                        <MonIcon key={i} species={p.species} scale={0.5} />
+                      ))}
+                    </span>
+                  </button>
+                  <span className="shrink-0 text-[10px] text-stone-400">
+                    {new Date(m.savedAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    onClick={() => removeMatchup(m.id)}
+                    className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
+                  >
+                    delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <footer className="mt-16 border-t border-stone-200 pt-4 text-[11px] leading-relaxed text-stone-400">
           xatu is an unaffiliated, non-commercial fan project. Pokémon is owned

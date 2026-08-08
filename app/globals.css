@@ -10,6 +10,58 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bricolage);
+}
+
+/* Landing page load sequence: headline rises, tree cards follow, edges draw.
+   One orchestrated moment; disabled entirely under reduced motion. */
+@keyframes land-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes land-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes land-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.land-rise {
+  opacity: 0;
+  animation: land-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.land-fade {
+  opacity: 0;
+  animation: land-fade 0.5s ease-out forwards;
+}
+.land-draw {
+  stroke-dasharray: 140;
+  stroke-dashoffset: 140;
+  animation: land-draw 0.6s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .land-rise,
+  .land-fade {
+    animation: none;
+    opacity: 1;
+  }
+  .land-draw {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

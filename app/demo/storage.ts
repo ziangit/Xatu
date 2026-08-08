@@ -39,7 +39,18 @@ export interface SimSetup {
   opp: StoredTeam;
 }
 
-export interface SavedWorkflow {
+/** One saved matchup board — a team pair plus its turn tree. The browser
+ * keeps a library of these; a future account sync maps each to a DB row. */
+export interface SavedMatchup {
+  id: string;
+  name: string;
+  setup: SimSetup;
+  nodes: TurnNode[];
+  savedAt: string;
+}
+
+/** Legacy single-slot save (pre-library). Migrated on first read. */
+interface LegacyWorkflow {
   version: 1;
   setup: SimSetup;
   nodes: TurnNode[];
@@ -49,7 +60,9 @@ export interface SavedWorkflow {
 const KEYS = {
   setup: "xatu-demo:setup",
   teams: "xatu-demo:teams",
-  workflow: "xatu-demo:workflow",
+  workflow: "xatu-demo:workflow", // legacy — migrated into `matchups`
+  matchups: "xatu-demo:matchups",
+  activeMatchup: "xatu-demo:active-matchup",
 };
 
 function read<T>(key: string): T | null {
@@ -82,8 +95,42 @@ export function rememberTeam(team: StoredTeam) {
   write(KEYS.teams, [team, ...teams].slice(0, 12));
 }
 
-export const loadWorkflow = () => read<SavedWorkflow>(KEYS.workflow);
-export const saveWorkflow = (wf: SavedWorkflow) => write(KEYS.workflow, wf);
-export const clearWorkflow = () => {
-  if (typeof window !== "undefined") window.localStorage.removeItem(KEYS.workflow);
-};
+/** The matchup library, newest first. Migrates the legacy single-slot save
+ * into the list the first time it's read. */
+export function loadMatchups(): SavedMatchup[] {
+  const matchups = read<SavedMatchup[]>(KEYS.matchups) ?? [];
+  const legacy = read<LegacyWorkflow>(KEYS.workflow);
+  if (!legacy?.setup || !Array.isArray(legacy.nodes)) return matchups;
+  const migrated: SavedMatchup = {
+    id: crypto.randomUUID(),
+    name: `${legacy.setup.my.name} vs ${legacy.setup.opp.name}`,
+    setup: legacy.setup,
+    nodes: legacy.nodes,
+    savedAt: legacy.savedAt,
+  };
+  const all = [migrated, ...matchups];
+  write(KEYS.matchups, all);
+  window.localStorage.removeItem(KEYS.workflow);
+  return all;
+}
+
+export function upsertMatchup(matchup: SavedMatchup) {
+  const rest = loadMatchups().filter((m) => m.id !== matchup.id);
+  write(KEYS.matchups, [matchup, ...rest]);
+}
+
+export function deleteMatchup(id: string) {
+  write(
+    KEYS.matchups,
+    loadMatchups().filter((m) => m.id !== id),
+  );
+  if (loadActiveMatchupId() === id) setActiveMatchupId(null);
+}
+
+/** Which library entry the sim page is editing (null = a fresh board). */
+export const loadActiveMatchupId = () => read<string>(KEYS.activeMatchup);
+export function setActiveMatchupId(id: string | null) {
+  if (typeof window === "undefined") return;
+  if (id) write(KEYS.activeMatchup, id);
+  else window.localStorage.removeItem(KEYS.activeMatchup);
+}

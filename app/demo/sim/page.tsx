@@ -5,12 +5,13 @@ import Link from "next/link";
 import { MonIcon, TYPE_COLORS } from "../components";
 import { decodeWorkflow, encodeWorkflow, parseTargetRef } from "../workflow-io";
 import {
-  clearWorkflow,
+  loadActiveMatchupId,
+  loadMatchups,
   loadSetup,
-  loadWorkflow,
   saveSetup,
-  saveWorkflow,
-  type SavedWorkflow,
+  setActiveMatchupId,
+  upsertMatchup,
+  type SavedMatchup,
   type SideState,
   type SimSetup,
   type TurnNode,
@@ -565,6 +566,10 @@ export default function SimPage() {
   const [nodes, setNodes] = useState<TurnNode[]>([]);
   const [ready, setReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  /** The library entry this board belongs to (null = not yet saved). */
+  const [matchup, setMatchup] = useState<{ id: string; name: string } | null>(
+    null,
+  );
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -620,15 +625,29 @@ export default function SimPage() {
         setReady(true);
         return;
       }
-      const wf = loadWorkflow();
-      const resumable =
-        wf &&
-        wf.setup.my.id === s.my.id &&
-        wf.setup.opp.id === s.opp.id &&
-        wf.nodes.length > 0;
+      // Resume the library entry that was opened (or, failing that, the most
+      // recent save of this exact team pair); otherwise start fresh.
+      const matches = (m: SavedMatchup) =>
+        m.setup.my.id === s.my.id &&
+        m.setup.opp.id === s.opp.id &&
+        m.nodes.length > 0;
+      const library = loadMatchups();
+      const activeId = loadActiveMatchupId();
+      const entry =
+        (activeId
+          ? library.find((m) => m.id === activeId && matches(m))
+          : undefined) ?? library.find(matches);
       setSetup(s);
-      setNodes(resumable ? wf.nodes : freshNodes(s));
-      setSavedAt(resumable ? wf.savedAt : null);
+      if (entry) {
+        setNodes(entry.nodes);
+        setSavedAt(entry.savedAt);
+        setMatchup({ id: entry.id, name: entry.name });
+        setActiveMatchupId(entry.id);
+      } else {
+        setNodes(freshNodes(s));
+        setSavedAt(null);
+        setMatchup(null);
+      }
       setReady(true);
     });
     return () => {
@@ -819,15 +838,20 @@ export default function SimPage() {
     setNodes(nodes.filter((n) => !doomed.has(n.id)));
   };
 
+  /** Save upserts this board into the matchup library — each team pair the
+   * author works on keeps its own entry instead of overwriting one slot. */
   const save = (toSave: TurnNode[] = nodes) => {
-    const wf: SavedWorkflow = {
-      version: 1,
+    const entry: SavedMatchup = {
+      id: matchup?.id ?? crypto.randomUUID(),
+      name: matchup?.name ?? `${setup.my.name} vs ${setup.opp.name}`,
       setup,
       nodes: toSave,
       savedAt: new Date().toISOString(),
     };
-    saveWorkflow(wf);
-    setSavedAt(wf.savedAt);
+    upsertMatchup(entry);
+    setActiveMatchupId(entry.id);
+    setMatchup({ id: entry.id, name: entry.name });
+    setSavedAt(entry.savedAt);
   };
 
   /** Save button in the note editor: trim, collapse, persist to the browser. */
@@ -842,8 +866,9 @@ export default function SimPage() {
     save(next);
   };
 
+  /** Reset clears the working board only — the library entry (if any) keeps
+   * its last saved state until the next Save overwrites it. */
   const resetBoard = () => {
-    clearWorkflow();
     setNodes(freshNodes(setup));
     setSavedAt(null);
   };
@@ -861,7 +886,9 @@ export default function SimPage() {
     setSetup(result.setup);
     setNodes(result.nodes);
     saveSetup(result.setup);
-    clearWorkflow();
+    // An imported board is a new, not-yet-saved matchup.
+    setActiveMatchupId(null);
+    setMatchup(null);
     setSavedAt(null);
     setShowImport(false);
     setImportText("");
@@ -922,9 +949,10 @@ export default function SimPage() {
             </button>
           </div>
         </header>
-        {savedAt && (
+        {savedAt && matchup && (
           <p className="mt-1 text-right text-[10px] text-stone-400">
-            saved to this browser · {new Date(savedAt).toLocaleTimeString()}
+            saved to this browser as “{matchup.name}” ·{" "}
+            {new Date(savedAt).toLocaleTimeString()}
           </p>
         )}
 
