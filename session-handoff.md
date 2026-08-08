@@ -1,5 +1,68 @@
 # Session handoff
 
+> Updated 2026-08-07 (end of session). **Accounts are live and working**
+> (user-directed; CLAUDE.md and PRODUCT.md amended). The user's Supabase project
+> is created, schema applied, Google OAuth configured, and the user has signed
+> in with Google successfully (megazchomp@gmail.com). Resume from "Next
+> candidates" below — the user said "we're working on the rest of it tomorrow."
+
+## 2026-08-07 session: what exists now
+
+- **Landing page `/`** — Bricolage Grotesque display type, self-drawing mini
+  turn-tree hero (real minisprites + branch arrow), CTAs → builder /
+  My matchups / guide lookup. Reduced-motion respected.
+- **Saved-matchup library (localStorage)** — multi-slot: `xatu-demo:matchups`
+  list + `xatu-demo:active-matchup` pointer; legacy single-slot save migrates
+  on first read. Sim SAVE upserts per team pair; Reset keeps the library
+  entry; imports open as new unsaved matchups.
+- **Auth** — `app/auth/client.ts` (`getSupabase()` returns null when env
+  unset → whole app stays local-only), `app/auth/AccountLink.tsx` (in every
+  header: landing, /demo, /demo/sim, /matchups, /login), `/login` page
+  (Google + email/password, graceful unconfigured state).
+  `.env.local` (gitignored) holds the user's project URL + anon key;
+  `.env.local.example` is the template.
+- **Cloud sync (`app/demo/cloud.ts`)** — `matchups` table rows keyed by the
+  SavedMatchup uuid; **payload = the whole SavedMatchup as jsonb** (full
+  verbatim exports — lossless; the compact codec stays a paste format;
+  schema.sql comment updated to match). Sim SAVE mirrors to cloud when
+  signed in ("synced to your account" / amber failure note, local always
+  saved). RLS verified live: anonymous insert rejected with 42501.
+- **`/matchups` (My Matchups)** — merged list of browser + account saves
+  with badges (browser/account), open (pulls cloud-only entries down to
+  local first), per-row upload (local→account), delete (removes everywhere,
+  with confirm naming the places). Signed-out: local list + sign-in hint.
+- **UX fixes from user feedback** — every flow can back out: TeamSlot header
+  "← back", ImportPanel cancel button, "replace" reopens the Import/Use
+  existing choice (not straight to import) and force-collapses the team card
+  (`TeamPanel collapsed` prop) so the choice box is visible; lookup page got
+  a "← builder" link; /demo title links home.
+- **Not a legality checker**: the user's "Ursaluna shouldn't be here" report
+  was their own paste containing Ursaluna — import is faithful by design.
+  A per-regulation soft legality warning was floated, not committed to.
+
+## Supabase facts (user's project)
+
+- URL in `.env.local`; tables `teams` + `matchups` with owner-only RLS
+  (`for all using/with check auth.uid() = user_id`), created from
+  `supabase/schema.sql`. The `teams` table exists but is UNUSED so far —
+  team sync is not built, only matchup sync.
+- Google provider enabled (client id `5038415161-…apps.googleusercontent.com`);
+  email/password enabled with default confirmations; localhost:7317 is in
+  the redirect allow list. Service-role key: never used anywhere, by rule.
+
+## Next candidates for 2026-08-08 (none committed to)
+
+- **Team sync** — mirror saved teams (localStorage `xatu-demo:teams`) to the
+  `teams` table like matchups; "Use existing" list could then show account
+  teams too.
+- Rename saved matchups (names are auto "My Team vs Opp Team").
+- Auto-pull account matchups on sign-in (currently /matchups fetches on
+  view; sim resume is local-first).
+- Legality soft-warning per regulation (needs a legal-species list per reg —
+  discuss before building; lenient warn-never-block rule applies).
+- Compressed share codes; Mega/Tera as recorded state; damage calc
+  discussion (prereq: amend no-battle-computation rule); hosting/deploy.
+
 > Updated 2026-08-06. The project pivoted: instead of building Phase 2 from
 > docs/UI-SPEC.md, the user drove an interactive **matchup simulation builder**
 > (reference sketch: `xatu.png` in repo root) built iteratively at `/demo`.

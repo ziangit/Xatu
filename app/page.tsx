@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountLink } from "./auth/AccountLink";
 import { MonIcon } from "./demo/components";
 
 // Landing page. Visual language is the sim board's own — paper ground, stone
@@ -215,12 +216,15 @@ export default function LandingPage() {
           <span className="font-display text-lg font-bold tracking-tight">
             xatu
           </span>
-          <Link
-            href="/demo"
-            className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-          >
-            open the builder →
-          </Link>
+          <span className="flex items-center gap-4">
+            <AccountLink />
+            <Link
+              href="/demo"
+              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+            >
+              open the builder →
+            </Link>
+          </span>
         </header>
 
         <section className="flex flex-col items-start gap-12 pb-20 pt-12 lg:flex-row lg:items-center lg:gap-16 lg:pt-16">
@@ -257,10 +261,16 @@ export default function LandingPage() {
                 Open the matchup builder
               </Link>
               <Link
-                href="/demo/lookup"
+                href="/matchups"
                 className="rounded-md border border-stone-300 bg-white px-4 py-2.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                See the guide lookup
+                My matchups
+              </Link>
+              <Link
+                href="/demo/lookup"
+                className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+              >
+                guide lookup →
               </Link>
             </div>
           </div>

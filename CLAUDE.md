@@ -34,8 +34,11 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
   or edits JSON, schema field names, or predicate vocabulary. See docs/UI-SPEC.md §0.
 - Lenient validation: unknown species/moves warn, never block. The author is the
   authority; xatu is not a legality checker.
-- No accounts/login in v1. Public read always. No cron jobs, no vercel.json, no LLM
-  integration, no ANTHROPIC_API_KEY.
+- Accounts (user-directed change, 2026-08-07): Google + email/password via Supabase
+  Auth only — xatu never stores credentials. All user tables get owner-only RLS;
+  the service-role key is never used by the app. The anonymous local-first flow
+  must keep working with accounts unconfigured (`getSupabase()` returns null).
+  No cron jobs, no vercel.json, no LLM integration, no ANTHROPIC_API_KEY.
 - Do not commit sprite or audio assets — hotlink Showdown's sprite CDN.
 
 ## Where to look

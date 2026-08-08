@@ -55,7 +55,11 @@ finished product** — there is no phase after it.
 - **A node-graph / Blockly-style canvas.** The wrong affordance — it buys expressiveness
   the schema doesn't have and quietly pressures the author to "fill in the graph," the
   opposite of the sparse-by-design intent.
-- **Accounts, login, or user profiles** in v1. Anonymous publish + an edit token.
+- ~~Accounts, login, or user profiles~~ — amended 2026-08-07 at the user's request:
+  accounts exist (Google + email/password via Supabase Auth) to sync private teams
+  and matchup boards. Still no public profiles, and the tool stays fully usable
+  signed out (local-first). Anonymous publish + edit token remains the plan for
+  public guide sharing.
 - **Quiz mode.** Dropped from the plan entirely. The reader's clickable walkthrough is
   a plain progressive-disclosure component — no `quiz` prop, no hidden-answer
   abstraction, nothing reserved for a mode we aren't building.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AccountLink } from "../auth/AccountLink";
 import { yoshimapGuide } from "@/lib/schema/fixtures/yoshimap-sand-staraptor";
 import { importTeamText } from "@/lib/team";
 import { ImportPanel, MonIcon, TeamPanel, FORMATS } from "./components";
@@ -39,7 +40,7 @@ const PRESETS: StoredTeam[] = [
   })),
 ];
 
-type SlotChoice = "closed" | "import" | "existing";
+type SlotChoice = "closed" | "choice" | "import" | "existing";
 
 function TeamSlot({
   label,
@@ -70,36 +71,42 @@ function TeamSlot({
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
           {label}
         </h2>
-        {team && (
+        {mode !== "closed" ? (
           <button
-            onClick={() => setMode(mode === "closed" ? "import" : "closed")}
+            onClick={() => setMode("closed")}
             className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
           >
-            replace
+            ← back
           </button>
+        ) : (
+          team && (
+            <button
+              onClick={() => setMode("choice")}
+              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+            >
+              replace
+            </button>
+          )
         )}
       </div>
 
       <div className="mt-2 space-y-3">
-        {team ? (
-          <TeamPanel team={team} />
-        ) : (
-          mode === "closed" && (
-            <div className="flex h-32 items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300">
-              <button
-                onClick={() => setMode("import")}
-                className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
-              >
-                Import a team
-              </button>
-              <button
-                onClick={openExisting}
-                className="rounded-md border border-stone-300 bg-white px-4 py-1.5 text-xs text-stone-600 hover:border-stone-500"
-              >
-                Use existing
-              </button>
-            </div>
-          )
+        {team && <TeamPanel team={team} collapsed={mode !== "closed"} />}
+        {((!team && mode === "closed") || mode === "choice") && (
+          <div className="flex h-32 items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300">
+            <button
+              onClick={() => setMode("import")}
+              className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
+            >
+              Import a team
+            </button>
+            <button
+              onClick={openExisting}
+              className="rounded-md border border-stone-300 bg-white px-4 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+            >
+              Use existing
+            </button>
+          </div>
         )}
 
         {mode === "import" && (
@@ -110,6 +117,7 @@ function TeamSlot({
               rememberTeam(stored);
               pick(stored);
             }}
+            onCancel={() => setMode("closed")}
           />
         )}
 
@@ -183,18 +191,24 @@ export default function SetupPage() {
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">
-              xatu — matchup builder
+              <Link href="/" className="hover:opacity-70">
+                xatu
+              </Link>{" "}
+              — matchup builder
             </h1>
             <p className="text-xs text-stone-400">
               set both teams, then simulate the matchup turn by turn
             </p>
           </div>
-          <Link
-            href="/demo/lookup"
-            className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-          >
-            guide lookup demo →
-          </Link>
+          <span className="flex items-center gap-4">
+            <AccountLink />
+            <Link
+              href="/matchups"
+              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+            >
+              my matchups →
+            </Link>
+          </span>
         </header>
 
         <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -214,9 +228,17 @@ export default function SetupPage() {
 
         {matchups.length > 0 && (
           <section className="mt-12">
-            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-              Saved matchups
-            </h2>
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
+                Saved matchups
+              </h2>
+              <Link
+                href="/matchups"
+                className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+              >
+                all matchups (incl. account) →
+              </Link>
+            </div>
             <div className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
               {matchups.map((m) => (
                 <div key={m.id} className="flex items-center gap-2 px-3 py-2">

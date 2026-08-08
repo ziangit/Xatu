@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AccountLink } from "../../auth/AccountLink";
 import { MonIcon, TYPE_COLORS } from "../components";
+import { upsertCloudMatchup } from "../cloud";
 import { decodeWorkflow, encodeWorkflow, parseTargetRef } from "../workflow-io";
 import {
   loadActiveMatchupId,
@@ -570,6 +572,8 @@ export default function SimPage() {
   const [matchup, setMatchup] = useState<{ id: string; name: string } | null>(
     null,
   );
+  /** Cloud copy of the last save: off (signed out), ok, or an error message. */
+  const [cloudState, setCloudState] = useState<"off" | "ok" | string>("off");
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -852,6 +856,8 @@ export default function SimPage() {
     setActiveMatchupId(entry.id);
     setMatchup({ id: entry.id, name: entry.name });
     setSavedAt(entry.savedAt);
+    // Signed in → mirror the save to the account; local save already landed.
+    void upsertCloudMatchup(entry).then(setCloudState);
   };
 
   /** Save button in the note editor: trim, collapse, persist to the browser. */
@@ -914,6 +920,7 @@ export default function SimPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <AccountLink />
             <Link
               href="/demo"
               className="px-2 text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
@@ -951,8 +958,13 @@ export default function SimPage() {
         </header>
         {savedAt && matchup && (
           <p className="mt-1 text-right text-[10px] text-stone-400">
-            saved to this browser as “{matchup.name}” ·{" "}
-            {new Date(savedAt).toLocaleTimeString()}
+            saved as “{matchup.name}” · {new Date(savedAt).toLocaleTimeString()}
+            {cloudState === "ok" && " · synced to your account"}
+          </p>
+        )}
+        {cloudState !== "ok" && cloudState !== "off" && (
+          <p className="mt-1 text-right text-[10px] text-amber-700">
+            saved to this browser, but the account sync failed: {cloudState}
           </p>
         )}
 

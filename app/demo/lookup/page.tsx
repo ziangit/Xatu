@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { Icons } from "@pkmn/img";
 import { selectPlan } from "@/lib/schema";
 import type { ParsedMon, Plan, Rule, TurnCondition } from "@/lib/schema";
@@ -202,6 +203,12 @@ export default function DemoPage() {
               by {demoGuide.authorName} · {demoGuide.regulation}
             </p>
           </div>
+          <Link
+            href="/demo"
+            className="ml-auto mr-4 text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+          >
+            ← builder
+          </Link>
           {opponent && (
             <button
               onClick={reset}

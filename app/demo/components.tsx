@@ -97,9 +97,12 @@ function parseFlexible(
 export function ImportPanel({
   label,
   onImport,
+  onCancel,
 }: {
   label: string;
   onImport: (team: Omit<StoredTeam, "id">) => void;
+  /** Renders a cancel button that backs out of the panel. */
+  onCancel?: () => void;
 }) {
   const [name, setName] = useState("");
   const [format, setFormat] = useState(FORMATS[0]);
@@ -196,6 +199,14 @@ export function ImportPanel({
         >
           {busy ? "Fetching…" : "Import"}
         </button>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+          >
+            cancel
+          </button>
+        )}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     </div>
@@ -226,16 +237,20 @@ function evLine(evs: Partial<Record<string, number>> | undefined): string | null
 export function TeamPanel({
   team,
   defaultOpen = false,
+  collapsed = false,
 }: {
   team: StoredTeam;
   defaultOpen?: boolean;
+  /** Force the compact one-row view (e.g. while a replace flow is open). */
+  collapsed?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
+  const isOpen = open && !collapsed;
 
   // Full set details (EVs, nature, level) come from re-parsing the verbatim
   // export — the parsed view in the schema is deliberately minimal.
-  const sets = open ? (Team.import(team.exportText)?.team ?? []) : [];
+  const sets = isOpen ? (Team.import(team.exportText)?.team ?? []) : [];
 
   const copyExport = async () => {
     await navigator.clipboard.writeText(team.exportText);
@@ -246,10 +261,13 @@ export function TeamPanel({
   return (
     <div className="rounded-lg border border-stone-200 bg-white">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(!isOpen)}
+        disabled={collapsed}
         className="flex w-full items-center gap-3 px-3 py-2 text-left"
       >
-        <span className="text-[10px] text-stone-400">{open ? "▾" : "▸"}</span>
+        <span className="text-[10px] text-stone-400">
+          {collapsed ? "" : isOpen ? "▾" : "▸"}
+        </span>
         <span className="flex shrink-0">
           {team.parsed.map((m, i) => (
             <MonIcon key={`${m.species}-${i}`} species={m.species} scale={1} />
@@ -262,7 +280,7 @@ export function TeamPanel({
           {team.format.replace(/^\[.*?\]\s*/, "")}
         </span>
       </button>
-      {open && (
+      {isOpen && (
         <div className="border-t border-stone-100 px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
