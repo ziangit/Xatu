@@ -1,4 +1,7 @@
 import type { Matchup } from "../schema";
+import { formeCandidates, matchKey } from "./roster";
+
+export { formeCandidates, looseKey, matchKey } from "./roster";
 
 /**
  * `matchOpponent` — given the six species observed at team preview, rank the
@@ -25,49 +28,35 @@ export interface MatchResult {
 const TAG_MULTIPLIER = { required: 3, common: 1, optional: 0.5 } as const;
 const TOP_N = 3;
 
-/** Lowercase, alphanumerics and hyphens only — tolerant of spacing/case. */
-export function looseKey(species: string): string {
-  return species
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "");
-}
-
-/**
- * A pasted species often carries forme suffixes the author didn't write
- * ("Charizard-Mega-Y" vs. "Charizard"). Candidates are the key with trailing
- * hyphen segments progressively stripped, so forme names match their base.
- */
-export function formeCandidates(species: string): string[] {
-  const candidates = [looseKey(species)];
-  let key = candidates[0];
-  while (key.includes("-")) {
-    key = key.slice(0, key.lastIndexOf("-"));
-    candidates.push(key);
-  }
-  return candidates;
-}
-
 export function matchOpponent(
   observedSpecies: string[],
   matchups: Matchup[],
 ): MatchResult[] {
-  const observed = new Set(observedSpecies.flatMap(formeCandidates));
+  // Both sides go through the same normalisation. Observed species also expand
+  // to forme candidates (over-matching is cheap on the observed side); the
+  // stored side is reduced to its canonical key.
+  const observed = new Set([
+    ...observedSpecies.flatMap(formeCandidates),
+    ...observedSpecies.map(matchKey),
+  ]);
 
   // Document frequency of each species key across the matchup library.
   const df = new Map<string, number>();
   for (const mu of matchups) {
-    for (const key of new Set(mu.opponentSpecies.map((o) => looseKey(o.species)))) {
+    for (const key of new Set(
+      mu.opponentSpecies.map((o) => matchKey(o.species)),
+    )) {
       df.set(key, (df.get(key) ?? 0) + 1);
     }
   }
-  const idf = (key: string) => Math.log(1 + matchups.length / (df.get(key) ?? 1));
+  const idf = (key: string) =>
+    Math.log(1 + matchups.length / (df.get(key) ?? 1));
 
   const results: MatchResult[] = matchups.map((matchup) => {
     let total = 0;
     let matched = 0;
     for (const o of matchup.opponentSpecies) {
-      const key = looseKey(o.species);
+      const key = matchKey(o.species);
       const weight = idf(key) * TAG_MULTIPLIER[o.tag];
       total += weight;
       if (observed.has(key)) matched += weight;
