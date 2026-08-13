@@ -6,6 +6,9 @@
 -- enforces isolation — a bug in app code cannot leak another user's rows.
 -- The anon key + RLS is the only access path the app uses; the service-role
 -- key (which bypasses RLS) is never shipped anywhere.
+--
+-- Public, non-user data lives in its own file: see community-teams.sql for the
+-- VGCPastes catalogue (world-readable SELECT, no write policy at all).
 
 -- Saved teams (mirrors the browser's StoredTeam).
 create table public.teams (

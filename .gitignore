@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.local.example
+
+# ingested community-team data (regenerate with scripts/vgcpastes/ingest.mjs)
+/scripts/vgcpastes/data/
