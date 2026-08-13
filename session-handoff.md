@@ -1,9 +1,190 @@
 # Session handoff
 
-> Updated 2026-08-08 (afternoon). **One team vs. many opposing teams is
-> built** — see the section directly below. Accounts are live, the site is
-> deployed to production, and the Supabase URL-config item below is still the
-> user's to do.
+> Updated 2026-08-12. This session: the **VGCPastes catalogue** (712 Champions
+> M-B teams, ingested *and live in Supabase*), **roster identity/partial-match
+> groundwork**, one copy/paste format for
+> one-vs-one *and* one-vs-many, a real `← back` on every page, and `/matchups`
+> no longer flashing a partial list. Sections below, newest first.
+>
+> Still true from before: one team vs. many opposing teams is built (2026-08-08),
+> accounts are live, the site is deployed to production, and the Supabase
+> URL-config item further down is still the user's to do.
+
+## 2026-08-12: roster identity + partial-match groundwork
+
+The user asked for team encoding ahead of a future "4+ matching" feature. Built
+`lib/match/roster.ts` (13 new tests) with the correction that mattered: **a
+single team code answers identity, never "4 of 6"** — two sets differing by one
+element hash to unrelated strings. So the code is the prerequisite and the
+`match_species` array + GIN index is the mechanism. Full reasoning in
+docs/ARCHITECTURE.md → "Roster identity vs. partial match".
+
+- `rosterCode` / `matchSpecies` / `matchKey` / `sharedSpecies`, plus
+  `looseKey` + `formeCandidates` moved here (re-exported from `matchOpponent`,
+  so existing importers are unaffected). Module is deliberately
+  **self-contained** — no relative imports — so the ingest script runs it
+  through Node and the DB can't disagree with the app.
+- Normalisation was decided from the corpus: 34 rows name a Mega in their paste
+  but preview shows the base forme, so `-mega`/`-mega-x/y` collapse; everything
+  else stays distinct because the same corpus has `Floette-Eternal` *and*
+  `Floette-Mega`. Sorting matters too — 108 teams differ from another only in
+  paste order (571 → 567 distinct rosters once Megas merge).
+- `community_teams` gained `match_species text[]` + `roster_code text` with a
+  GIN and a btree index; seed regenerated from the paste cache with **no
+  refetching**. Verified in PGlite: all 712 rows sorted and consistent, no
+  `-mega` leaked into `match_species`, and the real 4+ query runs in **3ms** —
+  histogram for the most-copied roster: 30 at 6/6, 9 at 5/6, 46 at 4/6, 91 at
+  3/6.
+- **Subset table deliberately not built** (C(6,4)=15 codes/team, 10,680 rows).
+  Nothing to optimise at 712 rows, and the codes make it a pure derivation.
+- **The search itself is not built, by the user's direction** ("we will implement
+  matching logic in future… write the matching part in doc"). The decided design
+  — the exact SQL, rank-don't-cut-off, regulation filter, threshold belongs to
+  the caller, ranking lives in `lib/`, degrade when Supabase is unconfigured, no
+  battle computation — is written up in docs/ARCHITECTURE.md → "Partial match
+  over the catalogue — planned, NOT built". Implement from there; don't
+  re-decide it. Confirmed with the user: `Garchomp-Mega` matching `garchomp` is
+  the intended behaviour and is what ships.
+- Two fixes fell out: `matchOpponent` now normalises **both** sides (a matchup
+  stored as "Garchomp-Mega" could never match an observed "Garchomp"), and
+  `rememberTeam` identifies teams by `rosterCode` instead of paste order (the
+  same team imported twice used to split its group).
+- 93 vitest tests. Re-verified the group copy/paste round-trip and the `/demo`
+  dedupe in a browser after the identity change.
+
+## 2026-08-12: VGCPastes catalogue ingested (712 Champions M-B teams)
+
+New `scripts/vgcpastes/ingest.mjs` + `supabase/community-teams.sql`. Full
+rationale in docs/ARCHITECTURE.md → "Community team catalogue". Status:
+
+- **Ingest has already run**: 712 teams fetched, 0 failures, 0 unparseable, all
+  six Pokémon. Output sits in `scripts/vgcpastes/data/` (gitignored):
+  `community-teams.ndjson` (1.1MB) + `seed-community-teams.sql` (1.2MB) +
+  a per-paste cache, so a re-run is nearly free.
+- 707 rows are M-B, **5 are M-A** — the paste's own `Format:` string wins over
+  the tab it was listed on. 184 are `featured` with an archetype `category`.
+- **DONE — applied to the live project** (the user put
+  `SUPABASE_CONNECT_STRING` in `.env.local`, which both tools read): the table and
+  all 712 rows are in. `supabase db push --dry-run` says "up to date"; the count
+  check is `node scripts/vgcpastes/seed.mjs --check` → 712 teams / 567 rosters /
+  184 featured / 2 regulations.
+- **How it went wrong, so nobody repeats it:** the seed was originally a second
+  migration, and `supabase db push` **could not apply it** — one ~1.3MB statement
+  with a dollar-quoted payload. It errored while recording nothing in
+  `supabase_migrations.schema_migrations`, even though the DDL migration had
+  already taken effect, so the retry failed with "relation already exists". Fixed
+  by: applying the seed as a single query over a normal connection (new
+  `scripts/vgcpastes/seed.mjs`, `pg` devDependency, ~1.3s), deleting the seed
+  migration, and `supabase migration repair --status applied 20260812000001`.
+  **Schema through the CLI, data through the script.**
+- The Supabase CLI was already installed and logged in — but to a *different*
+  account that can't see this project. Neither `login` nor `link` was needed in
+  the end: `supabase db push --db-url "$SUPABASE_CONNECT_STRING"` skips both.
+- RLS verified live with the real anon key: SELECT 200 (and the `match_species`
+  overlap query works through PostgREST `ov.`), INSERT **401/42501**. Careful:
+  anon DELETE returns **204** — RLS filters the rows out first, so nothing is
+  deleted. All 712 rows survived it. Judge write protection by row counts, not
+  status codes.
+- Scope was **M-B only, by the user's choice**. Adding Champions M-A (1104) or
+  SV Reg I (1280) is one entry in the script's `TABS` array — gids are recorded
+  in ARCHITECTURE.
+- Verified against a real Postgres 18 via PGlite before handing it over (DDL,
+  712-row seed in 20ms, idempotent second run, export text byte-identical).
+- **No UI over it** — 712 teams needs its own design pass; that's the next
+  decision, not something this pass assumed.
+- Also fixed the 3 duplicate-key console errors the user reported: `/demo`'s two
+  "use existing" lists concatenated `loadSavedTeams()` with `PRESETS` and a
+  remembered preset appeared in both (same id since `rememberTeam` canonicalises
+  by roster). New `existingTeams()` helper dedupes by id and by species.
+  Verified over CDP: each preset offered once, my-team and already-added
+  opponents excluded, console clean.
+
+## 2026-08-12: one copy/paste for one-vs-one and one-vs-many
+
+User: "for one team vs many team match up, is it possible to add a copy json
+here? … they are basically the same. the copy json can be located at the left
+of + add teams". Done — **v3** in `app/demo/workflow-io.ts`:
+`{v:3, my, b:[{op,t},…]}`, my team stated once, a single board being just N=1.
+Rules and rationale in docs/ARCHITECTURE.md → "Copy/paste is one format for one
+or many opponents". Highlights:
+
+- `encodeGroup(my, boards)` is the only writer; `encodeWorkflow(setup, nodes)`
+  calls it with one board (and is still the id-free dirty-check fingerprint).
+  v2/v1 are still read — `decodeWorkflowGroup` normalizes all three.
+- `t: []` is legal = "lined up, not planned yet" (matches storage's `nodes: []`),
+  so an unplanned opponent survives a round trip with its roster.
+- Warnings are prefixed `vs <opponent> — ` only when there's more than one
+  board; one unreadable opponent rejects the whole paste (no half imports).
+- Surfaces: `copy JSON (N)` on each `/matchups` group header (left of
+  `＋ add teams`, where the user asked for it), `paste JSON` beside
+  `＋ New matchup`, plus the board's existing Copy JSON / Import — a
+  multi-opponent paste on the board loads the first and saves the rest.
+- Import **replaces** an existing pairing (keeping its id, so its cloud row
+  survives) and says how many it replaced.
+- **`rememberTeam` got stricter about identity** (needed, found by the browser
+  check): it now also matches teams referenced by saved boards, and falls back
+  to species-list equality, because a pasted matchup carries rosters without
+  sets. Without it, pasting a group for a cloud-pulled team started a second
+  group. Longer export text wins so sets aren't discarded.
+- **Every copy button confirms** (follow-up ask: "copy json here and everywhere
+  else should have the 'Copied' effect as well"). `useCopy()` in `app/ui.tsx` is
+  now the one implementation — "Copied ✓" for 1.5s, timer cleared on unmount,
+  and it claims nothing if `writeText` rejects. Used by the board's Copy JSON,
+  the group's copy JSON (N), and the team card's Copy export (which had its own
+  copy of the logic before). Verified all three flip and the clipboard really
+  receives the payload — note `writeText` rejects on an unfocused document, so
+  a headless check needs `Emulation.setFocusEmulationEnabled`.
+- 80 vitest tests (10 new codec tests). Verified over CDP: copy a 3-opponent
+  group → wipe localStorage → paste → all three boards return under one team
+  with note, declared move and recorded Mega intact, the unplanned one still
+  unplanned, re-import replaces instead of duplicating; and on the board, Copy
+  JSON is v3 and a 3-opponent paste keeps the extras.
+## 2026-08-12: `← back` on every page
+
+User report on the board: "there is no back button." `home` was there; back was
+not, and home can't stand in for it — the board is reached from `/matchups` *and*
+from `/demo`. New `BackLink` in `app/nav.tsx` uses real history, with a
+`fallback` for direct entry / an off-site previous page. `HeaderNav` takes
+`back` and `onBeforeLeave`. **Placement rule (user-directed): back goes with the
+page's action buttons when the page has a row of them, otherwise in the nav** —
+left of `Reset` on the board, left of `paste JSON` on `/matchups`, left of My
+Team's `＋ import` on `/demo`, in the nav on `/demo/lookup` and `/login`. Moving
+it into `/demo`'s My Team row collided with that section's existing `← back`
+(which closed its import panel), so **a panel now closes with `cancel`** and
+`← back` only ever means "leave this page". `BackLink` takes a `className` so it can look like
+the buttons it stands with; pass `back` to `HeaderNav` *or* place a `BackLink`,
+never both (exactly one back per page — verified `backCount: 1`). On the board
+it's wrapped in its own capture handler so Reset never triggers a save. The board
+passes `saveIfDirty`,
+so leaving the board saves it like switching opponents already did — no
+"unsaved changes" dialog, ever. Rules in docs/ARCHITECTURE.md → the navigation
+section. Verified over CDP: board opened from `/matchups` goes back there, the
+same board opened from the builder goes back to `/demo`, direct entry falls back
+instead of leaving the site, a note typed and not saved survives the trip, and
+all four inner pages carry the link.
+
+## 2026-08-12: `/matchups` painted its list twice
+
+User report: "initially there is only one team, and there is a flash and many
+teams appeared then." Reproduced in a real browser (CDP, fake session cookie +
+a 700ms-delayed intercepted `/rest/v1/matchups` response) — before: `24ms` "No
+saved matchups yet" → `40ms` one browser group → `761ms` three groups. After:
+one paint at `769ms`, with an invisible-until-300ms placeholder before it.
+
+- `refresh()` in `app/matchups/page.tsx` set the rows once, not twice: the
+  account rows belong to the same list, so the list waits for them. Empty state
+  is gated on the load being finished.
+- New `.late-fade-in` in globals.css — a placeholder that is invisible for
+  300ms, so a fast response replaces it before it was ever seen. The delay
+  survives `prefers-reduced-motion` (only the fade is dropped); showing a
+  placeholder instantly would be the flash we're removing.
+- Upload/delete now update the rows optimistically (`markInCloud`, filtering the
+  removed row) so the reconciling refetch behind them isn't a second jump.
+- `userClient()` in `app/demo/cloud.ts` now uses `auth.getSession()` (local read)
+  instead of `auth.getUser()` (network round trip) — RLS is the actual authority,
+  so this only removes latency, not a check. Signed-out is now instant.
+- Rules written up in docs/ARCHITECTURE.md → "One list, one paint" and the
+  gotcha about `getSession` vs `getUser`. 70 tests / tsc / eslint green.
 
 ## 2026-08-08: one team vs. many teams
 
