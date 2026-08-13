@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decodeWorkflow, encodeWorkflow } from "../workflow-io";
+import {
+  decodeWorkflow,
+  decodeWorkflowGroup,
+  encodeGroup,
+  encodeWorkflow,
+} from "../workflow-io";
 import type { SimSetup, TurnNode } from "../storage";
 
 const MY = [
@@ -152,6 +157,22 @@ describe("workflow codec", () => {
     );
   });
 
+  it("rejects garbage and unknown versions as a group too", () => {
+    expect(decodeWorkflowGroup("not json")).toMatchObject({ ok: false });
+    expect(decodeWorkflowGroup('{"v":4}')).toMatchObject({ ok: false });
+    expect(
+      decodeWorkflowGroup(
+        JSON.stringify({ v: 3, my: { n: "A", f: "", s: MY } }),
+      ),
+    ).toMatchObject({ ok: false });
+    // v3 with no opposing teams at all
+    const empty = decodeWorkflowGroup(
+      JSON.stringify({ v: 3, my: { n: "A", f: "", s: MY }, b: [] }),
+    );
+    expect(empty.ok).toBe(false);
+    if (!empty.ok) expect(empty.error).toMatch(/no opposing teams/);
+  });
+
   it("still accepts the legacy verbose form", () => {
     const legacy = JSON.stringify({ version: 1, setup, nodes });
     const result = decodeWorkflow(legacy);
@@ -265,5 +286,192 @@ describe("workflow codec", () => {
     if (!result.ok) return;
     expect(result.nodes[0].my.moves).toBeUndefined();
     expect(result.warnings.join(" ")).toContain("team preview");
+  });
+});
+
+// One team vs. many: the same document, N opponents. A single board is N = 1,
+// so copy/paste doesn't care which one the author is looking at.
+describe("group codec (one team vs. many opponents)", () => {
+  const THIRD = [
+    "Torkoal",
+    "Ursaluna",
+    "Amoonguss",
+    "Rillaboom",
+    "Farigiraf",
+    "Ting-Lu",
+  ];
+  const boards = [
+    { opp: team("Zard", OPP), nodes },
+    {
+      opp: team("Trick Room", THIRD),
+      nodes: [
+        {
+          id: "x",
+          turn: 1,
+          parentId: null,
+          my: side(["Milotic", "Gholdengo"], ["Tyranitar", "Excadrill"]),
+          opp: side(["Torkoal", "Ursaluna"], ["Amoonguss", "Rillaboom"]),
+          note: "Don't let Torkoal set sun for free.",
+        },
+      ] as TurnNode[],
+    },
+  ];
+
+  it("round-trips several opponents under one team", () => {
+    const result = decodeWorkflowGroup(encodeGroup(setup.my, boards));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings).toEqual([]);
+    expect(result.my.name).toBe("Sand");
+    expect(result.my.parsed.map((m) => m.species)).toEqual(MY);
+    expect(result.boards).toHaveLength(2);
+    expect(result.boards.map((b) => b.opp.name)).toEqual([
+      "Zard",
+      "Trick Room",
+    ]);
+    expect(result.boards[0].nodes).toHaveLength(3);
+    expect(result.boards[0].nodes[1].my.moves).toEqual({
+      Milotic: "Icy Wind",
+      Excadrill: "High Horsepower",
+    });
+    expect(result.boards[1].nodes[0].note).toBe(
+      "Don't let Torkoal set sun for free.",
+    );
+    expect(result.boards[1].opp.parsed.map((m) => m.species)).toEqual(THIRD);
+  });
+
+  it("gives every board the same `my` team, so they group on import", () => {
+    const result = decodeWorkflowGroup(encodeGroup(setup.my, boards));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The team id is what `groupByMyTeam` buckets on — one team, one id.
+    expect(result.my.exportText).toBe(MY.join("\n\n"));
+    expect(new Set([result.my.id]).size).toBe(1);
+  });
+
+  it("states the author's roster once — a group is far smaller than N copies", () => {
+    const group = encodeGroup(setup.my, boards);
+    const separate = boards
+      .map((b) => encodeWorkflow({ my: setup.my, opp: b.opp }, b.nodes))
+      .join("");
+    expect(group.length).toBeLessThan(separate.length);
+    expect(group.split('"Sand"').length - 1).toBe(1);
+  });
+
+  it("a single board is the same format — v3 with one opponent", () => {
+    const one = encodeWorkflow(setup, nodes);
+    expect(JSON.parse(one).v).toBe(3);
+    expect(JSON.parse(one).b).toHaveLength(1);
+    const asGroup = decodeWorkflowGroup(one);
+    expect(asGroup.ok).toBe(true);
+    if (asGroup.ok) expect(asGroup.boards).toHaveLength(1);
+    // …and reading it as one board still works, for the board page.
+    const asBoard = decodeWorkflow(one);
+    expect(asBoard.ok).toBe(true);
+    if (asBoard.ok) expect(asBoard.nodes).toHaveLength(3);
+  });
+
+  it("reads a v2 pair as a group of one", () => {
+    const legacyPair = JSON.stringify({
+      v: 2,
+      my: { n: "Sand", f: "", s: MY },
+      op: { n: "Zard", f: "", s: OPP },
+      t: [[0, "01|23", "01|23"]],
+    });
+    const result = decodeWorkflowGroup(legacyPair);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.boards).toHaveLength(1);
+    expect(result.boards[0].opp.name).toBe("Zard");
+  });
+
+  it("names the board a warning came from, but only when there are several", () => {
+    const many = JSON.stringify({
+      v: 3,
+      my: { n: "Sand", f: "", s: MY },
+      b: [
+        { op: { n: "Zard", f: "", s: OPP }, t: [[0, "01|23", "01|23"]] },
+        // front of three on the opposing side — sanitized with a warning
+        {
+          op: { n: "Trick Room", f: "", s: THIRD },
+          t: [[0, "01|23", "012|3"]],
+        },
+      ],
+    });
+    const result = decodeWorkflowGroup(many);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings.every((w) => w.startsWith("vs Trick Room — "))).toBe(
+      true,
+    );
+
+    const single = decodeWorkflowGroup(
+      JSON.stringify({
+        v: 3,
+        my: { n: "Sand", f: "", s: MY },
+        b: [{ op: { n: "Zard", f: "", s: OPP }, t: [[0, "01|23", "012|3"]] }],
+      }),
+    );
+    expect(single.ok).toBe(true);
+    if (single.ok) {
+      expect(single.warnings.length).toBeGreaterThan(0);
+      expect(single.warnings.some((w) => w.startsWith("vs "))).toBe(false);
+    }
+  });
+
+  it("carries an opponent that has no plan yet", () => {
+    const lined_up = [
+      boards[0],
+      { opp: team("Trick Room", THIRD), nodes: [] as TurnNode[] },
+    ];
+    const result = decodeWorkflowGroup(encodeGroup(setup.my, lined_up));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.boards).toHaveLength(2);
+    // Empty turn list = "lined up, not planned yet", same as storage's nodes: []
+    expect(result.boards[1].nodes).toEqual([]);
+    expect(result.boards[1].opp.parsed.map((m) => m.species)).toEqual(THIRD);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("rejects the whole paste when one opponent is unreadable", () => {
+    const bad = JSON.stringify({
+      v: 3,
+      my: { n: "Sand", f: "", s: MY },
+      b: [
+        { op: { n: "Zard", f: "", s: OPP }, t: [[0, "01|23", "01|23"]] },
+        {
+          op: { n: "Fake", f: "", s: ["Torkoal", "Newmon2027"] },
+          t: [[0, "01|23", "01"]],
+        },
+      ],
+    });
+    const result = decodeWorkflowGroup(bad);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("Newmon2027");
+  });
+
+  it("rejects a group when any board is structurally broken", () => {
+    const base = { v: 3, my: { n: "Sand", f: "", s: MY } };
+    const good = {
+      op: { n: "Zard", f: "", s: OPP },
+      t: [[0, "01|23", "01|23"]],
+    };
+    // second board's turn list holds a non-node
+    expect(
+      decodeWorkflowGroup(
+        JSON.stringify({ ...base, b: [good, { ...good, t: ["nope"] }] }),
+      ),
+    ).toMatchObject({ ok: false });
+    // second board has no roster
+    expect(
+      decodeWorkflowGroup(
+        JSON.stringify({
+          ...base,
+          b: [good, { op: { n: "X", f: "", s: [] }, t: good.t }],
+        }),
+      ),
+    ).toMatchObject({ ok: false });
   });
 });

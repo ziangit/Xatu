@@ -1,3 +1,4 @@
+import { rosterCode } from "@/lib/match";
 import type { ParsedMon } from "@/lib/schema";
 
 /**
@@ -114,14 +115,43 @@ export const saveSetup = (setup: SimSetup) => write(KEYS.setup, setup);
 export const loadSavedTeams = () => read<StoredTeam[]>(KEYS.teams) ?? [];
 
 /**
- * Remembers a team and returns the canonical copy — importing the same export
- * text twice reuses the first id, so a team keeps one identity and its boards
- * keep grouping together.
+ * A team's identity: the same six Pokémon in any order, with in-battle formes
+ * collapsed. Shared with the catalogue and the matcher (lib/match/roster), and
+ * order-independent on purpose — comparing paste order made the same team
+ * imported twice into two teams, splitting its group.
+ */
+const speciesKey = (team: StoredTeam) =>
+  rosterCode(team.parsed.map((m) => m.species));
+
+/**
+ * Remembers a team and returns the canonical copy — the same team imported
+ * twice keeps one id, so its boards keep grouping together.
+ *
+ * Identity is checked against the team library *and* the teams referenced by
+ * saved boards: a board pulled down from the account (or one whose team fell
+ * off the 40-team cap) still counts as having that team, and a paste for it
+ * must not start a second group.
+ *
+ * Two ways to match, in order:
+ * 1. identical export text — unambiguously the same team;
+ * 2. the same six species in the same order — a pasted matchup carries only
+ *    rosters (the compact codec has no sets), so it would otherwise never
+ *    match a team imported from a full Showdown export. When they do match,
+ *    whichever copy has the longer export text wins, so pasting a roster over
+ *    a team that has real sets doesn't throw the sets away.
  */
 export function rememberTeam(team: StoredTeam): StoredTeam {
   const teams = loadSavedTeams();
-  const existing = teams.find((t) => t.exportText === team.exportText);
-  const canonical = existing ? { ...team, id: existing.id } : team;
+  const pool = [
+    ...teams,
+    ...loadMatchups().flatMap((m) => [m.setup.my, m.setup.opp]),
+  ];
+  const match =
+    pool.find((t) => t.exportText === team.exportText) ??
+    pool.find((t) => speciesKey(t) === speciesKey(team));
+  const fuller =
+    match && match.exportText.length > team.exportText.length ? match : team;
+  const canonical = match ? { ...fuller, id: match.id, name: team.name } : team;
   write(
     KEYS.teams,
     [canonical, ...teams.filter((t) => t.id !== canonical.id)].slice(0, 40),
