@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 /**
  * Small shared UI pieces.
  *
@@ -7,6 +9,40 @@
  * dialog is unstyleable, jarring, and says "localhost:7317 says". Destructive
  * actions confirm **in place** instead — the row turns into its own question.
  */
+
+/**
+ * Copy to the clipboard and say so, in the button itself.
+ *
+ * Every copy affordance in the app uses this — a copy is invisible otherwise,
+ * and one button confirming while another stays silent reads as the silent one
+ * being broken. `label(copied)` keeps each button's own wording ("Copy JSON" vs
+ * "copy JSON (3)") while the timing and the failure path stay shared.
+ */
+export function useCopy(ms = 1500) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return false; // denied permission / insecure context — say nothing false
+    }
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), ms);
+    return true;
+  };
+
+  return { copied, copy };
+}
 
 export function InlineConfirm({
   question,

@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { AccountLink } from "./auth/AccountLink";
 
 /**
- * Shared page chrome. Every page gets the same two guarantees from here: the
- * wordmark is a visible link home, and the header carries an explicit "home"
- * link. New pages use these instead of hand-rolling a header, so no page can
- * ship as a dead end.
+ * Shared page chrome. Every page gets the same three guarantees from here: the
+ * wordmark is a visible link home, the header carries an explicit "home" link,
+ * and it carries a "back" link to wherever the reader came from. New pages use
+ * these instead of hand-rolling a header, so no page can ship as a dead end.
  */
 
 const LINK =
@@ -81,15 +82,77 @@ export function HomeLink() {
 }
 
 /**
- * Header links: home first, then page-specific ones, then the account behind a
- * hairline. Labels are plain nouns — arrows and possessives ("my matchups →")
- * made the bar read as a wall of text on the wider pages.
+ * Back to wherever the reader actually came from — real history, so a board
+ * opened from /matchups goes back to /matchups and the same board opened from
+ * the builder goes back to the builder.
+ *
+ * `fallback` covers the two cases where history can't be trusted: the page was
+ * opened directly (a typed URL or a new tab, so there is nothing to go back to)
+ * and the previous entry is another site (following back would leave xatu, which
+ * is not what a back link inside the app should do). Soft navigations don't
+ * update `document.referrer`, so an empty referrer with history behind it is an
+ * in-app hop and counts as safe.
  */
-export function HeaderNav({ children }: { children?: ReactNode }) {
+export function BackLink({
+  fallback,
+  className = LINK,
+}: {
+  fallback: string;
+  /** Override when back sits among buttons rather than nav links (the board
+   * puts it left of Reset, so it has to look like Reset). */
+  className?: string;
+}) {
+  const router = useRouter();
+
+  // Decided at click time, not in an effect: no state to hydrate, and the
+  // answer is only ever needed once the reader has actually clicked.
+  const canGoBack = () => {
+    const sameSite =
+      !document.referrer ||
+      new URL(document.referrer).origin === window.location.origin;
+    return window.history.length > 1 && sameSite;
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => (canGoBack() ? router.back() : router.push(fallback))}
+      title="back to the previous page"
+      className={`${className} cursor-pointer`}
+    >
+      ← back
+    </button>
+  );
+}
+
+/**
+ * Header links: back and home first, then page-specific ones, then the account
+ * behind a hairline. Labels are plain nouns — arrows and possessives ("my
+ * matchups →") made the bar read as a wall of text on the wider pages.
+ *
+ * `onBeforeLeave` runs before any of the navigation links act (not the account
+ * menu, which doesn't navigate) — the board uses it to save work in flight, the
+ * same way switching opponents does.
+ */
+export function HeaderNav({
+  back,
+  onBeforeLeave,
+  children,
+}: {
+  back?: string;
+  onBeforeLeave?: () => void;
+  children?: ReactNode;
+}) {
   return (
     <nav className="flex shrink-0 items-center gap-4">
-      <HomeLink />
-      {children}
+      <span
+        className="flex shrink-0 items-center gap-4"
+        onClickCapture={onBeforeLeave}
+      >
+        {back && <BackLink fallback={back} />}
+        <HomeLink />
+        {children}
+      </span>
       {/* AccountLink brings its own leading hairline — it renders nothing at
           all in local-only builds, and a stray divider would be left behind. */}
       <AccountLink />
