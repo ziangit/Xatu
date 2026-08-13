@@ -27,11 +27,20 @@ function isMatchup(payload: unknown): payload is SavedMatchup {
   );
 }
 
+/**
+ * The client, or null when accounts are off / nobody is signed in.
+ *
+ * Deliberately `getSession()` (a local read) rather than `getUser()` (a network
+ * round trip to /auth/v1/user): this only decides whether to *attempt* a query,
+ * and RLS is what actually authorizes it — a stale session gets an error from
+ * Postgres, never someone else's rows. Saves a round trip on every call, which
+ * is why the matchup list can wait for one request instead of two.
+ */
 async function userClient() {
   const supabase = getSupabase();
   if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data.user ? supabase : null;
+  const { data } = await supabase.auth.getSession();
+  return data.session ? supabase : null;
 }
 
 export async function listCloudMatchups(): Promise<CloudList> {

@@ -107,6 +107,13 @@
   transform-origin: top;
   animation: grow-in 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+/* A loading placeholder that never flashes: invisible for the first 0.3s, so a
+   fast response replaces it before it was ever seen. Use it instead of painting
+   a half-loaded list — see the no-layout-shift rule in docs/ARCHITECTURE.md. */
+.late-fade-in {
+  opacity: 0;
+  animation: land-fade 0.2s ease-out 0.3s forwards;
+}
 .step-1 {
   animation-delay: 0.04s;
 }
@@ -130,6 +137,11 @@
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  /* Keep the anti-flash delay — the point isn't the fade, it's not showing a
+     placeholder that a fast response would immediately replace. */
+  .late-fade-in {
+    animation: land-fade 0.01s linear 0.3s forwards;
   }
   .land-draw {
     animation: none;
