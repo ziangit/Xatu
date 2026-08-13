@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import { Icons } from "@pkmn/img";
 import { Team } from "@pkmn/sets";
 import { importTeams, teamLabel } from "@/lib/team";
+import { useCopy } from "../ui";
 import type { StoredTeam } from "./storage";
 
 /** Showdown team-preview pixel icon, from the hotlinked icon sheet. */
@@ -268,18 +269,14 @@ export function TeamPanel({
   collapsed?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopy();
   const isOpen = open && !collapsed;
 
   // Full set details (EVs, nature, level) come from re-parsing the verbatim
   // export — the parsed view in the schema is deliberately minimal.
   const sets = isOpen ? (Team.import(team.exportText)?.team ?? []) : [];
 
-  const copyExport = async () => {
-    await navigator.clipboard.writeText(team.exportText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const copyExport = () => copy(team.exportText);
 
   return (
     <div className="rounded-lg border border-stone-200 bg-white">

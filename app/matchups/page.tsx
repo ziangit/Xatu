@@ -3,17 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HeaderNav, NavLink, Wordmark } from "../nav";
-import { InlineConfirm } from "../ui";
+import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
+import { InlineConfirm, useCopy } from "../ui";
 import { MonIcon } from "../demo/components";
+import { supabaseConfigured } from "../auth/client";
 import {
   deleteCloudMatchup,
   listCloudMatchups,
   upsertCloudMatchup,
 } from "../demo/cloud";
+import { decodeWorkflowGroup, encodeGroup } from "../demo/workflow-io";
 import {
   deleteMatchup,
+  findPairMatchup,
   loadMatchups,
+  rememberTeam,
   saveSetup,
   setActiveMatchupId,
   upsertMatchup,
@@ -94,19 +98,34 @@ export default function MatchupsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   /** Row awaiting its in-place delete confirmation (never window.confirm). */
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  /** Which group was copied — the shared hook says *whether*, this says *which*. */
+  const { copied, copy } = useCopy();
+  const [copiedTeamId, setCopiedTeamId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importNotes, setImportNotes] = useState<string[]>([]);
 
+  /**
+   * One list, painted once. Earlier this rendered the browser-only rows first
+   * and then re-rendered with the account rows merged in, which read as a flash
+   * followed by the list tripling in size (and, with nothing saved locally, a
+   * wrong "no saved matchups yet" in between). The account rows belong to the
+   * same list, so the list waits for them; `late-fade-in` keeps the placeholder
+   * off screen unless the request is actually slow.
+   */
   const refresh = async () => {
     const local = loadMatchups();
-    setRows(mergeRows(local, null));
-    const result = await listCloudMatchups();
-    if (result.state === "ok") {
-      setCloud("ok");
-      setRows(mergeRows(local, result.matchups));
-    } else if (result.state === "off") {
+    if (!supabaseConfigured()) {
+      setRows(mergeRows(local, null));
       setCloud("off");
-    } else {
-      setCloud({ error: result.message });
+      return;
     }
+    const result = await listCloudMatchups();
+    setRows(mergeRows(local, result.state === "ok" ? result.matchups : null));
+    if (result.state === "ok") setCloud("ok");
+    else if (result.state === "off") setCloud("off");
+    else setCloud({ error: result.message });
   };
 
   useEffect(() => {
@@ -128,12 +147,21 @@ export default function MatchupsPage() {
     router.push("/demo/sim");
   };
 
+  /** Badges flip as soon as the write lands — the refresh behind it only
+   * reconciles, so a row never sits there looking unchanged. */
+  const markInCloud = (ids: string[]) =>
+    setRows((prev) =>
+      prev.map((r) => (ids.includes(r.id) ? { ...r, inCloud: true } : r)),
+    );
+
   const upload = async (row: Row) => {
     setBusyId(row.id);
     const result = await upsertCloudMatchup(row.entry);
     setBusyId(null);
-    if (result === "ok") void refresh();
-    else if (result !== "off") setCloud({ error: result });
+    if (result === "ok") {
+      markInCloud([row.id]);
+      void refresh();
+    } else if (result !== "off") setCloud({ error: result });
   };
 
   /** Add more opposing teams to a team's group, on the builder. The freshest
@@ -147,14 +175,76 @@ export default function MatchupsPage() {
   /** Whole group at once — a team's plans are worth syncing together. */
   const uploadAll = async (pending: Row[]) => {
     setBusyId(pending[0]?.id ?? null);
+    const done: string[] = [];
     for (const row of pending) {
       const result = await upsertCloudMatchup(row.entry);
       if (result !== "ok" && result !== "off") {
         setCloud({ error: result });
         break;
       }
+      if (result === "ok") done.push(row.id);
     }
     setBusyId(null);
+    markInCloud(done);
+    void refresh();
+  };
+
+  /**
+   * The whole group as one paste-able document: the team once, then every
+   * opponent with its plan (including the ones with no plan yet, which carry
+   * their roster). A single board is the same format with one opponent, so
+   * there's nothing to choose between here and the board's Copy JSON.
+   */
+  const copyGroup = async (group: Group) => {
+    const boards = group.rows.map((r) => ({
+      opp: r.entry.setup.opp,
+      nodes: r.entry.nodes,
+    }));
+    if (await copy(encodeGroup(group.team, boards))) {
+      setCopiedTeamId(group.teamId);
+    }
+  };
+
+  /**
+   * Paste a document back in — one opponent or many, whichever it holds. An
+   * opponent already paired with this team keeps its library entry (and its
+   * cloud row) and has its plan replaced; the count says how many, so a
+   * replacement is never silent.
+   */
+  const importGroup = () => {
+    const result = decodeWorkflowGroup(importText.trim());
+    if (!result.ok) {
+      setImportError(result.error);
+      return;
+    }
+    const my = rememberTeam(result.my);
+    let replaced = 0;
+    const created: SavedMatchup[] = result.boards.map((board) => {
+      const opp = rememberTeam(board.opp);
+      const existing = findPairMatchup(loadMatchups(), my.id, opp.id);
+      if (existing) replaced += 1;
+      const entry: SavedMatchup = {
+        id: existing?.id ?? crypto.randomUUID(),
+        name: existing?.name ?? `${my.name} vs ${opp.name}`,
+        setup: { my, opp },
+        nodes: board.nodes,
+        savedAt: new Date().toISOString(),
+      };
+      upsertMatchup(entry);
+      return entry;
+    });
+    // Signed in → mirror them, same as adding an opponent on the builder does.
+    for (const entry of created) void upsertCloudMatchup(entry);
+    setShowImport(false);
+    setImportText("");
+    setImportError(null);
+    setImportNotes([
+      `Imported ${created.length} matchup${created.length === 1 ? "" : "s"} for ${my.name}` +
+        (replaced > 0
+          ? ` — ${replaced} replaced a plan you already had.`
+          : "."),
+      ...result.warnings,
+    ]);
     void refresh();
   };
 
@@ -173,6 +263,7 @@ export default function MatchupsPage() {
       if (result !== "ok" && result !== "off") setCloud({ error: result });
     }
     setBusyId(null);
+    setRows((prev) => prev.filter((r) => r.id !== row.id));
     void refresh();
   };
 
@@ -189,7 +280,22 @@ export default function MatchupsPage() {
           </HeaderNav>
         </header>
 
-        <div className="mt-4 flex justify-end">
+        {/* Back sits with this page's actions, like the board's does — one
+            place to look for "leave" and "do something here". */}
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <BackLink
+            fallback="/"
+            className="rounded border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-500"
+          />
+          <button
+            onClick={() => {
+              setShowImport(!showImport);
+              setImportError(null);
+            }}
+            className="rounded border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-500"
+          >
+            paste JSON
+          </button>
           <Link
             href="/demo?new=1"
             className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
@@ -197,6 +303,69 @@ export default function MatchupsPage() {
             ＋ New matchup
           </Link>
         </div>
+
+        {showImport && (
+          <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+              Paste a copied matchup
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+              Anything copied with <em>copy JSON</em> — one opposing team or a
+              whole set.
+            </p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              rows={4}
+              spellCheck={false}
+              placeholder="Paste here…"
+              className="mt-2 w-full resize-y rounded border border-stone-300 bg-white p-2.5 font-mono text-[11px] text-stone-700 placeholder:text-stone-300 focus:border-stone-500 focus:outline-none"
+            />
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                onClick={importGroup}
+                disabled={!importText.trim()}
+                className="rounded bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-30"
+              >
+                Import
+              </button>
+              <button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportText("");
+                  setImportError(null);
+                }}
+                className="text-xs text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+              >
+                cancel
+              </button>
+              {importError && (
+                <p className="text-xs text-red-600">{importError}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {importNotes.length > 0 && (
+          <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-white p-3">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                Import notes
+              </p>
+              <button
+                onClick={() => setImportNotes([])}
+                className="text-[11px] text-stone-400 hover:text-stone-700"
+              >
+                dismiss
+              </button>
+            </div>
+            <ul className="mt-1.5 space-y-0.5 text-[11px] leading-relaxed text-stone-600">
+              {importNotes.map((note, i) => (
+                <li key={i}>· {note}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {cloud === "off" && (
           <p className="mt-4 text-xs leading-relaxed text-stone-400">
@@ -217,7 +386,28 @@ export default function MatchupsPage() {
           </p>
         )}
 
-        {rows.length === 0 ? (
+        {cloud === "loading" ? (
+          <div className="late-fade-in mt-6 space-y-6" aria-busy="true">
+            {[0, 1].map((i) => (
+              <section
+                key={i}
+                className="rounded-lg border border-stone-200 bg-white"
+              >
+                <header className="flex items-center gap-3 border-b border-stone-100 bg-[#fcfcfa] px-4 py-2.5">
+                  <span className="h-5 w-[104px] shrink-0 rounded bg-stone-100" />
+                  <span className="h-3 w-40 rounded bg-stone-100" />
+                </header>
+                <div className="space-y-3 px-4 py-4">
+                  <span className="block h-3 w-2/3 rounded bg-stone-50" />
+                  <span className="block h-3 w-1/2 rounded bg-stone-50" />
+                </div>
+              </section>
+            ))}
+            <p className="text-center text-xs text-stone-400">
+              Loading your matchups…
+            </p>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="mt-10 rounded-lg border border-dashed border-stone-300 p-10 text-center text-sm text-stone-400">
             No saved matchups yet.{" "}
             <Link
@@ -262,6 +452,15 @@ export default function MatchupsPage() {
                         upload all ({pending.length})
                       </button>
                     )}
+                    <button
+                      onClick={() => copyGroup(group)}
+                      title={`copy ${group.team.name} and all ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} as JSON`}
+                      className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-400"
+                    >
+                      {copied && copiedTeamId === group.teamId
+                        ? "Copied ✓"
+                        : `copy JSON (${group.rows.length})`}
+                    </button>
                     <button
                       onClick={() => addTeams(group)}
                       title={`add opposing teams to plan against ${group.team.name}`}

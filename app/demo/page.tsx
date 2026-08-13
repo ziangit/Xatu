@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HeaderNav, NavLink, Wordmark } from "../nav";
+import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
 import { InlineConfirm } from "../ui";
 import { yoshimapGuide } from "@/lib/schema/fixtures/yoshimap-sand-staraptor";
 import { importTeamText } from "@/lib/team";
@@ -48,6 +48,26 @@ const PRESETS: StoredTeam[] = [
 
 type SlotChoice = "closed" | "choice" | "import" | "existing";
 
+/**
+ * The teams offered by "use existing": everything the browser remembers, plus
+ * the built-in presets — each team once. Presets need the dedupe because
+ * picking one writes it into the saved-teams library under its own preset id
+ * (`rememberTeam` canonicalises by roster), so a naive concat listed it twice
+ * *and* collided on the React key.
+ */
+function existingTeams(exclude: (team: StoredTeam) => boolean): StoredTeam[] {
+  const seen = new Set<string>();
+  const out: StoredTeam[] = [];
+  for (const team of [...loadSavedTeams(), ...PRESETS]) {
+    const key = team.parsed.map((m) => m.species).join("|");
+    if (seen.has(team.id) || seen.has(key) || exclude(team)) continue;
+    seen.add(team.id);
+    seen.add(key);
+    out.push(team);
+  }
+  return out;
+}
+
 /** Compact sprite row, used for both sides everywhere on this page. */
 function TeamSprites({
   team,
@@ -78,7 +98,7 @@ function MyTeamSlot({
 
   const openExisting = () => {
     // localStorage is browser-only; read on interaction, not at render.
-    setExisting([...loadSavedTeams(), ...PRESETS]);
+    setExisting(existingTeams(() => false));
     setMode("existing");
   };
 
@@ -93,31 +113,40 @@ function MyTeamSlot({
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
           My Team
         </h2>
-        {mode !== "closed" ? (
-          <button
-            onClick={() => setMode("closed")}
-            className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-          >
-            ← back
-          </button>
-        ) : (
-          team && (
-            <span className="flex items-center gap-2">
-              <button
-                onClick={() => setMode("import")}
-                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
-              >
-                ＋ import
-              </button>
-              <button
-                onClick={openExisting}
-                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
-              >
-                switch team
-              </button>
-            </span>
-          )
-        )}
+        {/* Two different "back"s would meet in this row, so they're kept
+            distinct: the page-level one is a button that never moves, the
+            section's own way out of an open panel is a "cancel" text link. */}
+        <span className="flex items-center gap-2">
+          <BackLink
+            fallback="/"
+            className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+          />
+          {mode !== "closed" ? (
+            <button
+              onClick={() => setMode("closed")}
+              className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+            >
+              cancel
+            </button>
+          ) : (
+            team && (
+              <>
+                <button
+                  onClick={() => setMode("import")}
+                  className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                >
+                  ＋ import
+                </button>
+                <button
+                  onClick={openExisting}
+                  className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                >
+                  switch team
+                </button>
+              </>
+            )
+          )}
+        </span>
       </div>
 
       <div className="mt-2 space-y-3">
@@ -205,9 +234,7 @@ function OpponentList({
 
   const openExisting = () => {
     setExisting(
-      [...loadSavedTeams(), ...PRESETS].filter(
-        (t) => t.id !== myTeam.id && !alreadyIn.has(t.id),
-      ),
+      existingTeams((t) => t.id === myTeam.id || alreadyIn.has(t.id)),
     );
     setMode("existing");
   };

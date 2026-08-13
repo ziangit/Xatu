@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getSupabase } from "../auth/client";
 // The account widget is deliberately absent here — this page IS the account
 // page — so the nav is hand-rolled instead of using HeaderNav.
-import { HomeLink, Wordmark } from "../nav";
+import { BackLink, HomeLink, Wordmark } from "../nav";
 
 // Sign in / create account. Both paths — Google OAuth and email/password —
 // go through Supabase Auth; xatu never sees or stores a password. Accounts
@@ -92,6 +92,7 @@ export default function LoginPage() {
         <header className="flex items-baseline justify-between">
           <Wordmark />
           <nav className="flex items-center gap-4">
+            <BackLink fallback="/" />
             <HomeLink />
             <Link
               href="/demo"

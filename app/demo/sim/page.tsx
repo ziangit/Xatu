@@ -2,14 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { HeaderNav, NavLink, Wordmark } from "../../nav";
+import { BackLink, HeaderNav, NavLink, Wordmark } from "../../nav";
+import { useCopy } from "../../ui";
 import { cascadePositions, stripMove, switchedInSpecies } from "../board";
 import { MonIcon, TYPE_COLORS } from "../components";
 import { upsertCloudMatchup } from "../cloud";
-import { decodeWorkflow, encodeWorkflow, parseTargetRef } from "../workflow-io";
+import {
+  decodeWorkflowGroup,
+  encodeWorkflow,
+  parseTargetRef,
+} from "../workflow-io";
 import {
   findPairMatchup,
   loadActiveMatchupId,
+  rememberTeam,
   loadMatchups,
   loadSetup,
   saveSetup,
@@ -641,6 +647,7 @@ export default function SimPage() {
   /** Every board built with the same team of mine — the opponent switcher. */
   const [group, setGroup] = useState<SavedMatchup[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+  const { copied, copy } = useCopy();
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -1021,6 +1028,11 @@ export default function SimPage() {
     return current !== encodeWorkflow(stored.setup, stored.nodes);
   };
 
+  /** Leaving the board (back, home, any nav link) keeps what's written. */
+  const saveIfDirty = () => {
+    if (hasUnsavedWork()) save();
+  };
+
   /** Move to another opponent of the same team, saving the current board first
    * if it holds work. Same route, so the state is swapped in place. */
   const switchTo = (entry: SavedMatchup) => {
@@ -1057,22 +1069,39 @@ export default function SimPage() {
     setSavedAt(null);
   };
 
-  const copyJson = async () => {
-    await navigator.clipboard.writeText(encodeWorkflow(setup, nodes));
-  };
+  const copyJson = () => copy(encodeWorkflow(setup, nodes));
 
+  /**
+   * A pasted document holds one team and 1..N opponents. The first opponent
+   * becomes the board being edited; the rest are saved into the library right
+   * away, so a group someone shared arrives whole instead of losing everything
+   * after the first board.
+   */
   const importWorkflow = () => {
-    const result = decodeWorkflow(importText.trim());
+    const result = decodeWorkflowGroup(importText.trim());
     if (!result.ok) {
       setImportError(result.error);
       return;
     }
-    setSetup(result.setup);
-    setNodes(result.nodes);
-    saveSetup(result.setup);
-    setGroup(
-      loadMatchups().filter((m) => m.setup.my.id === result.setup.my.id),
-    );
+    const my = rememberTeam(result.my);
+    const [first, ...rest] = result.boards;
+    const setupIn = { my, opp: rememberTeam(first.opp) };
+    for (const board of rest) {
+      const opp = rememberTeam(board.opp);
+      const existing = findPairMatchup(loadMatchups(), my.id, opp.id);
+      upsertMatchup({
+        id: existing?.id ?? crypto.randomUUID(),
+        name: existing?.name ?? `${my.name} vs ${opp.name}`,
+        setup: { my, opp },
+        nodes: board.nodes,
+        savedAt: new Date().toISOString(),
+      });
+    }
+    setSetup(setupIn);
+    // nodes: [] means "not planned yet" — the board still needs its preview card.
+    setNodes(first.nodes.length > 0 ? first.nodes : freshNodes(setupIn));
+    saveSetup(setupIn);
+    setGroup(loadMatchups().filter((m) => m.setup.my.id === my.id));
     // An imported board is a new, not-yet-saved matchup.
     setActiveMatchupId(null);
     setMatchup(null);
@@ -1080,7 +1109,14 @@ export default function SimPage() {
     setShowImport(false);
     setImportText("");
     setImportError(null);
-    setImportWarnings(result.warnings);
+    setImportWarnings(
+      rest.length > 0
+        ? [
+            `Also added ${rest.length} more opposing team${rest.length === 1 ? "" : "s"} to this team's matchups.`,
+            ...result.warnings,
+          ]
+        : result.warnings,
+    );
   };
 
   return (
@@ -1089,9 +1125,15 @@ export default function SimPage() {
         {/* Three bands, so the site nav, the board's own actions, and the
             matchup switcher never read as one jumbled strip. */}
         <header className="border-b border-stone-200 pb-4">
+          {/* Leaving the board saves it first, exactly like switching
+              opponents — the board is the one page where navigating away could
+              throw away written work. The wordmark is a link too, so it gets
+              the same guard; the account menu doesn't navigate, so it doesn't. */}
           <div className="flex items-center justify-between gap-4">
-            <Wordmark heading={false} />
-            <HeaderNav>
+            <span onClickCapture={saveIfDirty}>
+              <Wordmark heading={false} />
+            </span>
+            <HeaderNav onBeforeLeave={saveIfDirty}>
               <NavLink href="/demo">builder</NavLink>
               <NavLink href="/matchups">matchups</NavLink>
             </HeaderNav>
@@ -1159,6 +1201,15 @@ export default function SimPage() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {/* Back lives with the board's actions, not up in the site nav —
+                  it's the way out of *this board*, so it belongs where the
+                  eye already is. Wrapped alone so Reset can't trigger a save. */}
+              <span onClickCapture={saveIfDirty}>
+                <BackLink
+                  fallback="/matchups"
+                  className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
+                />
+              </span>
               <button
                 onClick={resetBoard}
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
@@ -1176,9 +1227,10 @@ export default function SimPage() {
               </button>
               <button
                 onClick={copyJson}
+                title="copy this board as JSON — paste it here or on My matchups"
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                Copy JSON
+                {copied ? "Copied ✓" : "Copy JSON"}
               </button>
               <button
                 onClick={() => save()}
@@ -1241,7 +1293,7 @@ export default function SimPage() {
           <div className="grow-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-baseline justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-700">
-                Imported with fixes
+                Import notes
               </p>
               <button
                 onClick={() => setImportWarnings([])}

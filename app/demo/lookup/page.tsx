@@ -210,7 +210,7 @@ export default function DemoPage() {
               by {demoGuide.authorName} · {demoGuide.regulation}
             </p>
           </div>
-          <HeaderNav>
+          <HeaderNav back="/demo">
             <NavLink href="/demo">builder</NavLink>
             {opponent && (
               <button
