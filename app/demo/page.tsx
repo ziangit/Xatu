@@ -128,7 +128,7 @@ function MyTeamSlot({
                   onClick={() => setMode("import")}
                   className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                 >
-                  ＋ import
+                  ＋ new team
                 </button>
                 <button
                   onClick={openExisting}
@@ -150,7 +150,7 @@ function MyTeamSlot({
               onClick={() => setMode("import")}
               className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
             >
-              Import a team
+              New team
             </button>
             <button
               onClick={openExisting}
@@ -260,7 +260,7 @@ function OpponentList({
                 onClick={() => setMode("import")}
                 className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
               >
-                ＋ import
+                ＋ new team
               </button>
               <button
                 onClick={openExisting}
@@ -338,11 +338,14 @@ function OpponentList({
         {((boards.length === 0 && mode === "closed") || mode === "choice") && (
           <div className="grow-in flex h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300">
             <div className="flex gap-3">
+              {/* "New team", not "Import": the panel behind it now also builds
+                  a team by typing names, so naming the paste would hide half
+                  of what the button does. */}
               <button
                 onClick={() => setMode("import")}
                 className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
               >
-                Import teams
+                New team
               </button>
               <button
                 onClick={openExisting}
@@ -352,7 +355,7 @@ function OpponentList({
               </button>
             </div>
             <p className="text-[11px] text-stone-400">
-              paste several at once — one matchup each
+              type the six, or paste several teams at once — one matchup each
             </p>
           </div>
         )}
