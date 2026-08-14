@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
 import { InlineConfirm } from "../ui";
-import { yoshimapGuide } from "@/lib/schema/fixtures/yoshimap-sand-staraptor";
 import { importTeamText } from "@/lib/team";
 import { ImportPanel, MonIcon, TeamPanel, FORMATS } from "./components";
 import { deleteCloudMatchup, upsertCloudMatchup } from "./cloud";
@@ -29,22 +28,16 @@ import {
 // opponents as you like (each becomes its own board), then plan them one by
 // one on the sim page.
 
-const PRESETS: StoredTeam[] = [
-  {
-    id: "preset-sand",
-    name: yoshimapGuide.title,
-    format: FORMATS[0],
-    exportText: yoshimapGuide.ownTeam.exportText,
-    parsed: yoshimapGuide.ownTeam.parsed,
-  },
-  ...SAMPLE_TEAMS.map((s, i) => ({
-    id: `preset-${i}`,
-    name: s.label,
-    format: FORMATS[0],
-    exportText: s.text,
-    parsed: importTeamText(s.text)?.parsed ?? [],
-  })),
-];
+// The built-in teams offered before you've imported any of your own. They are
+// exactly SAMPLE_TEAMS — a preset is a real pasted team, not a special kind of
+// one, so nothing here may diverge from what an import would produce.
+const PRESETS: StoredTeam[] = SAMPLE_TEAMS.map((s, i) => ({
+  id: `preset-${i}`,
+  name: s.label,
+  format: FORMATS[0],
+  exportText: s.text,
+  parsed: importTeamText(s.text)?.parsed ?? [],
+}));
 
 type SlotChoice = "closed" | "choice" | "import" | "existing";
 

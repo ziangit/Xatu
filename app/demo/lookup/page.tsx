@@ -239,7 +239,7 @@ export default function DemoPage() {
               spellCheck={false}
               className="mt-2 w-full resize-y rounded-md border border-stone-200 bg-white p-3 font-mono text-xs text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
             />
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 onClick={handleImport}
                 disabled={fetching || !pasteInput.trim()}
@@ -248,7 +248,11 @@ export default function DemoPage() {
                 {fetching ? "Fetching…" : "Look up"}
               </button>
               <span className="text-xs text-stone-400">or try</span>
-              {SAMPLE_TEAMS.map((s) => (
+              {/* A shortcut into the flow, not a catalogue — the full sample
+                  set lives in the builder's "use existing". Any of them is a
+                  fair test: a team this guide has no matchup for is a case the
+                  page has to handle anyway. */}
+              {SAMPLE_TEAMS.slice(0, 3).map((s) => (
                 <button
                   key={s.label}
                   onClick={() => loadTeam(s.text)}
