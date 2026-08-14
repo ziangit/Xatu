@@ -1,14 +1,151 @@
 # Session handoff
 
-> Updated 2026-08-12. This session: the **VGCPastes catalogue** (712 Champions
+> Updated 2026-08-13: a **species type-ahead** (type "pika", get Pikachu with a
+> sprite) so a team can be built without a paste, a read-only **"does this look
+> like a known team?"** lookup over the 712-team catalogue once four species are
+> named, and the **sample teams** are now the user's own eight. Sections below,
+> newest first.
+>
+> Updated 2026-08-12. That session: the **VGCPastes catalogue** (712 Champions
 > M-B teams, ingested *and live in Supabase*), **roster identity/partial-match
 > groundwork**, one copy/paste format for
 > one-vs-one *and* one-vs-many, a real `← back` on every page, and `/matchups`
 > no longer flashing a partial list. Sections below, newest first.
 >
 > Still true from before: one team vs. many opposing teams is built (2026-08-08),
-> accounts are live, the site is deployed to production, and the Supabase
-> URL-config item further down is still the user's to do.
+> accounts are live, and the site is deployed to production. **The Supabase
+> URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
+> still calls it open.
+
+## 2026-08-13: "does this look like a known team?" — partial match, built
+
+User: *"if user enters >= 4 pokemons, we provide the match function… the match
+should only show when user click it."* Built on the groundwork from 2026-08-12;
+the decided design in docs/ARCHITECTURE.md → "Partial match over the catalogue"
+was implemented unchanged, and that section is now marked BUILT with the
+measurements. Answer to the open question there (user's call): **read-only** —
+clicking a result changes nothing about the team being typed.
+
+- `lib/match/catalogue.ts` — `rankCatalogueMatches(observed, rows, {min, limit})`,
+  pure, 10 new tests. Groups by `roster_code` so one popular archetype can't
+  crowd the list (712 teams are 567 rosters; the top one is copied 30×), ranks by
+  shared count then paste count, and marks which of the six were named.
+- `app/demo/catalogue.ts` — the query. **`contains` when the number named equals
+  the threshold** (four named ⇒ "contains all four" is exact, and measured live
+  at 13 rows / 5.4KB against 481 rows / ~30KB gzipped for overlap); `overlaps`
+  above that. Lean column list — no `export_text`, which would make it megabytes.
+- `app/demo/catalogue-lookup.tsx` — the panel: score badge, six sprites with the
+  named ones in colour and the rest greyed, team name, `×N` pastes, a link to the
+  paste, and a line saying it changes nothing. Scrolls inside a fixed height.
+- Degrades to nothing when Supabase is unconfigured, like every other cloud read.
+  Still no battle computation: set arithmetic on species names, ranked not asserted.
+- Verified end to end against the **live** database in a browser: no request at
+  three species, none at four until clicked, then exactly one GET using `cs.`;
+  six named switches to `ov.` and ranks `6/6, 5/6×4, 5/6×2, …, 4/6×9`; the typed
+  team is byte-identical after looking; closing re-offers without refetching.
+  120 tests.
+
+## 2026-08-13: species type-ahead — a team without a paste
+
+User: "can you support type ahead? which when user types 'pika' it will show
+pikachu and pokemon sprite. Is it costly? I want user able to enter pokemon
+besides just import". Built; the cost is **~6.3KB gzipped, loaded only when the
+picker opens** (~9KB once type badges were added). Rules in
+docs/ARCHITECTURE.md → "Species type-ahead".
+
+- `lib/species/` — `names.ts` is **generated** by `scripts/gen-species.mjs`
+  (1,317 species; `--check` fails if stale), `search.ts` is pure and ranked
+  (exact → prefix → forme word → substring; base forme first), 14 new tests.
+  Reading `@pkmn/dex` at runtime was the alternative: 1.8MB / 346KB gzipped.
+- The list is *every species the icon sheet can draw* — the same test the board's
+  paste import already applies, so the picker can't offer a name the board would
+  reject. Not a legality list.
+- `app/demo/species-picker.tsx` — six slots with Showdown-style suggestion rows,
+  ↑/↓/Enter/Escape. `MonIcon` moved to its own
+  `app/demo/mon-icon.tsx` (re-exported from `components.tsx`, so no importer
+  changed) to keep the picker and the panel from importing each other.
+- `ImportPanel` now has **paste / type names** modes. Both end in the same
+  `importTeams` call — a typed team is stored as the comma-separated species
+  list that path already understood, so nothing downstream knows the difference.
+- **`matchKey` now collapses `-Mega-Z` too** (Absol, Garchomp, Lucario exist with
+  "-ite Z" stones). No catalogue row names one, so stored roster codes are
+  unchanged — but the picker can now offer them, which is how it surfaced.
+- **Follow-up pass, same day (user feedback on the first cut):**
+  - *"remove the pikachu variant just keep the origin pikachu"* — the list now
+    drops everything the dex calls `cosmeticFormes` **plus** Pikachu's fifteen
+    costumes, which are `otherFormes` and so needed one hand-written exclusion.
+    1,368 → 1,317 names (~6.3KB gzipped); "pika" returns exactly one row.
+    Do NOT generalise this by comparing base stats — Maushold-Four,
+    Squawkabilly-Blue and Vivillon-Fancy are stat-identical to their bases and
+    appear in real teams. Catalogue coverage re-checked: 186/186, no misses.
+  - *"make the pokemons 6 slots instead of 0/6"*, then *"select slot can enter
+    the pokemon name"* — six slots always render, and **the slot is the input**:
+    each empty slot holds its own `<input>`, clicking one focuses it, Tab walks
+    the row, Enter advances to the next gap, ✕ or backspace empties a slot.
+    Positions are load bearing — `slots` is length 6 with `""` blanks and only
+    `ImportPanel` drops them, so filling slot 4 first stays slot 4.
+  - *"change import teams to 'New Team'"* — that button plus its three siblings
+    (`＋ import` ×2, `Import a team`) now read **New team** / **＋ new team**,
+    since the panel behind them also builds a team by typing.
+  - *"can you make it pokemon showdown style? Just don't show all pokemon when
+    not entering, and the max type ahead give it a limit"* — suggestion rows are
+    now sprite + **bold base**/grey forme + coloured type badges, which meant
+    putting types in the generated data (`base|forme|types`, ~6.3KB → ~9KB
+    gzipped). The two things NOT copied from Showdown are the ones the user
+    named: nothing is listed until you type, and the list is capped at six with
+    "more matches — keep typing". `TYPE_COLORS` moved to `app/demo/type-colors.ts`
+    (re-exported from `components.tsx`) to avoid a picker↔components cycle.
+  - *"improve the ui, it is currently ugly when there is '1 type …' and the slot
+    same color as background"* — the slot number became a corner label (it was
+    stacking above the input), empty slots got a drawn grey "?" disc and a
+    `bg-white/60` fill so they read against the cream panel, and the active slot
+    gets a ring. Three visually distinct states: empty / active / filled.
+  - Fell out of the slot work: there is **no disabled state anywhere in the
+    picker**. Focus can't land on a disabled element, so freeing a slot left the
+    box dead and the next keystroke went to the body — caught in the browser,
+    not in review. Same reason the single bottom box is gone entirely.
+- Verified over CDP by clicking and typing: six slots each with their own input,
+  slot 1 focused on open, clicking slot 3 puts the letters *in slot 3*, "pika"
+  offers Pikachu alone, Enter fills that slot and moves to slot 4, ↓+Enter takes
+  the second match, backspace empties the slot you're in, ✕ clears just that one,
+  and submitting drops the blanks while keeping slot order. Console clean.
+  109 tests.
+
+## 2026-08-13: the sample teams are the user's eight
+
+The user supplied eight pokepast.es links and asked them to replace the existing
+samples. `SAMPLE_TEAMS` in `app/demo/demo-data.ts` is now those eight, fetched
+verbatim from `pokepast.es/<id>/json` and pasted in whole — EVs, natures, items,
+the lot — because `exportText` must round-trip losslessly and a sample has to
+behave exactly like a team the user pasted in themselves (verified: all eight
+re-export byte-identical through `importTeamText`).
+
+- All eight are Champions Reg M-B, six Pokémon each, 29 distinct species.
+- `label` is ours (a short archetype tag that fits a picker row — "Mega
+  Tyranitar sand"); the paste's real title and URL sit in a comment above each
+  entry so provenance survives. Regenerate with the snippet in
+  docs/ARCHITECTURE.md rather than hand-editing the export blocks.
+- **`PRESETS` in `app/demo/page.tsx` is now exactly `SAMPLE_TEAMS`** — the
+  yoshimap fixture team is no longer offered as a preset (one of the eight is a
+  sand + Mega Staraptor team anyway). The fixture itself is untouched and still
+  backs `demoGuide`, `/demo/lookup`, and the schema tests.
+- `/demo/lookup`'s "or try" row shows the **first three**, not all eight: it is a
+  shortcut into the flow, not a catalogue. The first sample scores 100% against
+  `mu-aero-zard`; the second is the guide's own team and matches nothing, which
+  the page already handles ("no matchup in this guide fits").
+- Verified in a real browser: eight offered, each with six sprites resolving to
+  its own icon-sheet tile (no silent fallback icons), old samples gone, picking
+  one fills the My Team card, console clean.
+
+## 2026-08-13: Google sign-in consent screen (no code change)
+
+The user asked why Google says "to continue to twvwwxhbqsjplduujfcz.supabase.co".
+That is the OAuth callback host, and Google will only show an app name for a
+domain whose ownership can be proven — `supabase.co` isn't ours. The Google
+Cloud side is fully configured (app name `xatu`, **In production**, External,
+scopes `openid`/`email`/`profile`, all non-sensitive so the 100-user cap never
+applies). Nothing to fix; the only route to a friendly name is a domain of our
+own plus Supabase's paid custom-domain add-on. Don't "fix" this in code.
 
 ## 2026-08-12: roster identity + partial-match groundwork
 
@@ -310,12 +447,10 @@ teams"** — read that before changing any of it. Summary of the mechanism:
 - **Vercel Analytics enabled** — `@vercel/analytics` + `<Analytics />` in
   app/layout.tsx (commit 79bab26); deployment serves /_vercel/insights/
   script.js (the tag is injected at runtime, so don't grep the HTML for it).
-- **OPEN ITEM (user's dashboard, not done yet as of exit)**: Supabase →
-  Authentication → URL Configuration — set Site URL to
-  https://xatu-six.vercel.app and add it (or `/**`) to the Redirect URLs
-  allow list, keeping localhost:7317. Until then, Google sign-in FROM
-  PRODUCTION completes but redirects back to localhost. Email/password on
-  production is unaffected. Verify Google login on prod after this.
+- **DONE (user, 2026-08-13)**: Supabase → Authentication → URL Configuration —
+  Site URL https://xatu-six.vercel.app plus the redirect allow list, keeping
+  localhost:7317. Before this, Google sign-in from production completed and then
+  bounced back to localhost.
 
 ## 2026-08-07 session: what exists now
 

@@ -482,13 +482,17 @@ run it directly through Node: what lands in the database is computed by the same
 code the app and the future extension use. A canonical form only one side of a
 comparison knows about is worse than none.
 
-### Partial match over the catalogue — planned, NOT built (2026-08-12)
+### Partial match over the catalogue — BUILT 2026-08-13
 
-The keys and indexes exist; the search does not. Written down here so a later
-session implements the decided thing instead of re-deciding it. The user's intent:
-*"gives matching teams with 4+ matching"*.
+Shipped as `lib/match/catalogue.ts` (ranking, pure) + `app/demo/catalogue.ts`
+(the query) + `app/demo/catalogue-lookup.tsx` (a read-only panel in the species
+picker). The design below was decided a day earlier and implemented unchanged;
+what the implementation added is recorded after it. The user's intent:
+*"gives matching teams with 4+ matching"*, refined to **read-only, on click**.
 
-The query, run and timed against the real 712-row corpus (3ms, no tuning):
+The reference SQL, run and timed against the real 712-row corpus (3ms, no tuning) —
+the app expresses the same thing through PostgREST rather than a stored function,
+because the ranking has to stay in `lib/`:
 
 ```sql
 select source_team_id, name, paste_url, species,
@@ -535,10 +539,29 @@ Decisions already made, and the reasons:
   subset-table note above — it is a derivation from `match_species`, not a
   refetch.
 
-Not decided, and deliberately left open: how a reader *reaches* this (search box?
-automatic on the opponent-import step?) and what a result row looks like. 712
-teams is past what `/demo`'s "use existing" list can show, so that is a design
-pass, not an implementation detail.
+Settled when it was built (2026-08-13), with the measurements behind each:
+
+- **Where it lives:** in the species picker, offered once **four slots are
+  filled**, as a button. Nothing is fetched until it is clicked — verified: three
+  species, zero requests; four species, still zero; one click, exactly one GET.
+- **Read-only, by the user's decision.** Clicking a result does nothing to the
+  team being typed; the panel says so. A catalogue guess must never quietly
+  rewrite what an author wrote, and "show me what this looks like" is the whole
+  need. If that changes, the row has `paste_url` and the table has `export_text`.
+- **`contains` when the count equals the threshold, `overlaps` above it.** Four
+  named with a threshold of four *is* "contains all four" — exact, not an
+  approximation, and measured live at **13 rows / 5.4KB** against 481 rows /
+  ~30KB gzipped for the overlap form. Six named uses overlap (569 rows, ~36KB
+  gzipped) because expressing "at least 4 of 6" in PostgREST would need the
+  C(6,4)=15 subset gymnastics that were deliberately not built.
+- **One row per roster, with a `×N` paste count**, from `rankCatalogueMatches`.
+  On the live corpus a six-species probe ranks 19 rosters out of hundreds of
+  rows: `6/6, 5/6×4, 5/6×2, 5/6, 5/6, 4/6×9, …`. Ungrouped, the 4/6×9 roster
+  alone would have filled a third of the list.
+- **Sprites carry the reading**: the species you named render in colour, the rest
+  greyed — the row explains its own score without a legend.
+- The list scrolls inside a fixed height; a 19-row answer must not push the
+  panel's own buttons off the screen.
 
 Two consequences elsewhere:
 
@@ -621,6 +644,100 @@ Rules the ingest holds to:
 Not built: any UI over this. 712 teams (and 3,096 if the other regulations land) is far
 past what `/demo`'s "use existing" list can show, so surfacing it needs its own design
 pass — storing it commits us to nothing.
+
+## Species type-ahead (`lib/species/`, 2026-08-13)
+
+Typing "pika" offers Pikachu with its sprite. The second way to build a team, next to
+pasting — same destination, since both end in `importTeams` and a picked team is stored
+as the comma-separated species list that path has always accepted.
+
+- **The list is generated, not fetched.** `scripts/gen-species.mjs` writes
+  `lib/species/names.ts` — 1,317 rows of `base|forme|types` (**~9KB gzipped**; names alone
+  were ~6.3KB, and the types are what make a row look like Showdown). Reading `@pkmn/dex`
+  at runtime instead would mean a 1.8MB / 346KB-gzipped chunk for 1,317 rows — it stays a
+  build-time tool and a lazy import on the board, where its move data earns the size.
+  Re-run the script after a dex bump; `--check` fails if the committed file is stale.
+- **Base and forme are stored apart** so a suggestion can be typeset the way Showdown's
+  teambuilder does it — **Blastoise** with `-Mega` trailing in grey. The generator asserts
+  `base + "-" + forme === name` for every row, which is what keeps `Ting-Lu` (a hyphen in
+  a base name) and `Tauros-Paldea-Aqua` (a two-word forme) from being split by guesswork.
+- **What's in it: every species the icon sheet can draw**, minus paint jobs. The icon
+  test is the same one `isKnownSpecies` applies to a pasted roster, so the picker can
+  never offer a name the board would then reject. Not a legality list — all generations,
+  all regulations, Megas included. Names are stored **NFC**, so `"Flabébé" === name` holds.
+- **What's excluded, and why each line is where it is.** Gmax and Totem formes (a doubles
+  preview can't show them); the CAP/Pokestar/LGPE fictions (not Pokémon); everything the
+  dex itself lists in `cosmeticFormes` — Unown letters, Vivillon patterns, Alcremie
+  creams, Furfrou trims, Minior colours. **Plus one hand-written exclusion: Pikachu's
+  fifteen costumes** (Cosplay, Libre, the travel caps, Partner). They are `otherFormes`,
+  not `cosmeticFormes`, so no property in the data separates them from a real forme like
+  `Maushold-Four` — and typing "pika" offered sixteen Pikachus, burying the only one
+  anyone means (user, 2026-08-13). Do not "generalise" that exclusion by comparing base
+  stats: Maushold-Four, Squawkabilly-Blue and Vivillon-Fancy are stat-identical to their
+  bases, appear in real teams, and must stay.
+- **Loaded lazily on picker mount**, so no page pays for it until someone opens the
+  picker (verified: two chunks arrive on open, nothing on the `/demo` entry).
+- **Showdown's look, not Showdown's behaviour** (user, 2026-08-13): rows carry the sprite,
+  the bold-base/grey-forme name and coloured type badges, but the list stays **empty until
+  you type** and is **capped at six**, with "more matches — keep typing" when it truncates.
+  Showdown lists every Pokémon in a scrolling table; that is the part not to copy, because
+  this list sits inline under the slots. The picker asks `searchSpecies` for one past the
+  cap purely to know whether to show that line.
+- **Ranking, not fuzzy matching**: exact → name prefix → forme-word prefix → substring,
+  then base forme first, then shorter name. "pika" → Pikachu ahead of Pikachu-Libre;
+  "dusk" still finds Lycanroc-Dusk. Deliberately no typo correction — a wrong species one
+  Enter key away is worse than no suggestion. `speciesKey` folds case, punctuation and
+  accents, so "iron h" finds Iron Hands and "flabebe" finds Flabébé.
+- Unknown names are **not** offered ("no Pokémon by that name — paste the export
+  instead"). That isn't a legality check; it's that a picker whose whole job is spelling
+  can't confirm a spelling it doesn't know. Pasting remains the lenient path.
+- **Six slots, and the slot is the input** (user, 2026-08-13, in two steps: first "6 slots
+  instead of 0/6", then "select slot can enter the pokemon name"). A team preview has six
+  places, and an empty slot says "two still to go" where "4/6" only says a number. Each
+  empty slot holds its own `<input>`, so clicking one focuses it, Tab walks the row, and a
+  pick lands where you were looking; a filled slot shows the sprite with a ✕, and
+  backspace empties the slot you are standing in. Enter advances to the next *gap*, so six
+  picks are six uninterrupted words.
+- **Slot states are three, and they must look different from the panel** (user,
+  2026-08-13: "it is currently ugly when there is '1 type …' and the slot same color as
+  background"). Empty is a dashed border over `bg-white/60` on the cream panel with a
+  drawn grey "?" disc — Showdown's placeholder, drawn rather than borrowed, because the
+  icon sheet's fallback tile is not something to depend on. Active adds a solid border and
+  ring; filled is white with the sprite and name. The slot number is a **corner label**,
+  never a line of content: stacked above the input it read as "1 type…".
+- **Slot positions are load bearing.** `slots` is always length 6 with `""` for empty, and
+  only `ImportPanel` drops the blanks (`picked.filter(Boolean).join(", ")`). Filling slot 4
+  first must not silently become slot 1 — that was the flaw in the earlier compact array.
+- There is **no disabled state**: focus cannot land on a disabled element, so when the box
+  below the row was disabled at six, freeing a slot left it dead and the next keystroke
+  went to the body. Found by driving the keyboard in a browser, not by review.
+- **Found by this work**: the dex has `-Mega-Z` formes (Absol, Garchomp, Lucario, off an
+  "-ite Z" stone). No corpus team runs one, but the picker can now offer them, so
+  `matchKey`'s in-battle-forme pattern accepts `z` alongside `x`/`y`. Stored roster codes
+  are unaffected — nothing in the 712-team catalogue names one.
+
+## Sample teams (`SAMPLE_TEAMS`, replaced 2026-08-13)
+
+The eight built-in teams behind `/demo`'s "use existing" (`PRESETS` is exactly
+`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. Chosen by the user, all Champions
+Reg M-B. Rules, in order of how easy they are to break:
+
+- **Stored as the verbatim paste.** A preset is a real pasted team, not a special kind of
+  one — the same `exportText` rule as `ownTeam`. Never hand-trim EVs, natures or trailing
+  whitespace to tidy the source file: the round trip through `importTeamText` must come
+  back byte-identical, and picking a sample must be indistinguishable from pasting it.
+- **`label` is ours, the title is theirs.** VGCPastes titles ("zeen's Recreation of
+  LexiconVGC's Grand Champions Festival Encore Champion Team EMHMY5SAK0") don't fit a
+  picker row, so each entry carries a short archetype label plus a comment holding the
+  paste's real title and URL. Keep the comment when editing — it is the only provenance.
+- **Regenerate, don't retype.** To swap the set, fetch `https://pokepast.es/<id>/json`
+  for each link, take `.paste`, normalise CRLF→LF, and emit the entries; then confirm
+  each one parses to six species and re-exports identically. Hand-transcribing a paste is
+  how a sample stops matching what the reader would get from the same link.
+- **The lookup row shows the first three, deliberately** — it's a shortcut into the flow,
+  not a catalogue. It doesn't need every sample to match `demoGuide`: a team with no
+  matchup is a case the page handles anyway ("no matchup in this guide fits"), and the
+  second sample (the guide's own team) is exactly that case.
 
 ## Key decisions
 
