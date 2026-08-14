@@ -29,6 +29,9 @@ describe("matchKey", () => {
     expect(matchKey("Garchomp-Mega")).toBe("garchomp");
     expect(matchKey("Charizard-Mega-Y")).toBe("charizard");
     expect(matchKey("Raichu-Mega-X")).toBe("raichu");
+    // Mega-Z exists too (Absol, Garchomp, Lucario) — no corpus team runs one,
+    // but the species type-ahead offers them, so they must collapse as well.
+    expect(matchKey("Garchomp-Mega-Z")).toBe("garchomp");
   });
 
   it("keeps formes that ARE visible at preview", () => {

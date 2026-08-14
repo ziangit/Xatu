@@ -35,8 +35,13 @@ export function looseKey(species: string): string {
  * distinct, which is why this isn't blanket hyphen-stripping: the same corpus
  * holds both `Floette-Eternal` and `Floette-Mega`, and collapsing the first to
  * "floette" would throw away a real difference.
+ *
+ * `-mega-z` is in the pattern because the dex has three of them (Absol,
+ * Garchomp, Lucario, off an "-ite Z" stone) even though no corpus team runs one
+ * yet — they became reachable when the type-ahead started offering every
+ * drawable species, and a Mega is a Mega whatever letter it wears.
  */
-const IN_BATTLE_FORME = /-mega(-[xy])?$/;
+const IN_BATTLE_FORME = /-mega(-[xyz])?$/;
 
 /** One species → the key both sides of a comparison agree on. */
 export function matchKey(species: string): string {
