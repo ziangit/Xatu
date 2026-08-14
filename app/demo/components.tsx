@@ -1,60 +1,14 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
-import { Icons } from "@pkmn/img";
+import { useState } from "react";
 import { Team } from "@pkmn/sets";
 import { importTeams, teamLabel } from "@/lib/team";
 import { useCopy } from "../ui";
+import { MonIcon } from "./mon-icon";
+import { TYPE_COLORS } from "./type-colors";
 import type { StoredTeam } from "./storage";
 
-/** Showdown team-preview pixel icon, from the hotlinked icon sheet. */
-export function MonIcon({
-  species,
-  scale = 2,
-  fainted = false,
-}: {
-  species: string;
-  scale?: number;
-  fainted?: boolean;
-}) {
-  const { css } = Icons.getPokemon(species);
-  return (
-    <span
-      className={`inline-block shrink-0 overflow-hidden ${fainted ? "opacity-40 grayscale" : ""}`}
-      style={{ width: 40 * scale, height: 30 * scale }}
-    >
-      <span
-        style={{
-          ...(css as CSSProperties),
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-        }}
-      />
-    </span>
-  );
-}
-
-/** Showdown-style type colors, for move buttons/chips. */
-export const TYPE_COLORS: Record<string, string> = {
-  Normal: "#A8A77A",
-  Fire: "#EE8130",
-  Water: "#6390F0",
-  Electric: "#F7D02C",
-  Grass: "#7AC74C",
-  Ice: "#96D9D6",
-  Fighting: "#C22E28",
-  Poison: "#A33EA1",
-  Ground: "#E2BF65",
-  Flying: "#A98FF3",
-  Psychic: "#F95587",
-  Bug: "#A6B91A",
-  Rock: "#B6A136",
-  Ghost: "#735797",
-  Dragon: "#6F35FC",
-  Dark: "#705746",
-  Steel: "#B7B7CE",
-  Fairy: "#D685AD",
-};
+export { MonIcon, TYPE_COLORS };
 
 export const FORMATS = [
   "[Gen 9 Champions] VGC 2026 Reg M-B",
