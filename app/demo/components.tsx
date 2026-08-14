@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Team } from "@pkmn/sets";
 import { importTeams, teamLabel } from "@/lib/team";
 import { useCopy } from "../ui";
+import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
 import { TYPE_COLORS } from "./type-colors";
 import { SpeciesPicker, emptySlots } from "./species-picker";
@@ -201,6 +202,12 @@ export function ImportPanel({
           <div className="mt-1">
             <SpeciesPicker slots={picked} onChange={setPicked} autoFocus />
           </div>
+          {/* Four named species is where a guess becomes worth offering; the
+              lookup is read-only and only ever runs when clicked. */}
+          <CatalogueLookup
+            species={picked.filter(Boolean)}
+            regulation={format}
+          />
         </div>
       ) : (
         <label className="mt-3 block">
