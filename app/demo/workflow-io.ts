@@ -48,6 +48,18 @@ export interface CompactWorkflow {
 /** One of the author's teams against N opponents — the current format. */
 export interface CompactGroup {
   v: 3;
+  /**
+   * Which group this document *is* — the sharer's own team id, stable across
+   * their edits. It answers the one question the rosters can't: a re-paste of
+   * this document should update the group it came from, while a stranger's
+   * document about the same six Pokémon must land beside mine, not on top of
+   * it.
+   *
+   * Optional, and additive rather than a version bump: v3 documents written
+   * before 2026-08-14 don't carry it, and a reader that ignores it still reads
+   * everything else. Written only by the copy buttons — see `encodeGroup`.
+   */
+  g?: string;
   my: CompactTeam;
   /** One entry per opposing team: its roster and its turn tree. */
   b: { op: CompactTeam; t: CompactNode[] }[];
@@ -69,9 +81,15 @@ export type GroupDecodeResult =
       /** Shared by every board, so they group under one team on import. */
       my: StoredTeam;
       boards: DecodedBoard[];
+      /** The document's `g` stamp; null on v2, legacy and pre-2026-08-14 v3
+       * documents, which carry no identity of their own. */
+      docId: string | null;
       warnings: string[];
     }
   | { ok: false; error: string };
+
+/** The `ok` half of a decode, for callers that have already checked. */
+export type DecodedGroup = Extract<GroupDecodeResult, { ok: true }>;
 
 /** "ally:Species" / "foe:Species" → its parts, or null if malformed. */
 export function parseTargetRef(
@@ -157,11 +175,21 @@ function encodeTree(
 /**
  * One team against N opponents. `my` is stated once, so a group of six costs
  * about one roster more than a single board rather than six times as much.
+ *
+ * `docId` is written only when asked for, because this function is also the
+ * board's dirty-check fingerprint and that has to stay id-free: two copies of
+ * the same board must encode identically even when their `StoredTeam` objects
+ * don't share an id. The copy buttons pass it; `hasUnsavedWork` doesn't.
  */
-export function encodeGroup(my: StoredTeam, boards: DecodedBoard[]): string {
+export function encodeGroup(
+  my: StoredTeam,
+  boards: DecodedBoard[],
+  { docId }: { docId?: string } = {},
+): string {
   const myRoster = my.parsed.map((m) => m.species);
   const group: CompactGroup = {
     v: 3,
+    ...(docId ? { g: docId } : {}),
     my: compactTeam(my, myRoster),
     b: boards.map((board) => {
       const opRoster = board.opp.parsed.map((m) => m.species);
@@ -438,6 +466,7 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
       ok: true,
       my: legacy.setup.my,
       boards: [{ opp: legacy.setup.opp, nodes: legacy.nodes }],
+      docId: null,
       warnings: [],
     };
   }
@@ -505,7 +534,13 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
       ),
     };
   });
-  return { ok: true, my, boards, warnings };
+  return {
+    ok: true,
+    my,
+    boards,
+    docId: typeof versioned.g === "string" && versioned.g ? versioned.g : null,
+    warnings,
+  };
 }
 
 /**

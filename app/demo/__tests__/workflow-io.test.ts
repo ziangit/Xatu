@@ -475,3 +475,62 @@ describe("group codec (one team vs. many opponents)", () => {
     ).toMatchObject({ ok: false });
   });
 });
+
+describe("document identity (the `g` stamp)", () => {
+  const boards = [{ opp: setup.opp, nodes }];
+
+  it("writes `g` only when asked, so the dirty-check fingerprint is unchanged", () => {
+    expect(JSON.parse(encodeGroup(setup.my, boards)).g).toBeUndefined();
+    // Same board, two StoredTeam objects with different ids: still identical.
+    expect(encodeWorkflow(setup, nodes)).toBe(
+      encodeWorkflow({ ...setup, my: { ...setup.my, id: "other" } }, nodes),
+    );
+    expect(
+      JSON.parse(encodeGroup(setup.my, boards, { docId: "team-1" })).g,
+    ).toBe("team-1");
+  });
+
+  it("round-trips the stamp, and reports its absence as null", () => {
+    const stamped = decodeWorkflowGroup(
+      encodeGroup(setup.my, boards, { docId: "team-1" }),
+    );
+    expect(stamped).toMatchObject({ ok: true, docId: "team-1" });
+    expect(decodeWorkflowGroup(encodeGroup(setup.my, boards))).toMatchObject({
+      ok: true,
+      docId: null,
+    });
+  });
+
+  it("reads a stamped document as a v3 reader that ignores `g` would", () => {
+    const withStamp = decodeWorkflowGroup(
+      encodeGroup(setup.my, boards, { docId: "team-1" }),
+    );
+    const without = decodeWorkflowGroup(encodeGroup(setup.my, boards));
+    // Node ids are minted per decode, so compare everything else.
+    const shape = (r: typeof withStamp) =>
+      r.ok &&
+      r.boards[0].nodes.map(({ my, opp, turn, note }) => ({
+        my,
+        opp,
+        turn,
+        note,
+      }));
+    expect(shape(withStamp)).toEqual(shape(without));
+  });
+
+  it("has no stamp on v2 or legacy documents", () => {
+    expect(
+      decodeWorkflowGroup(
+        JSON.stringify({
+          v: 2,
+          my: { n: "Sand", f: "", s: MY },
+          op: { n: "Zard", f: "", s: OPP },
+          t: [[0, "01|23", "01|23"]],
+        }),
+      ),
+    ).toMatchObject({ ok: true, docId: null });
+    expect(
+      decodeWorkflowGroup(JSON.stringify({ version: 1, setup, nodes: [] })),
+    ).toMatchObject({ ok: true, docId: null });
+  });
+});
