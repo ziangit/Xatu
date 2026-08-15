@@ -6,12 +6,46 @@ import type { ParsedMon } from "@/lib/schema";
  * workflow. localStorage only ("may support account save later" — sketch).
  */
 
+/**
+ * Where a team came from, when it didn't come from this browser. Absent means
+ * "mine" — pasted or typed in here.
+ *
+ * This is the second half of a team's identity; the roster is the first half,
+ * and the roster alone *used* to be the whole of it. That made someone else's
+ * shared guide for the same archetype indistinguishable from my own team, so
+ * importing it overwrote my plans opponent by opponent. Two authors' plans for
+ * the same six Pokémon are two different things and both are kept
+ * (user, 2026-08-14); deduplicating them is a delete the author performs, not
+ * something an import decides.
+ */
+export interface TeamOrigin {
+  /** The document's `g` stamp — stable across the sharer's edits, so their
+   * updated guide updates this group instead of forking a third one.
+   * **Always recorded on import**, collision or not: without it a document
+   * pasted twice has nothing to recognise itself by and forks a second group. */
+  docId: string;
+  /** What the document called the team when it arrived. */
+  label: string;
+  importedAt: string;
+  /**
+   * True when a team with these same six was already here, so this one is a
+   * *parallel* group rather than simply a new one. It is the only flag that
+   * changes behaviour: it badges the group, and it scopes `rememberTeam` so the
+   * two never merge. False means "arrived in a paste, but nothing to keep it
+   * apart from" — a guide for a team I don't own, or my own group restored into
+   * an empty browser, both of which should behave like any team of mine.
+   */
+  keptApart: boolean;
+}
+
 export interface StoredTeam {
   id: string;
   name: string;
   format: string;
   exportText: string;
   parsed: ParsedMon[];
+  /** Set only on a team that arrived in a pasted document (see TeamOrigin). */
+  origin?: TeamOrigin;
 }
 
 export interface SideState {
@@ -120,8 +154,43 @@ export const loadSavedTeams = () => read<StoredTeam[]>(KEYS.teams) ?? [];
  * order-independent on purpose — comparing paste order made the same team
  * imported twice into two teams, splitting its group.
  */
-const speciesKey = (team: StoredTeam) =>
+export const speciesKey = (team: StoredTeam) =>
   rosterCode(team.parsed.map((m) => m.species));
+
+/**
+ * Is this team a parallel group standing beside one of mine?
+ *
+ * Tolerant of an `origin` written before `keptApart` existed (a build from
+ * 2026-08-14 that only stamped provenance on a collision): absent means it was
+ * a collision, which is the safe reading — the alternative silently merges two
+ * authors' groups on the next paste.
+ */
+export const isKeptApart = (team: StoredTeam) =>
+  Boolean(team.origin) && team.origin!.keptApart !== false;
+
+/**
+ * Teams only merge with teams of the same provenance — and only a team that had
+ * to be *kept apart* has a provenance of its own. A pasted team with nothing to
+ * collide with pools with mine, so pasting the full Showdown export for it
+ * afterwards enriches that team instead of starting a second one.
+ */
+const originKey = (team: StoredTeam) =>
+  isKeptApart(team) ? team.origin!.docId : "";
+
+/**
+ * The identity of the group a team heads: its own id when the team is mine,
+ * the document's when it arrived in one. Stamped into copied documents so a
+ * re-paste finds its way back to the same group.
+ */
+export const groupDocId = (team: StoredTeam) => team.origin?.docId ?? team.id;
+
+/** Every team this browser knows about, including ones only a board references. */
+export function knownTeams(): StoredTeam[] {
+  return [
+    ...loadSavedTeams(),
+    ...loadMatchups().flatMap((m) => [m.setup.my, m.setup.opp]),
+  ];
+}
 
 /**
  * Remembers a team and returns the canonical copy — the same team imported
@@ -139,19 +208,36 @@ const speciesKey = (team: StoredTeam) =>
  *    match a team imported from a full Showdown export. When they do match,
  *    whichever copy has the longer export text wins, so pasting a roster over
  *    a team that has real sets doesn't throw the sets away.
+ *
+ * Both are scoped to one provenance (see TeamOrigin): my teams merge with my
+ * teams, and a team from a shared document merges only with the same document.
+ * `keepName` protects a team already here from being renamed by a document
+ * that happens to name the same six Pokémon differently.
  */
-export function rememberTeam(team: StoredTeam): StoredTeam {
+export function rememberTeam(
+  team: StoredTeam,
+  { keepName = false }: { keepName?: boolean } = {},
+): StoredTeam {
   const teams = loadSavedTeams();
-  const pool = [
-    ...teams,
-    ...loadMatchups().flatMap((m) => [m.setup.my, m.setup.opp]),
-  ];
+  const pool = knownTeams().filter((t) => originKey(t) === originKey(team));
   const match =
     pool.find((t) => t.exportText === team.exportText) ??
     pool.find((t) => speciesKey(t) === speciesKey(team));
   const fuller =
     match && match.exportText.length > team.exportText.length ? match : team;
-  const canonical = match ? { ...fuller, id: match.id, name: team.name } : team;
+  const canonical = match
+    ? {
+        ...fuller,
+        id: match.id,
+        name: keepName ? match.name : team.name,
+        // Provenance belongs to the team that's here unless the caller brought
+        // one: a full Showdown export pasted over a team that arrived in a
+        // document must not cost that group the id it is known by.
+        ...((team.origin ?? match.origin)
+          ? { origin: team.origin ?? match.origin }
+          : {}),
+      }
+    : team;
   write(
     KEYS.teams,
     [canonical, ...teams.filter((t) => t.id !== canonical.id)].slice(0, 40),
@@ -235,7 +321,6 @@ export function deleteMatchup(id: string) {
   );
   if (loadActiveMatchupId() === id) setActiveMatchupId(null);
 }
-
 /** Which library entry the sim page is editing (null = a fresh board). */
 export const loadActiveMatchupId = () => read<string>(KEYS.activeMatchup);
 export function setActiveMatchupId(id: string | null) {
