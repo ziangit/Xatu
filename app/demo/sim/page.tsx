@@ -9,13 +9,15 @@ import { MonIcon, TYPE_COLORS } from "../components";
 import { upsertCloudMatchup } from "../cloud";
 import {
   decodeWorkflowGroup,
+  encodeGroup,
   encodeWorkflow,
   parseTargetRef,
 } from "../workflow-io";
+import { applyGroupImport, importSummary } from "../import-group";
 import {
   findPairMatchup,
+  groupDocId,
   loadActiveMatchupId,
-  rememberTeam,
   loadMatchups,
   loadSetup,
   saveSetup,
@@ -1069,13 +1071,25 @@ export default function SimPage() {
     setSavedAt(null);
   };
 
-  const copyJson = () => copy(encodeWorkflow(setup, nodes));
+  // Stamped with the group this board belongs to, so a re-paste updates that
+  // group rather than forking one. `hasUnsavedWork` calls the codec without a
+  // stamp — see `encodeGroup`.
+  const copyJson = () =>
+    copy(
+      encodeGroup(setup.my, [{ opp: setup.opp, nodes }], {
+        docId: groupDocId(setup.my),
+      }),
+    );
 
   /**
-   * A pasted document holds one team and 1..N opponents. The first opponent
-   * becomes the board being edited; the rest are saved into the library right
-   * away, so a group someone shared arrives whole instead of losing everything
-   * after the first board.
+   * A pasted document holds one team and 1..N opponents. Every board is saved
+   * into the library (see `applyGroupImport`) and the first one is opened here,
+   * so a shared group arrives whole and a document that collides with work
+   * already here lands beside it instead of on top of it.
+   *
+   * The first board used to be left unsaved, which meant Save minted a fresh id
+   * and the same pair ended up with two library entries. It is a real entry
+   * from the moment it lands now, exactly like the ones behind it.
    */
   const importWorkflow = () => {
     const result = decodeWorkflowGroup(importText.trim());
@@ -1083,40 +1097,33 @@ export default function SimPage() {
       setImportError(result.error);
       return;
     }
-    const my = rememberTeam(result.my);
-    const [first, ...rest] = result.boards;
-    const setupIn = { my, opp: rememberTeam(first.opp) };
-    for (const board of rest) {
-      const opp = rememberTeam(board.opp);
-      const existing = findPairMatchup(loadMatchups(), my.id, opp.id);
-      upsertMatchup({
-        id: existing?.id ?? crypto.randomUUID(),
-        name: existing?.name ?? `${my.name} vs ${opp.name}`,
-        setup: { my, opp },
-        nodes: board.nodes,
-        savedAt: new Date().toISOString(),
-      });
-    }
+    const applied = applyGroupImport(result);
+    const [first, ...rest] = applied.entries;
+    const setupIn = first.setup;
+    const planned = first.nodes.length > 0;
     setSetup(setupIn);
     // nodes: [] means "not planned yet" — the board still needs its preview card.
-    setNodes(first.nodes.length > 0 ? first.nodes : freshNodes(setupIn));
+    setNodes(planned ? first.nodes : freshNodes(setupIn));
     saveSetup(setupIn);
-    setGroup(loadMatchups().filter((m) => m.setup.my.id === my.id));
-    // An imported board is a new, not-yet-saved matchup.
-    setActiveMatchupId(null);
-    setMatchup(null);
-    setSavedAt(null);
+    setGroup(loadMatchups().filter((m) => m.setup.my.id === applied.my.id));
+    setActiveMatchupId(first.id);
+    setMatchup({ id: first.id, name: first.name });
+    setSavedAt(planned ? first.savedAt : null);
+    // Signed in → mirror what actually changed, as `/matchups` import and
+    // adding an opponent on the builder both already do.
+    for (const entry of applied.written) void upsertCloudMatchup(entry);
     setShowImport(false);
     setImportText("");
     setImportError(null);
-    setImportWarnings(
-      rest.length > 0
+    setImportWarnings([
+      importSummary(applied),
+      ...(rest.length > 0
         ? [
-            `Also added ${rest.length} more opposing team${rest.length === 1 ? "" : "s"} to this team's matchups.`,
-            ...result.warnings,
+            `The other ${rest.length} opposing team${rest.length === 1 ? "" : "s"} ${rest.length === 1 ? "is" : "are"} in this team's matchups.`,
           ]
-        : result.warnings,
-    );
+        : []),
+      ...result.warnings,
+    ]);
   };
 
   return (

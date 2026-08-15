@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
 import { InlineConfirm, useCopy } from "../ui";
-import { MonIcon } from "../demo/components";
+import { ImportedBadge, MonIcon } from "../demo/components";
 import { supabaseConfigured } from "../auth/client";
 import {
   deleteCloudMatchup,
@@ -13,11 +13,11 @@ import {
   upsertCloudMatchup,
 } from "../demo/cloud";
 import { decodeWorkflowGroup, encodeGroup } from "../demo/workflow-io";
+import { applyGroupImport, importSummary } from "../demo/import-group";
 import {
   deleteMatchup,
-  findPairMatchup,
+  groupDocId,
   loadMatchups,
-  rememberTeam,
   saveSetup,
   setActiveMatchupId,
   upsertMatchup,
@@ -194,22 +194,30 @@ export default function MatchupsPage() {
    * opponent with its plan (including the ones with no plan yet, which carry
    * their roster). A single board is the same format with one opponent, so
    * there's nothing to choose between here and the board's Copy JSON.
+   *
+   * Stamped with the group's identity, so whoever pastes it can tell an update
+   * of this guide from a stranger's guide about the same six Pokémon. Passing
+   * a guide on keeps the stamp it arrived with — the group it belongs to is
+   * the one it started in.
    */
   const copyGroup = async (group: Group) => {
     const boards = group.rows.map((r) => ({
       opp: r.entry.setup.opp,
       nodes: r.entry.nodes,
     }));
-    if (await copy(encodeGroup(group.team, boards))) {
+    const doc = encodeGroup(group.team, boards, {
+      docId: groupDocId(group.team),
+    });
+    if (await copy(doc)) {
       setCopiedTeamId(group.teamId);
     }
   };
 
   /**
-   * Paste a document back in — one opponent or many, whichever it holds. An
-   * opponent already paired with this team keeps its library entry (and its
-   * cloud row) and has its plan replaced; the count says how many, so a
-   * replacement is never silent.
+   * Paste a document back in — one opponent or many, whichever it holds. A
+   * stranger's guide for a team I already plan with arrives as its own group
+   * next to mine and touches nothing; only the document's own group is ever
+   * updated in place. See `applyGroupImport`.
    */
   const importGroup = () => {
     const result = decodeWorkflowGroup(importText.trim());
@@ -217,34 +225,14 @@ export default function MatchupsPage() {
       setImportError(result.error);
       return;
     }
-    const my = rememberTeam(result.my);
-    let replaced = 0;
-    const created: SavedMatchup[] = result.boards.map((board) => {
-      const opp = rememberTeam(board.opp);
-      const existing = findPairMatchup(loadMatchups(), my.id, opp.id);
-      if (existing) replaced += 1;
-      const entry: SavedMatchup = {
-        id: existing?.id ?? crypto.randomUUID(),
-        name: existing?.name ?? `${my.name} vs ${opp.name}`,
-        setup: { my, opp },
-        nodes: board.nodes,
-        savedAt: new Date().toISOString(),
-      };
-      upsertMatchup(entry);
-      return entry;
-    });
-    // Signed in → mirror them, same as adding an opponent on the builder does.
-    for (const entry of created) void upsertCloudMatchup(entry);
+    const applied = applyGroupImport(result);
+    // Signed in → mirror what actually changed, same as adding an opponent on
+    // the builder does. A row the document didn't change isn't re-uploaded.
+    for (const entry of applied.written) void upsertCloudMatchup(entry);
     setShowImport(false);
     setImportText("");
     setImportError(null);
-    setImportNotes([
-      `Imported ${created.length} matchup${created.length === 1 ? "" : "s"} for ${my.name}` +
-        (replaced > 0
-          ? ` — ${replaced} replaced a plan you already had.`
-          : "."),
-      ...result.warnings,
-    ]);
+    setImportNotes([importSummary(applied), ...result.warnings]);
     void refresh();
   };
 
@@ -435,8 +423,14 @@ export default function MatchupsPage() {
                       ))}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-stone-800">
-                        {group.team.name}
+                      <span className="flex items-baseline gap-1.5">
+                        <span
+                          title={`team id ${group.teamId}`}
+                          className="min-w-0 truncate text-sm font-semibold text-stone-800"
+                        >
+                          {group.team.name}
+                        </span>
+                        <ImportedBadge team={group.team} />
                       </span>
                       <span className="text-[10px] text-stone-400">
                         {group.rows.length} matchup
@@ -503,6 +497,19 @@ export default function MatchupsPage() {
                               : "no plan yet"}
                           </span>
                         </button>
+                        {/* The row's own id, shown because two rows can now
+                            look identical — same opponent, same sprites, one
+                            in a group you built and one in a group you pasted
+                            in. It is the id everywhere: the localStorage
+                            entry, the account row, the thing a delete removes.
+                            Selectable text rather than part of the open
+                            button, so it can be copied. */}
+                        <span
+                          title={`matchup id ${row.id}`}
+                          className="hidden shrink-0 select-all font-mono text-[10px] text-stone-400 sm:inline"
+                        >
+                          #{row.id.slice(0, 8)}
+                        </span>
                         {confirmId === row.id ? (
                           <InlineConfirm
                             question={`Delete from ${placesOf(row)}?`}

@@ -6,12 +6,19 @@ import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
 import { InlineConfirm } from "../ui";
 import { importTeamText } from "@/lib/team";
-import { ImportPanel, MonIcon, TeamPanel, FORMATS } from "./components";
+import {
+  ImportPanel,
+  ImportedBadge,
+  MonIcon,
+  TeamPanel,
+  FORMATS,
+} from "./components";
 import { deleteCloudMatchup, upsertCloudMatchup } from "./cloud";
 import { SAMPLE_TEAMS } from "./demo-data";
 import {
   deleteMatchup,
   groupByMyTeam,
+  isKeptApart,
   loadMatchups,
   loadSavedTeams,
   loadSetup,
@@ -51,7 +58,13 @@ type SlotChoice = "closed" | "choice" | "import" | "existing";
 function existingTeams(exclude: (team: StoredTeam) => boolean): StoredTeam[] {
   const seen = new Set<string>();
   const out: StoredTeam[] = [];
-  for (const team of [...loadSavedTeams(), ...PRESETS]) {
+  const saved = loadSavedTeams();
+  // Teams built here come first, so that when a pasted guide names the same six
+  // Pokémon as a team of mine, the dedupe below drops *its* row and not mine.
+  // Both groups still exist; this only decides which one this list offers.
+  const mine = saved.filter((t) => !isKeptApart(t));
+  const pasted = saved.filter((t) => isKeptApart(t));
+  for (const team of [...mine, ...pasted, ...PRESETS]) {
     const key = team.parsed.map((m) => m.species).join("|");
     if (seen.has(team.id) || seen.has(key) || exclude(team)) continue;
     seen.add(team.id);
@@ -185,7 +198,11 @@ function MyTeamSlot({
                   {t.name}
                 </span>
                 <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {t.id.startsWith("preset-") ? "sample" : "saved"}
+                  {t.id.startsWith("preset-")
+                    ? "sample"
+                    : isKeptApart(t)
+                      ? "imported"
+                      : "saved"}
                 </span>
               </button>
             ))}
@@ -393,7 +410,11 @@ function OpponentList({
                   {t.name}
                 </span>
                 <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {t.id.startsWith("preset-") ? "sample" : "saved"}
+                  {t.id.startsWith("preset-")
+                    ? "sample"
+                    : isKeptApart(t)
+                      ? "imported"
+                      : "saved"}
                 </span>
               </button>
             ))}
@@ -595,6 +616,7 @@ export default function SetupPage() {
                   <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
                     {group.team.name}
                   </span>
+                  <ImportedBadge team={group.team} />
                   <span className="shrink-0 text-[10px] text-stone-400">
                     {group.matchups.length} matchup
                     {group.matchups.length === 1 ? "" : "s"}

@@ -8,7 +8,7 @@ import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
 import { TYPE_COLORS } from "./type-colors";
 import { SpeciesPicker, emptySlots } from "./species-picker";
-import type { StoredTeam } from "./storage";
+import { isKeptApart, type StoredTeam } from "./storage";
 
 export { MonIcon, TYPE_COLORS };
 
@@ -17,6 +17,27 @@ export const FORMATS = [
   "[Gen 9 Champions] VGC 2026 Reg M-A",
   "[Gen 9] SV VGC Reg I",
 ];
+
+/**
+ * Says a team arrived in a pasted document rather than being built here. Two
+ * groups can hold the same six Pokémon — one of mine, one someone shared — and
+ * without this they are indistinguishable everywhere they're listed together.
+ * Renders nothing for a team of my own, so callers needn't check.
+ */
+export function ImportedBadge({ team }: { team: StoredTeam }) {
+  // Only a group that had to be kept apart from one of yours: the badge exists
+  // to tell two look-alikes apart, so a lone imported group doesn't need it
+  // (and a restored backup would be mislabelled by one).
+  if (!isKeptApart(team)) return null;
+  return (
+    <span
+      title={`pasted in on ${new Date(team.origin!.importedAt).toLocaleDateString()} · your own plans for these six are a separate set`}
+      className="shrink-0 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-700"
+    >
+      imported
+    </span>
+  );
+}
 
 const POKEPASTE_RE = /^https?:\/\/pokepast\.es\/\w+\/?$/;
 
