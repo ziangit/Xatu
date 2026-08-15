@@ -321,6 +321,36 @@ export function deleteMatchup(id: string) {
   );
   if (loadActiveMatchupId() === id) setActiveMatchupId(null);
 }
+
+/**
+ * Drop teams that nothing points at any more — called after deleting a whole
+ * set, so a group you threw away stops being offered by "use existing" (and,
+ * for an imported one, stops answering to its document id).
+ *
+ * Only the ids handed in are even considered, and only when no remaining board
+ * and no in-progress setup still names them: a team you imported but haven't
+ * paired with anyone yet is referenced by neither, and must survive.
+ */
+export function forgetTeams(ids: string[]) {
+  if (ids.length === 0) return;
+  const live = new Set<string>();
+  for (const m of loadMatchups()) {
+    live.add(m.setup.my.id);
+    live.add(m.setup.opp.id);
+  }
+  const setup = loadSetup();
+  if (setup) {
+    live.add(setup.my.id);
+    live.add(setup.opp.id);
+  }
+  const doomed = new Set(ids.filter((id) => !live.has(id)));
+  if (doomed.size === 0) return;
+  write(
+    KEYS.teams,
+    loadSavedTeams().filter((t) => !doomed.has(t.id)),
+  );
+}
+
 /** Which library entry the sim page is editing (null = a fresh board). */
 export const loadActiveMatchupId = () => read<string>(KEYS.activeMatchup);
 export function setActiveMatchupId(id: string | null) {

@@ -16,6 +16,7 @@ import { decodeWorkflowGroup, encodeGroup } from "../demo/workflow-io";
 import { applyGroupImport, importSummary } from "../demo/import-group";
 import {
   deleteMatchup,
+  forgetTeams,
   groupDocId,
   loadMatchups,
   saveSetup,
@@ -237,21 +238,50 @@ export default function MatchupsPage() {
   };
 
   /** Where a delete would land — spelled out in the inline confirmation. */
-  const placesOf = (row: Row) =>
-    [row.inBrowser && "this browser", row.inCloud && "your account"]
+  const placesOfRows = (rows: Row[]) =>
+    [
+      rows.some((r) => r.inBrowser) && "this browser",
+      rows.some((r) => r.inCloud) && "your account",
+    ]
       .filter(Boolean)
       .join(" and ");
+  const placesOf = (row: Row) => placesOfRows([row]);
+
+  const removeRows = async (doomed: Row[]) => {
+    for (const row of doomed) {
+      if (row.inBrowser) deleteMatchup(row.id);
+      if (row.inCloud) {
+        const result = await deleteCloudMatchup(row.id);
+        if (result !== "ok" && result !== "off") setCloud({ error: result });
+      }
+    }
+    // The teams those boards used are only worth keeping if something else
+    // still points at them — see `forgetTeams`, which checks before dropping.
+    forgetTeams(
+      doomed.flatMap((r) => [r.entry.setup.my.id, r.entry.setup.opp.id]),
+    );
+    const gone = new Set(doomed.map((r) => r.id));
+    setRows((prev) => prev.filter((r) => !gone.has(r.id)));
+  };
 
   const remove = async (row: Row) => {
     setConfirmId(null);
     setBusyId(row.id);
-    if (row.inBrowser) deleteMatchup(row.id);
-    if (row.inCloud) {
-      const result = await deleteCloudMatchup(row.id);
-      if (result !== "ok" && result !== "off") setCloud({ error: result });
-    }
+    await removeRows([row]);
     setBusyId(null);
-    setRows((prev) => prev.filter((r) => r.id !== row.id));
+    void refresh();
+  };
+
+  /**
+   * Delete a whole set — the team and every plan built with it. Deleting an
+   * imported group one row at a time was the only way to undo a paste, which is
+   * three confirmations to undo one click.
+   */
+  const removeGroup = async (group: Group) => {
+    setConfirmId(null);
+    setBusyId(group.rows[0]?.id ?? null);
+    await removeRows(group.rows);
+    setBusyId(null);
     void refresh();
   };
 
@@ -437,31 +467,53 @@ export default function MatchupsPage() {
                         {group.rows.length === 1 ? "" : "s"}
                       </span>
                     </span>
-                    {cloud === "ok" && pending.length > 0 && (
-                      <button
-                        onClick={() => uploadAll(pending)}
-                        disabled={busyId !== null}
-                        className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
-                      >
-                        upload all ({pending.length})
-                      </button>
+                    {/* The whole header turns into the question, the way a row
+                        does — the set being deleted is what you're looking at,
+                        so nothing needs to be described back to you. */}
+                    {confirmId === `group:${group.teamId}` ? (
+                      <InlineConfirm
+                        question={`Delete this set — ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} — from ${placesOfRows(group.rows)}?`}
+                        confirmLabel="Delete set"
+                        busy={busyId !== null}
+                        onConfirm={() => void removeGroup(group)}
+                        onCancel={() => setConfirmId(null)}
+                      />
+                    ) : (
+                      <>
+                        {cloud === "ok" && pending.length > 0 && (
+                          <button
+                            onClick={() => uploadAll(pending)}
+                            disabled={busyId !== null}
+                            className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
+                          >
+                            upload all ({pending.length})
+                          </button>
+                        )}
+                        <button
+                          onClick={() => copyGroup(group)}
+                          title={`copy ${group.team.name} and all ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} as JSON`}
+                          className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-400"
+                        >
+                          {copied && copiedTeamId === group.teamId
+                            ? "Copied ✓"
+                            : `copy JSON (${group.rows.length})`}
+                        </button>
+                        <button
+                          onClick={() => addTeams(group)}
+                          title={`add opposing teams to plan against ${group.team.name}`}
+                          className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                        >
+                          ＋ add teams
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(`group:${group.teamId}`)}
+                          title={`delete ${group.team.name} and all ${group.rows.length} of its matchup${group.rows.length === 1 ? "" : "s"}`}
+                          className="shrink-0 text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-[#e5484d] hover:underline"
+                        >
+                          delete set
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => copyGroup(group)}
-                      title={`copy ${group.team.name} and all ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} as JSON`}
-                      className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-400"
-                    >
-                      {copied && copiedTeamId === group.teamId
-                        ? "Copied ✓"
-                        : `copy JSON (${group.rows.length})`}
-                    </button>
-                    <button
-                      onClick={() => addTeams(group)}
-                      title={`add opposing teams to plan against ${group.team.name}`}
-                      className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
-                    >
-                      ＋ add teams
-                    </button>
                   </header>
                   <div className="divide-y divide-stone-100">
                     {group.rows.map((row) => (
