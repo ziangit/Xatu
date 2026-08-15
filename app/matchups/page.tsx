@@ -106,6 +106,10 @@ export default function MatchupsPage() {
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importNotes, setImportNotes] = useState<string[]>([]);
+  /** The set the last paste landed in — highlighted until the notes beside it
+   * are dismissed, and gone on the next visit. Transient by design: it answers
+   * "where did that go?", which stops being a question once you've looked. */
+  const [justImported, setJustImported] = useState<string | null>(null);
 
   /**
    * One list, painted once. Earlier this rendered the browser-only rows first
@@ -234,6 +238,7 @@ export default function MatchupsPage() {
     setImportText("");
     setImportError(null);
     setImportNotes([importSummary(applied), ...result.warnings]);
+    setJustImported(applied.my.id);
     void refresh();
   };
 
@@ -280,6 +285,7 @@ export default function MatchupsPage() {
   const removeGroup = async (group: Group) => {
     setConfirmId(null);
     setBusyId(group.rows[0]?.id ?? null);
+    if (justImported === group.teamId) setJustImported(null);
     await removeRows(group.rows);
     setBusyId(null);
     void refresh();
@@ -371,7 +377,10 @@ export default function MatchupsPage() {
                 Import notes
               </p>
               <button
-                onClick={() => setImportNotes([])}
+                onClick={() => {
+                  setImportNotes([]);
+                  setJustImported(null);
+                }}
                 className="text-[11px] text-stone-400 hover:text-stone-700"
               >
                 dismiss
@@ -441,12 +450,28 @@ export default function MatchupsPage() {
               const pending = group.rows.filter(
                 (r) => r.inBrowser && !r.inCloud,
               );
+              // The wash marks what the *last paste* landed in, not provenance
+              // — that's the badge's job, and it is permanent. Highlighting
+              // every set that ever arrived in a document meant three groups on
+              // one roster lit two of them up forever, which says nothing about
+              // where to look now (user, 2026-08-14).
+              const pasted = group.teamId === justImported;
               return (
                 <section
                   key={group.teamId}
-                  className={`rise-in step-${Math.min(gi + 1, 4)} rounded-lg border border-stone-200 bg-white`}
+                  className={`rise-in step-${Math.min(gi + 1, 4)} rounded-lg border ${
+                    pasted
+                      ? "border-violet-200/70 bg-violet-50/40"
+                      : "border-stone-200 bg-white"
+                  }`}
                 >
-                  <header className="flex items-center gap-3 border-b border-stone-100 bg-[#fcfcfa] px-4 py-2.5">
+                  <header
+                    className={`flex items-center gap-3 border-b px-4 py-2.5 ${
+                      pasted
+                        ? "border-violet-100 bg-violet-50/70"
+                        : "border-stone-100 bg-[#fcfcfa]"
+                    }`}
+                  >
                     <span className="flex shrink-0">
                       {group.team.parsed.slice(0, 6).map((p, i) => (
                         <MonIcon key={i} species={p.species} scale={0.55} />
