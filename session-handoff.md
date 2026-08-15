@@ -1,5 +1,12 @@
 # Session handoff
 
+> Updated 2026-08-14: importing someone else's shared group **no longer
+> overwrites your own plans**. Team identity is now roster *plus* provenance,
+> documents carry the id of the group they came from, a re-paste that changes
+> nothing says so and writes nothing, and `/matchups` gained per-row matchup
+> ids, `delete set`, and a highlight on whatever the last paste landed in. Top
+> section, newest first.
+>
 > Updated 2026-08-13: a **species type-ahead** (type "pika", get Pikachu with a
 > sprite) so a team can be built without a paste, a read-only **"does this look
 > like a known team?"** lookup over the 712-team catalogue once four species are
@@ -16,6 +23,91 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-08-14: importing a shared group keeps both sets
+
+User: *"imagine a scenario where I import the json from another user who
+publish a team vs many teams matchup, it will mostly like have some overlap
+with my existing teams… I want to keep both."* It was worse than overlap — the
+import **destroyed** work, because a team's identity was its roster alone:
+
+- their team canonicalised onto my id, and `rememberTeam`'s `name: team.name`
+  **renamed my team to theirs**;
+- `findPairMatchup` then hit my board, so their nodes overwrote my plan —
+  locally *and* in the account, since the mirror followed;
+- the board's import had the mirror-image bug: it left the first board unsaved,
+  so Save minted a **second** entry for a pair that already had one.
+
+Fixed by making identity *roster + provenance*. Rules and the reasoning are in
+docs/ARCHITECTURE.md → **"Two authors, one archetype: keep both"**; read that
+before changing any of it. Decided with the user: an imported group is a normal,
+editable group (badged, not read-only), and there is **no merge path at all** —
+"if the user wants to dedup, he needs to manually delete himself."
+
+- `StoredTeam.origin?: {docId,label,importedAt,keptApart}` — absent means mine.
+  `rememberTeam` matches only within one provenance, and takes `keepName` so a
+  document can't rename a team already here.
+- **A same-day bug worth not repeating** (user found it in minutes): the first
+  cut recorded `origin` *only* on a collision, so an uncollided import kept no
+  document id — and pasting the very same document again found nothing to
+  update, saw its own first import as a rival team, and forked a second group.
+  `docId` is now recorded on **every** import; `keptApart` is the only field
+  that changes behaviour. Read them through `groupDocId` / `isKeptApart`, and
+  note `isKeptApart` treats a legacy `origin` (no `keptApart`) as kept apart.
+- Documents carry `g` = the group they were copied from. **Written only by the
+  copy buttons**: `encodeGroup` doubles as the board's dirty-check fingerprint
+  and must stay id-free. Old documents decode to `docId: null` and fall back to
+  `paste:<rosterCode>:<name>`.
+- New `app/demo/import-group.ts` — `planImport` (pure, 8 new tests) decides
+  update-in-place / new-group-beside-mine / just-new, and `applyGroupImport` is
+  the **single write path for both import buttons**, which is what stops the two
+  pages disagreeing again. `keptApart` is set **only on a collision** — see the
+  doc for why branding an uncollided restore would be actively harmful.
+- Opposing teams still dedupe across groups (they carry no plan; the plan hangs
+  off the pair), and `keepName` keeps their local names.
+- `/matchups`: `IMPORTED` badge on the group, and **each row shows its matchup
+  id** (`#` + 8 hex, selectable) — the user asked for these, and they're what a
+  delete actually removes (localStorage key *and* `matchups` row id; the team id
+  is in the group header's tooltip). `/demo`'s "use existing" lists your own
+  teams before pasted ones so its dedupe never hides yours.
+
+Then, in order, three follow-ups the user asked for:
+
+- **A no-op import says so** (*"if after paste, there is no change, can it show
+  the message saying the same match up already exists?"*). A board whose
+  `encodeGroup` print matches the stored one is skipped entirely — no rewrite,
+  no new `savedAt` (so the list doesn't reorder), no cloud upload — and the line
+  reads "Nothing to import — you already have these exact N matchups for X".
+  Mixed results read "N new, N updated, N already identical"; only
+  `applied.written` is mirrored. Measured, because "is it costly?" was asked:
+  a 10-board document against a 60-board / 216KB library is **26ms**, and a
+  realistic 6-board library is **0.7–2.4ms**. The time is `JSON.parse` of the
+  whole library ~4× per board (`knownTeams`, `findPairMatchup`, `upsertMatchup`),
+  not the comparison. If it ever matters, hoist the library read out of the loop.
+- **`delete set` on a group header** — deletes every board in the set, browser
+  and account, confirming in place; `forgetTeams` then prunes the teams that set
+  used, but only those no remaining board and no in-progress `setup` still names
+  (so a shared opponent survives, and a team imported but not yet paired isn't
+  swept up). Removing one opponent on `/demo` deliberately still forgets nothing.
+- **Highlight ≠ badge** (*"only the newly imported team is highlighted"*). The
+  `violet-50` wash marks only the set the last paste landed in (`justImported`,
+  cleared by dismissing its import notes, gone on revisit); the `IMPORTED` badge
+  is permanent provenance. Tinting every kept-apart set instead lit two of three
+  same-roster groups up forever, which pointed at nothing.
+- **New `vitest.config.mts`** (the suite had no config): just the `@/` alias, so
+  modules under `app/` that import `@/lib/…` can be unit-tested. Discovery left
+  at defaults. 137 tests.
+- Verified over CDP against the real pages: seeded my 2 plans, pasted a
+  stranger's 2-board document with the same six species → two groups, my note
+  and both names intact, badge on theirs only, 4 row ids shown, the note reading
+  "your 2 for this team were left alone"; re-pasting it forks nothing; my own
+  copy round-trips through an empty browser **without** being branded imported;
+  and on the board, the same paste saves 3 boards, leaves my plan alone, and
+  Save no longer duplicates the pair. Also verified: the same document pasted
+  twice writes nothing and every `savedAt` is unchanged; an edited copy reports
+  "1 updated, 1 already identical"; `delete set` asks in the header, cancels
+  cleanly, then removes the whole set and forgets its orphaned team while
+  keeping the opponent both sets share. Console clean.
 
 ## 2026-08-13: "does this look like a known team?" — partial match, built
 

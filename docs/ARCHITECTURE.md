@@ -367,6 +367,9 @@ Decisions and why:
   carries rosters only, so export-text equality alone would start a second group for a
   team the author already has. On a species-only match the copy with the longer export
   text wins, so pasting a roster over a team with real sets doesn't discard the sets.
+  **Both matches are scoped to one provenance** (2026-08-14) — my teams merge with my
+  teams, a shared document's team merges only with the same document. See "Two authors,
+  one archetype".
 - **`nodes: []` means "lined up, not planned yet."** Adding an opponent on `/demo`
   creates its board immediately with no nodes; the sim page seeds a fresh board on
   open. This keeps the matchup library the single record of "my team vs. these teams"
@@ -414,13 +417,86 @@ of six matchups could only be shared as six strings. It is now one document:
   opponent is unreadable: a half-imported set of matchups is worse than a refusal
   that names what's wrong. Sanitization warnings, by contrast, are per board and get
   prefixed `vs <opponent> — ` when there's more than one.
-- **Import replaces a pairing rather than duplicating it.** An opponent already paired
-  with the team keeps its library entry (and therefore its cloud row) and has its plan
-  replaced; the result line says how many were replaced, so it is never silent.
+- **Import never overwrites work the document doesn't own** — see the next section.
+  Within the document's *own* group, a pairing is replaced rather than duplicated: the
+  opponent keeps its library entry (and therefore its cloud row) and has its plan
+  updated; the result line says how many, so it is never silent.
 - Surfaces: `copy JSON (N)` on each `/matchups` group header (left of `＋ add teams`),
   `paste JSON` next to `＋ New matchup`, and the board's own `Copy JSON` / `Import`.
-  A multi-opponent paste on the board loads the first opponent and saves the rest into
-  the library, reporting "Also added N more opposing teams".
+  A multi-opponent paste on the board opens the first opponent and saves the rest into
+  the library, reporting where the others went.
+
+### Two authors, one archetype: keep both (2026-08-14)
+
+Importing a shared group used to destroy work. A team's identity was its roster
+(`rosterCode`), so a guide someone else wrote for the same six Pokémon *was* my team as
+far as `rememberTeam` was concerned: their boards landed on my ids, `upsertMatchup`
+wrote their nodes over my plans, `upsertCloudMatchup` pushed that over my account rows,
+and `rememberTeam`'s `name: team.name` renamed my team to theirs. The board's import had
+the opposite bug — it left the first board unsaved, so Save minted a second entry for a
+pair that already had one.
+
+The rule now, in one line: **an import adds; deduplicating is a delete the author
+performs.** (User's call: "keep both … if the user wants to dedup, he needs to manually
+delete himself.") There is deliberately **no merge path** — no "adopt their plan"
+button, no prompt at import time.
+
+Identity is therefore *roster + provenance*:
+
+- `StoredTeam.origin?: {docId, label, importedAt, keptApart}` — absent means "mine".
+  **`docId` is recorded on every import**, collision or not; `keptApart` is the only
+  field that changes behaviour (badge + merge scoping). Splitting the two is not
+  optional: the first cut recorded provenance *only* on a collision, so an uncollided
+  import kept no id, and pasting the very same document a second time found nothing to
+  update, read its own first import as a rival team, and **forked a second group**
+  (user hit this immediately). Read `docId` through `groupDocId`, `keptApart` through
+  `isKeptApart` — the latter treats a legacy `origin` with no `keptApart` field as kept
+  apart, since in that build provenance only ever meant a collision.
+- The document carries `g`, the id of the group it was copied from (`groupDocId`:
+  the team's own id, or the `docId` it was imported under, so passing a guide on keeps
+  the identity it started with). Additive and optional — v2, legacy and pre-2026-08-14
+  v3 documents decode to `docId: null` and fall back to `paste:<rosterCode>:<name>`,
+  which is stable enough that re-pasting one doesn't fork a group.
+- **`g` is written only by the copy buttons.** `encodeGroup` is also the board's
+  dirty-check fingerprint (`hasUnsavedWork`), which must stay id-free — two copies of
+  the same board have to encode identically even when their `StoredTeam` objects don't
+  share an id.
+- `planImport` (pure, tested) decides: a team here already heads this `docId` → update it
+  in place, keeping its id *and* its provenance (a team of mine whose id the document
+  carries has none, and must not acquire one); otherwise record the `docId` and set
+  `keptApart` to whether the roster collides with any team here. **`keptApart` false is
+  what makes an uncollided paste behave like a team of mine** — no badge, and it still
+  merges with the full Showdown export pasted in next, which is what a restored backup
+  needs.
+- **Opposing teams stay shared across groups.** They carry no plan (the plan hangs off
+  the *pair*), so reuse keeps the library tidy and is safe once `my.id` is what separates
+  two authors. `rememberTeam(opp, {keepName: true})` stops a document renaming an
+  opponent already here.
+- **A pasted group is deletable as a unit and tinted as one.** `delete set` on the group
+  header removes every board in it (browser and account), confirmed in place by turning
+  the header into the question — undoing one paste took one confirmation per row before.
+  `forgetTeams` then drops the teams that set used, but *only* the ones no remaining
+  board and no in-progress `setup` still names, so a shared opponent survives and a team
+  you imported but haven't paired with anyone isn't swept up.
+- **Badge and highlight say different things.** The `IMPORTED` badge is provenance and is
+  permanent. The `violet-50` wash marks only the set the *last paste* landed in
+  (`justImported`, cleared when its import notes are dismissed and absent on the next
+  visit) — it answers "where did that go?", which stops being a question once you've
+  looked. Tinting every kept-apart set instead lit two of three same-roster groups up
+  forever and pointed at nothing (user, 2026-08-14).
+  (`#` + 8 hex, `select-all`) — two rows can now be identical on sight, and the id is
+  the thing a delete removes, in localStorage and in the account alike.
+- `/demo`'s "use existing" lists teams built here before pasted ones, so its
+  species-level dedupe drops the *imported* row and never hides your own team.
+- `applyGroupImport` is the single write path for both import buttons, which is what
+  stops the two pages disagreeing again.
+- **A board identical to the stored one is not rewritten.** Comparison is `encodeGroup`
+  on the pair — the same id-free fingerprint the board's dirty check uses, so
+  "identical" means one thing in both places. Re-pasting a document you already have
+  writes nothing, keeps every `savedAt` (so the list doesn't reorder), re-uploads
+  nothing, and says *"Nothing to import — you already have these exact N matchups"*.
+  `importSummary` otherwise breaks the result down as `N new, N updated, N already
+  identical`, and only `applied.written` is mirrored to the account.
 
 Entry points (a list view must be able to *start* work, not only show it) —
 `/demo` reads intent from the query string, via `window.location.search` rather than
