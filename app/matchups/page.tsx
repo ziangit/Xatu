@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
+import { T } from "../i18n/T";
+import { useLang } from "../i18n/provider";
 import { InlineConfirm, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
 import { supabaseConfigured } from "../auth/client";
@@ -92,6 +94,7 @@ function mergeRows(local: SavedMatchup[], cloud: SavedMatchup[] | null): Row[] {
 
 export default function MatchupsPage() {
   const router = useRouter();
+  const { lang, t, n, list } = useLang();
   const [rows, setRows] = useState<Row[]>([]);
   const [cloud, setCloud] = useState<
     "loading" | "off" | "ok" | { error: string }
@@ -225,7 +228,7 @@ export default function MatchupsPage() {
    * updated in place. See `applyGroupImport`.
    */
   const importGroup = () => {
-    const result = decodeWorkflowGroup(importText.trim());
+    const result = decodeWorkflowGroup(importText.trim(), lang);
     if (!result.ok) {
       setImportError(result.error);
       return;
@@ -237,19 +240,17 @@ export default function MatchupsPage() {
     setShowImport(false);
     setImportText("");
     setImportError(null);
-    setImportNotes([importSummary(applied), ...result.warnings]);
+    setImportNotes([importSummary(applied, lang), ...result.warnings]);
     setJustImported(applied.my.id);
     void refresh();
   };
 
   /** Where a delete would land — spelled out in the inline confirmation. */
   const placesOfRows = (rows: Row[]) =>
-    [
-      rows.some((r) => r.inBrowser) && "this browser",
-      rows.some((r) => r.inCloud) && "your account",
-    ]
-      .filter(Boolean)
-      .join(" and ");
+    list([
+      rows.some((r) => r.inBrowser) ? t("this browser") : "",
+      rows.some((r) => r.inCloud) ? t("your account") : "",
+    ]);
   const placesOf = (row: Row) => placesOfRows([row]);
 
   const removeRows = async (doomed: Row[]) => {
@@ -297,10 +298,10 @@ export default function MatchupsPage() {
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
             <Wordmark />
-            <p className="text-xs text-stone-400">my matchups</p>
+            <p className="text-xs text-stone-400">{t("my matchups")}</p>
           </div>
           <HeaderNav>
-            <NavLink href="/demo">builder</NavLink>
+            <NavLink href="/demo">{t("builder")}</NavLink>
           </HeaderNav>
         </header>
 
@@ -318,31 +319,33 @@ export default function MatchupsPage() {
             }}
             className="rounded border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 transition-colors hover:border-stone-500"
           >
-            paste JSON
+            {t("paste JSON")}
           </button>
           <Link
             href="/demo?new=1"
             className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
           >
-            ＋ New matchup
+            {t("＋ New matchup")}
           </Link>
         </div>
 
         {showImport && (
           <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-              Paste a copied matchup
+              {t("Paste a copied matchup")}
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-              Anything copied with <em>copy JSON</em> — one opposing team or a
-              whole set.
+              <T
+                k="Anything copied with {0} — one opposing team or a whole set."
+                parts={[<em key="btn">{t("copy JSON")}</em>]}
+              />
             </p>
             <textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
               rows={4}
               spellCheck={false}
-              placeholder="Paste here…"
+              placeholder={t("Paste here…")}
               className="mt-2 w-full resize-y rounded border border-stone-300 bg-white p-2.5 font-mono text-[11px] text-stone-700 placeholder:text-stone-300 focus:border-stone-500 focus:outline-none"
             />
             <div className="mt-2 flex items-center gap-3">
@@ -351,7 +354,7 @@ export default function MatchupsPage() {
                 disabled={!importText.trim()}
                 className="rounded bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-30"
               >
-                Import
+                {t("Import")}
               </button>
               <button
                 onClick={() => {
@@ -361,7 +364,7 @@ export default function MatchupsPage() {
                 }}
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
               >
-                cancel
+                {t("cancel")}
               </button>
               {importError && (
                 <p className="text-xs text-red-600">{importError}</p>
@@ -374,7 +377,7 @@ export default function MatchupsPage() {
           <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-white p-3">
             <div className="flex items-baseline justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-                Import notes
+                {t("Import notes")}
               </p>
               <button
                 onClick={() => {
@@ -383,7 +386,7 @@ export default function MatchupsPage() {
                 }}
                 className="text-[11px] text-stone-400 hover:text-stone-700"
               >
-                dismiss
+                {t("dismiss")}
               </button>
             </div>
             <ul className="mt-1.5 space-y-0.5 text-[11px] leading-relaxed text-stone-600">
@@ -396,20 +399,26 @@ export default function MatchupsPage() {
 
         {cloud === "off" && (
           <p className="mt-4 text-xs leading-relaxed text-stone-400">
-            Showing the matchups saved in this browser.{" "}
-            <Link
-              href="/login"
-              className="underline underline-offset-2 hover:text-stone-800"
-            >
-              Sign in
-            </Link>{" "}
-            to also see the ones synced to your account.
+            <T
+              k="Showing the matchups saved in this browser. {0} to also see the ones synced to your account."
+              parts={[
+                <Link
+                  key="signin"
+                  href="/login"
+                  className="underline underline-offset-2 hover:text-stone-800"
+                >
+                  {t("Sign in")}
+                </Link>,
+              ]}
+            />
           </p>
         )}
         {typeof cloud === "object" && (
           <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs leading-relaxed text-amber-800">
-            Couldn&rsquo;t load your account matchups: {cloud.error}. The
-            browser ones are shown below.
+            {t(
+              "Couldn’t load your account matchups: {error}. The browser ones are shown below.",
+              { error: cloud.error },
+            )}
           </p>
         )}
 
@@ -431,18 +440,23 @@ export default function MatchupsPage() {
               </section>
             ))}
             <p className="text-center text-xs text-stone-400">
-              Loading your matchups…
+              {t("Loading your matchups…")}
             </p>
           </div>
         ) : rows.length === 0 ? (
           <div className="mt-10 rounded-lg border border-dashed border-stone-300 p-10 text-center text-sm text-stone-400">
-            No saved matchups yet.{" "}
-            <Link
-              href="/demo"
-              className="underline underline-offset-2 hover:text-stone-800"
-            >
-              Build one →
-            </Link>
+            <T
+              k="No saved matchups yet. {0}"
+              parts={[
+                <Link
+                  key="build"
+                  href="/demo"
+                  className="underline underline-offset-2 hover:text-stone-800"
+                >
+                  {t("Build one →")}
+                </Link>,
+              ]}
+            />
           </div>
         ) : (
           <div className="mt-6 space-y-6">
@@ -480,7 +494,7 @@ export default function MatchupsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-1.5">
                         <span
-                          title={`team id ${group.teamId}`}
+                          title={t("team id {id}", { id: group.teamId })}
                           className="min-w-0 truncate text-sm font-semibold text-stone-800"
                         >
                           {group.team.name}
@@ -488,8 +502,7 @@ export default function MatchupsPage() {
                         <ImportedBadge team={group.team} />
                       </span>
                       <span className="text-[10px] text-stone-400">
-                        {group.rows.length} matchup
-                        {group.rows.length === 1 ? "" : "s"}
+                        {n(group.rows.length, "matchup", "matchups")}
                       </span>
                     </span>
                     {/* The whole header turns into the question, the way a row
@@ -497,8 +510,14 @@ export default function MatchupsPage() {
                         so nothing needs to be described back to you. */}
                     {confirmId === `group:${group.teamId}` ? (
                       <InlineConfirm
-                        question={`Delete this set — ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} — from ${placesOfRows(group.rows)}?`}
-                        confirmLabel="Delete set"
+                        question={t(
+                          "Delete this set — {count} — from {places}?",
+                          {
+                            count: n(group.rows.length, "matchup", "matchups"),
+                            places: placesOfRows(group.rows),
+                          },
+                        )}
+                        confirmLabel={t("Delete set")}
                         busy={busyId !== null}
                         onConfirm={() => void removeGroup(group)}
                         onCancel={() => setConfirmId(null)}
@@ -511,31 +530,42 @@ export default function MatchupsPage() {
                             disabled={busyId !== null}
                             className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
                           >
-                            upload all ({pending.length})
+                            {t("upload all ({n})", { n: pending.length })}
                           </button>
                         )}
                         <button
                           onClick={() => copyGroup(group)}
-                          title={`copy ${group.team.name} and all ${group.rows.length} matchup${group.rows.length === 1 ? "" : "s"} as JSON`}
+                          title={t("copy {team} and all {count} as JSON", {
+                            team: group.team.name,
+                            count: n(group.rows.length, "matchup", "matchups"),
+                          })}
                           className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-400"
                         >
                           {copied && copiedTeamId === group.teamId
-                            ? "Copied ✓"
-                            : `copy JSON (${group.rows.length})`}
+                            ? t("Copied ✓")
+                            : t("copy JSON ({n})", { n: group.rows.length })}
                         </button>
                         <button
                           onClick={() => addTeams(group)}
-                          title={`add opposing teams to plan against ${group.team.name}`}
+                          title={t(
+                            "add opposing teams to plan against {team}",
+                            {
+                              team: group.team.name,
+                            },
+                          )}
                           className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                         >
-                          ＋ add teams
+                          {t("＋ add teams")}
                         </button>
                         <button
                           onClick={() => setConfirmId(`group:${group.teamId}`)}
-                          title={`delete ${group.team.name} and all ${group.rows.length} of its matchup${group.rows.length === 1 ? "" : "s"}`}
+                          title={t("delete {team} and all {count} it has", {
+                            team: group.team.name,
+                            count: n(group.rows.length, "matchup", "matchups"),
+                          })}
                           className="shrink-0 text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-[#e5484d] hover:underline"
                         >
-                          delete set
+                          {t("delete set")}
                         </button>
                       </>
                     )}
@@ -548,7 +578,7 @@ export default function MatchupsPage() {
                       >
                         <button
                           onClick={() => open(row)}
-                          title={`open ${row.entry.name}`}
+                          title={t("open {name}", { name: row.entry.name })}
                           className="flex min-w-0 flex-1 items-center gap-2 text-left transition-opacity hover:opacity-70"
                         >
                           <span className="shrink-0 text-[10px] text-stone-300">
@@ -571,7 +601,7 @@ export default function MatchupsPage() {
                           <span className="shrink-0 text-[10px] text-stone-400">
                             {row.entry.nodes.length > 0
                               ? new Date(row.entry.savedAt).toLocaleDateString()
-                              : "no plan yet"}
+                              : t("no plan yet")}
                           </span>
                         </button>
                         {/* The row's own id, shown because two rows can now
@@ -582,14 +612,16 @@ export default function MatchupsPage() {
                             Selectable text rather than part of the open
                             button, so it can be copied. */}
                         <span
-                          title={`matchup id ${row.id}`}
+                          title={t("matchup id {id}", { id: row.id })}
                           className="hidden shrink-0 select-all font-mono text-[10px] text-stone-400 sm:inline"
                         >
                           #{row.id.slice(0, 8)}
                         </span>
                         {confirmId === row.id ? (
                           <InlineConfirm
-                            question={`Delete from ${placesOf(row)}?`}
+                            question={t("Delete from {places}?", {
+                              places: placesOf(row),
+                            })}
                             busy={busyId === row.id}
                             onConfirm={() => void remove(row)}
                             onCancel={() => setConfirmId(null)}
@@ -599,12 +631,12 @@ export default function MatchupsPage() {
                             <span className="flex shrink-0 gap-1">
                               {row.inBrowser && (
                                 <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500">
-                                  browser
+                                  {t("browser")}
                                 </span>
                               )}
                               {row.inCloud && (
                                 <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-700">
-                                  account
+                                  {t("account")}
                                 </span>
                               )}
                             </span>
@@ -616,7 +648,7 @@ export default function MatchupsPage() {
                                   disabled={busyId === row.id}
                                   className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
                                 >
-                                  upload
+                                  {t("upload")}
                                 </button>
                               )}
                             <button
@@ -624,7 +656,7 @@ export default function MatchupsPage() {
                               disabled={busyId === row.id}
                               className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-stone-300 transition-colors hover:text-red-600 disabled:opacity-40"
                             >
-                              delete
+                              {t("delete")}
                             </button>
                           </>
                         )}
