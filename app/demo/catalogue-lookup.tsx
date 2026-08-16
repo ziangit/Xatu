@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CatalogueMatch } from "@/lib/match";
 import { findCatalogueTeams } from "./catalogue";
+import { useT } from "../i18n/provider";
 import { MonIcon } from "./mon-icon";
 
 /**
@@ -38,6 +39,7 @@ export function CatalogueLookup({
   regulation: string;
   min?: number;
 }) {
+  const t = useT();
   const [state, setState] = useState<State>({ kind: "closed" });
 
   if (species.length < min) return null;
@@ -61,14 +63,16 @@ export function CatalogueLookup({
           className="cursor-pointer rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-600 transition-colors hover:border-stone-500 disabled:opacity-50"
         >
           {state.kind === "loading"
-            ? "looking…"
-            : `does this look like a known team? (${species.length} named)`}
+            ? t("looking…")
+            : t("does this look like a known team? ({n} named)", {
+                n: species.length,
+              })}
         </button>
       ) : (
         <div className="fade-in rounded-md border border-stone-200 bg-white">
           <div className="flex items-baseline justify-between border-b border-stone-100 px-2 py-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-              Published teams sharing {min}+
+              {t("Published teams sharing {min}+", { min })}
               {state.kind === "open" && state.matches.length > 0 && (
                 <span className="ml-1 font-normal normal-case tracking-normal text-stone-300">
                   · {state.matches.length}
@@ -80,25 +84,30 @@ export function CatalogueLookup({
               onClick={() => setState({ kind: "closed" })}
               className="cursor-pointer text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              close
+              {t("close")}
             </button>
           </div>
 
           {state.kind === "off" && (
             <p className="px-2 py-1.5 text-[11px] text-stone-400">
-              The team catalogue needs an account backend configured — this
-              build is running browser-only.
+              {t(
+                "The team catalogue needs an account backend configured — this build is running browser-only.",
+              )}
             </p>
           )}
           {state.kind === "error" && (
             <p className="px-2 py-1.5 text-[11px] text-amber-700">
-              Couldn&apos;t reach the catalogue — {state.message}
+              {t("Couldn't reach the catalogue — {error}", {
+                error: state.message,
+              })}
             </p>
           )}
           {state.kind === "open" && state.matches.length === 0 && (
             <p className="px-2 py-1.5 text-[11px] text-stone-400">
-              No published team shares {min} of these. Nothing is wrong — the
-              catalogue is Champions teams from VGCPastes, not every team.
+              {t(
+                "No published team shares {min} of these. Nothing is wrong — the catalogue is Champions teams from VGCPastes, not every team.",
+                { min },
+              )}
             </p>
           )}
           {/* A six-species probe can rank nineteen rosters; the panel is not the
@@ -129,7 +138,7 @@ export function CatalogueLookup({
                     ))}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-[11px] text-stone-600">
-                    {m.team.name || m.team.author || "untitled"}
+                    {m.team.name || m.team.author || t("untitled")}
                     {m.team.category && (
                       <span className="text-stone-400">
                         {" "}
@@ -140,7 +149,9 @@ export function CatalogueLookup({
                   {m.pastes > 1 && (
                     <span
                       className="shrink-0 text-[10px] text-stone-400"
-                      title={`${m.pastes} published pastes of this same six`}
+                      title={t("{n} published pastes of this same six", {
+                        n: m.pastes,
+                      })}
                     >
                       ×{m.pastes}
                     </span>
@@ -152,7 +163,7 @@ export function CatalogueLookup({
                       rel="noopener noreferrer"
                       className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
                     >
-                      paste ↗
+                      {t("paste ↗")}
                     </a>
                   )}
                 </div>
@@ -160,7 +171,9 @@ export function CatalogueLookup({
           </div>
 
           <p className="border-t border-stone-100 px-2 py-1 text-[10px] text-stone-400">
-            Reference only — nothing here changes the team you&apos;re building.
+            {t(
+              "Reference only — nothing here changes the team you're building.",
+            )}
           </p>
         </div>
       )}

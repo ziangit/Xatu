@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Team } from "@pkmn/sets";
 import { importTeams, teamLabel } from "@/lib/team";
+import { T } from "../i18n/T";
+import { useLang, useT } from "../i18n/provider";
 import { useCopy } from "../ui";
 import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
@@ -25,16 +27,24 @@ export const FORMATS = [
  * Renders nothing for a team of my own, so callers needn't check.
  */
 export function ImportedBadge({ team }: { team: StoredTeam }) {
+  const { lang, t } = useLang();
   // Only a group that had to be kept apart from one of yours: the badge exists
   // to tell two look-alikes apart, so a lone imported group doesn't need it
   // (and a restored backup would be mislabelled by one).
   if (!isKeptApart(team)) return null;
   return (
     <span
-      title={`pasted in on ${new Date(team.origin!.importedAt).toLocaleDateString()} · your own plans for these six are a separate set`}
+      title={t(
+        "pasted in on {date} · your own plans for these six are a separate set",
+        {
+          date: new Date(team.origin!.importedAt).toLocaleDateString(
+            lang === "zh" ? "zh-Hans" : "en",
+          ),
+        },
+      )}
       className="shrink-0 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-violet-700"
     >
-      imported
+      {t("imported")}
     </span>
   );
 }
@@ -65,6 +75,7 @@ export function ImportPanel({
   /** Accept several teams from one paste (opposing-team lists). */
   multi?: boolean;
 }) {
+  const t = useT();
   const [name, setName] = useState("");
   const [format, setFormat] = useState(FORMATS[0]);
   const [text, setText] = useState("");
@@ -108,8 +119,8 @@ export function ImportPanel({
       } catch {
         setError(
           multi && links.length > 1
-            ? "Couldn't fetch one of those pastes — check the links."
-            : "Couldn't fetch that paste — check the link.",
+            ? t("Couldn't fetch one of those pastes — check the links.")
+            : t("Couldn't fetch that paste — check the link."),
         );
         setBusy(false);
         return;
@@ -119,7 +130,7 @@ export function ImportPanel({
 
     const teams = sources.flatMap(importTeams);
     if (teams.length === 0) {
-      setError("That doesn't parse as a team export or a species list.");
+      setError(t("That doesn't parse as a team export or a species list."));
       return;
     }
     const kept = multi ? teams : teams.slice(0, 1);
@@ -145,7 +156,9 @@ export function ImportPanel({
     <div className="grow-in rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-bold uppercase tracking-wide text-stone-800">
-          {mode === "pick" ? "Add" : "Import"} — {label}
+          {mode === "pick"
+            ? t("Add — {label}", { label })
+            : t("Import — {label}", { label })}
         </h3>
         <span className="flex shrink-0 items-center gap-1 rounded-md border border-stone-300 bg-white p-0.5">
           {(["paste", "pick"] as const).map((m) => (
@@ -162,28 +175,28 @@ export function ImportPanel({
                   : "text-stone-500 hover:text-stone-800"
               }`}
             >
-              {m === "paste" ? "paste" : "type names"}
+              {m === "paste" ? t("paste") : t("type names")}
             </button>
           ))}
         </span>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-stone-500">
         {mode === "pick" ? (
-          <>
-            Type a few letters and pick the Pokémon — <code>pika</code> finds
-            Pikachu. Six makes a team; sets and items come from a paste.
-          </>
+          // `pika` and `Pikachu` are the search string and its result — they
+          // stay English because the name list they match against is English.
+          <T
+            k="Type a few letters and pick the Pokémon — {0} finds Pikachu. Six makes a team; sets and items come from a paste."
+            parts={[<code key="ex">pika</code>]}
+          />
         ) : multi ? (
-          <>
-            Paste one team or many — several pokepast.es links (one per line), a
-            multi-team export split by <code>=== name ===</code> lines, or one
-            comma-separated species list per line.
-          </>
+          <T
+            k="Paste one team or many — several pokepast.es links (one per line), a multi-team export split by {0} lines, or one comma-separated species list per line."
+            parts={[<code key="hdr">=== name ===</code>]}
+          />
         ) : (
-          <>
-            Paste a team — a pokepast.es link, a Showdown/teambuilder export, or
-            just species names separated by commas.
-          </>
+          t(
+            "Paste a team — a pokepast.es link, a Showdown/teambuilder export, or just species names separated by commas.",
+          )
         )}
       </p>
       <div
@@ -191,7 +204,7 @@ export function ImportPanel({
       >
         <label className="block">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-            Format
+            {t("Format")}
           </span>
           <select
             value={format}
@@ -205,7 +218,7 @@ export function ImportPanel({
         </label>
         <label className={multi ? "hidden" : "block"}>
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-            Team name (optional)
+            {t("Team name (optional)")}
           </span>
           <input
             value={name}
@@ -218,7 +231,7 @@ export function ImportPanel({
       {mode === "pick" ? (
         <div className="mt-3">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-            Team — six Pokémon
+            {t("Team — six Pokémon")}
           </span>
           <div className="mt-1">
             <SpeciesPicker slots={picked} onChange={setPicked} autoFocus />
@@ -234,8 +247,8 @@ export function ImportPanel({
         <label className="mt-3 block">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
             {multi
-              ? "Teams — pokepaste links, exports, or species names"
-              : "Team — pokepaste, export, or species names"}
+              ? t("Teams — pokepaste links, exports, or species names")
+              : t("Team — pokepaste, export, or species names")}
           </span>
           <textarea
             value={text}
@@ -258,21 +271,21 @@ export function ImportPanel({
           className="rounded bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98] disabled:opacity-30"
         >
           {busy
-            ? "Fetching…"
+            ? t("Fetching…")
             : mode === "pick"
               ? multi
-                ? "Add team"
-                : "Add"
+                ? t("Add team")
+                : t("Add")
               : multi
-                ? "Add teams"
-                : "Import"}
+                ? t("Add teams")
+                : t("Import")}
         </button>
         {onCancel && (
           <button
             onClick={onCancel}
             className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
           >
-            cancel
+            {t("cancel")}
           </button>
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -314,6 +327,7 @@ export function TeamPanel({
   /** Force the compact one-row view (e.g. while a replace flow is open). */
   collapsed?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const { copied, copy } = useCopy();
   const isOpen = open && !collapsed;
@@ -356,13 +370,13 @@ export function TeamPanel({
         <div className="border-t border-stone-100 px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-              Sets
+              {t("Sets")}
             </span>
             <button
               onClick={copyExport}
               className="rounded border border-stone-200 px-2 py-0.5 text-[10px] text-stone-500 hover:border-stone-400"
             >
-              {copied ? "Copied ✓" : "Copy export"}
+              {copied ? t("Copied ✓") : t("Copy export")}
             </button>
           </div>
           <div className="mt-2 divide-y divide-stone-100">
@@ -378,9 +392,15 @@ export function TeamPanel({
                       </span>
                       {set.item && <> @ {set.item}</>}
                     </p>
-                    {set.ability && <p>Ability: {set.ability}</p>}
-                    {evs && <p>EVs: {evs}</p>}
-                    {set.nature && <p>{set.nature} Nature</p>}
+                    {set.ability && (
+                      <p>{t("Ability: {value}", { value: set.ability })}</p>
+                    )}
+                    {evs && <p>{t("EVs: {value}", { value: evs })}</p>}
+                    {/* English puts "Nature" after the name; Chinese puts its
+                        equivalent before it, so the whole line is one key. */}
+                    {set.nature && (
+                      <p>{t("{nature} Nature", { nature: set.nature })}</p>
+                    )}
                     {(set.moves ?? []).map((m) => (
                       <p key={m}>- {m}</p>
                     ))}

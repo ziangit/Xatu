@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SpeciesMatch } from "@/lib/species";
+import { T } from "../i18n/T";
+import { useT } from "../i18n/provider";
 import { MonIcon } from "./mon-icon";
 import { TYPE_COLORS } from "./type-colors";
 
@@ -56,6 +58,7 @@ export function SpeciesPicker({
   onChange: (slots: string[]) => void;
   autoFocus?: boolean;
 }) {
+  const t = useT();
   const [active, setActive] = useState<number | null>(autoFocus ? 0 : null);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -194,8 +197,8 @@ export function SpeciesPicker({
                       e.stopPropagation();
                       clear(i);
                     }}
-                    aria-label={`remove ${name}`}
-                    title={`remove ${name}`}
+                    aria-label={t("remove {name}", { name })}
+                    title={t("remove {name}", { name })}
                     className="absolute right-1 top-1 cursor-pointer rounded-full px-1 text-[10px] leading-none text-stone-300 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     ✕
@@ -220,10 +223,10 @@ export function SpeciesPicker({
                   }}
                   onKeyDown={(e) => onKeyDown(e, i)}
                   spellCheck={false}
-                  aria-label={`slot ${i + 1}`}
+                  aria-label={t("slot {n}", { n: i + 1 })}
                   // Only the slot being typed into asks for anything; the "?"
                   // and the corner number already say "empty" in the others.
-                  placeholder={editing ? "type…" : ""}
+                  placeholder={editing ? t("type…") : ""}
                   className="w-full bg-transparent text-center text-[10px] leading-tight text-stone-700 placeholder:text-stone-300 focus:outline-none"
                 />
               )}
@@ -277,20 +280,25 @@ export function SpeciesPicker({
           {matches.length === 0 && (
             <li className="px-2 py-1.5 text-[11px] text-stone-400">
               {search
-                ? "no Pokémon by that name — paste the export instead"
-                : "loading names…"}
+                ? t("no Pokémon by that name — paste the export instead")
+                : t("loading names…")}
             </li>
           )}
           {more && (
             <li className="border-t border-stone-100 px-2 py-1 text-[10px] text-stone-400">
-              more matches — keep typing
+              {t("more matches — keep typing")}
             </li>
           )}
         </ul>
       )}
       {!query.trim() && (
         <p className="mt-1.5 text-[10px] text-stone-400">
-          click a slot and type — <code>pika</code> finds Pikachu
+          {/* The example stays English: it is a literal search string against
+              an English name list. */}
+          <T
+            k="click a slot and type — {0} finds Pikachu"
+            parts={[<code key="ex">pika</code>]}
+          />
         </p>
       )}
     </div>

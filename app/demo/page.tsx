@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
+import { useLang, useT } from "../i18n/provider";
 import { InlineConfirm } from "../ui";
 import { importTeamText } from "@/lib/team";
 import {
@@ -99,6 +100,7 @@ function MyTeamSlot({
   team: StoredTeam | null;
   onPick: (team: StoredTeam) => void;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<SlotChoice>("closed");
   const [existing, setExisting] = useState<StoredTeam[]>([]);
 
@@ -117,7 +119,7 @@ function MyTeamSlot({
     <section>
       <div className="flex items-baseline justify-between">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-          My Team
+          {t("My Team")}
         </h2>
         {/* Two different "back"s would meet in this row, so they're kept
             distinct: the page-level one is a button that never moves, the
@@ -132,7 +134,7 @@ function MyTeamSlot({
               onClick={() => setMode("closed")}
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              cancel
+              {t("cancel")}
             </button>
           ) : (
             team && (
@@ -141,13 +143,13 @@ function MyTeamSlot({
                   onClick={() => setMode("import")}
                   className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                 >
-                  ＋ new team
+                  {t("＋ new team")}
                 </button>
                 <button
                   onClick={openExisting}
                   className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                 >
-                  switch team
+                  {t("switch team")}
                 </button>
               </>
             )
@@ -163,20 +165,20 @@ function MyTeamSlot({
               onClick={() => setMode("import")}
               className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
             >
-              New team
+              {t("New team")}
             </button>
             <button
               onClick={openExisting}
               className="rounded-md border border-stone-300 bg-white px-4 py-1.5 text-xs text-stone-600 hover:border-stone-500"
             >
-              Use existing
+              {t("Use existing")}
             </button>
           </div>
         )}
 
         {mode === "import" && (
           <ImportPanel
-            label="My Team"
+            label={t("My Team")}
             onImport={([t]) => {
               if (!t) return;
               pick(rememberTeam({ ...t, id: crypto.randomUUID() }));
@@ -187,22 +189,22 @@ function MyTeamSlot({
 
         {mode === "existing" && (
           <div className="grow-in rounded-lg border border-stone-200 bg-white py-1">
-            {existing.map((t) => (
+            {existing.map((tm) => (
               <button
-                key={t.id}
-                onClick={() => pick(t)}
+                key={tm.id}
+                onClick={() => pick(tm)}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-stone-50"
               >
-                <TeamSprites team={t} scale={0.45} />
+                <TeamSprites team={tm} scale={0.45} />
                 <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-                  {t.name}
+                  {tm.name}
                 </span>
                 <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {t.id.startsWith("preset-")
-                    ? "sample"
-                    : isKeptApart(t)
-                      ? "imported"
-                      : "saved"}
+                  {tm.id.startsWith("preset-")
+                    ? t("sample")
+                    : isKeptApart(tm)
+                      ? t("imported")
+                      : t("saved")}
                 </span>
               </button>
             ))}
@@ -210,7 +212,7 @@ function MyTeamSlot({
               onClick={() => setMode("import")}
               className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
             >
-              + import a new one instead
+              {t("+ import a new one instead")}
             </button>
           </div>
         )}
@@ -236,6 +238,7 @@ function OpponentList({
   onOpen: (board: SavedMatchup) => void;
   onRemove: (board: SavedMatchup) => void;
 }) {
+  const { t, n } = useLang();
   const [mode, setMode] = useState<SlotChoice>(autoOpen ? "choice" : "closed");
   const [existing, setExisting] = useState<StoredTeam[]>([]);
   /** Row awaiting its in-place remove confirmation (never window.confirm). */
@@ -258,7 +261,7 @@ function OpponentList({
     <section>
       <div className="flex items-baseline justify-between">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-          Opposing teams{" "}
+          {t("Opposing teams")}{" "}
           {boards.length > 0 && (
             <span className="text-stone-300">({boards.length})</span>
           )}
@@ -268,7 +271,7 @@ function OpponentList({
             onClick={() => setMode("closed")}
             className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
           >
-            ← back
+            {t("panel|← back")}
           </button>
         ) : (
           boards.length > 0 && (
@@ -277,13 +280,13 @@ function OpponentList({
                 onClick={() => setMode("import")}
                 className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
               >
-                ＋ new team
+                {t("＋ new team")}
               </button>
               <button
                 onClick={openExisting}
                 className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
               >
-                use existing
+                {t("use existing")}
               </button>
             </span>
           )
@@ -297,7 +300,7 @@ function OpponentList({
               <div key={board.id} className="flex items-center gap-3 px-3 py-2">
                 <button
                   onClick={() => onOpen(board)}
-                  title={`plan ${board.setup.opp.name}`}
+                  title={t("plan {team}", { team: board.setup.opp.name })}
                   className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-75"
                 >
                   <TeamSprites team={board.setup.opp} scale={0.5} />
@@ -309,10 +312,10 @@ function OpponentList({
                   <InlineConfirm
                     question={
                       board.nodes.length > 0
-                        ? "Remove with its plan?"
-                        : "Remove?"
+                        ? t("Remove with its plan?")
+                        : t("Remove?")
                     }
-                    confirmLabel="Remove"
+                    confirmLabel={t("Remove")}
                     onConfirm={() => {
                       setConfirmId(null);
                       onRemove(board);
@@ -329,18 +332,18 @@ function OpponentList({
                       }`}
                     >
                       {board.nodes.length > 0
-                        ? `${board.nodes.length} state${board.nodes.length === 1 ? "" : "s"}`
-                        : "no plan yet"}
+                        ? n(board.nodes.length, "state", "states")
+                        : t("no plan yet")}
                     </span>
                     <button
                       onClick={() => onOpen(board)}
                       className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
                     >
-                      {board.nodes.length > 0 ? "open" : "plan"}
+                      {board.nodes.length > 0 ? t("open") : t("plan")}
                     </button>
                     <button
                       onClick={() => setConfirmId(board.id)}
-                      title={`remove ${board.setup.opp.name}`}
+                      title={t("remove {team}", { team: board.setup.opp.name })}
                       className="shrink-0 rounded px-1 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
                     >
                       ✕
@@ -362,24 +365,26 @@ function OpponentList({
                 onClick={() => setMode("import")}
                 className="rounded-md bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80"
               >
-                New team
+                {t("New team")}
               </button>
               <button
                 onClick={openExisting}
                 className="rounded-md border border-stone-300 bg-white px-4 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                Use existing
+                {t("Use existing")}
               </button>
             </div>
             <p className="text-[11px] text-stone-400">
-              type the six, or paste several teams at once — one matchup each
+              {t(
+                "type the six, or paste several teams at once — one matchup each",
+              )}
             </p>
           </div>
         )}
 
         {mode === "import" && (
           <ImportPanel
-            label="Opposing teams"
+            label={t("Opposing teams")}
             multi
             onImport={(teams) =>
               add(
@@ -396,25 +401,25 @@ function OpponentList({
           <div className="rounded-lg border border-stone-200 bg-white py-1">
             {existing.length === 0 && (
               <p className="px-3 py-2 text-xs text-stone-400">
-                No other saved teams yet — import one.
+                {t("No other saved teams yet — import one.")}
               </p>
             )}
-            {existing.map((t) => (
+            {existing.map((tm) => (
               <button
-                key={t.id}
-                onClick={() => add([t])}
+                key={tm.id}
+                onClick={() => add([tm])}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-stone-50"
               >
-                <TeamSprites team={t} scale={0.45} />
+                <TeamSprites team={tm} scale={0.45} />
                 <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-                  {t.name}
+                  {tm.name}
                 </span>
                 <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {t.id.startsWith("preset-")
-                    ? "sample"
-                    : isKeptApart(t)
-                      ? "imported"
-                      : "saved"}
+                  {tm.id.startsWith("preset-")
+                    ? t("sample")
+                    : isKeptApart(tm)
+                      ? t("imported")
+                      : t("saved")}
                 </span>
               </button>
             ))}
@@ -422,7 +427,7 @@ function OpponentList({
               onClick={() => setMode("import")}
               className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
             >
-              + import new ones instead
+              {t("+ import new ones instead")}
             </button>
           </div>
         )}
@@ -433,6 +438,7 @@ function OpponentList({
 
 export default function SetupPage() {
   const router = useRouter();
+  const { t, n } = useLang();
   const [my, setMy] = useState<StoredTeam | null>(null);
   const [library, setLibrary] = useState<SavedMatchup[]>([]);
   const [autoOpen, setAutoOpen] = useState(false);
@@ -528,13 +534,15 @@ export default function SetupPage() {
       <main className="mx-auto max-w-4xl px-6 py-12">
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
-            <Wordmark tag="matchup builder" />
+            <Wordmark tag={t("matchup builder")} />
             <p className="text-xs text-stone-400">
-              your team, then every team you expect to face — one plan each
+              {t(
+                "your team, then every team you expect to face — one plan each",
+              )}
             </p>
           </div>
           <HeaderNav>
-            <NavLink href="/matchups">matchups</NavLink>
+            <NavLink href="/matchups">{t("matchups")}</NavLink>
           </HeaderNav>
         </header>
 
@@ -552,11 +560,12 @@ export default function SetupPage() {
           ) : (
             <section>
               <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                Opposing teams
+                {t("Opposing teams")}
               </h2>
               <div className="mt-2 flex h-32 items-center justify-center rounded-lg border border-dashed border-stone-200 px-6 text-center text-xs leading-relaxed text-stone-400">
-                Set your team first, then add as many opponents as you want to
-                plan against.
+                {t(
+                  "Set your team first, then add as many opponents as you want to plan against.",
+                )}
               </div>
             </section>
           )}
@@ -568,11 +577,14 @@ export default function SetupPage() {
               onClick={() => openBoard(nextUnplanned)}
               className="rounded-md bg-[#e5484d] px-8 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
             >
-              {nextUnplanned.nodes.length > 0 ? "Open board" : "Simulate"}
+              {nextUnplanned.nodes.length > 0 ? t("Open board") : t("Simulate")}
             </button>
             <p className="text-[11px] text-stone-400">
-              vs. {nextUnplanned.setup.opp.name}
-              {boards.length > 1 && " · switch opponents from the board"}
+              {boards.length > 1
+                ? t("vs. {team} · switch opponents from the board", {
+                    team: nextUnplanned.setup.opp.name,
+                  })
+                : t("vs. {team}", { team: nextUnplanned.setup.opp.name })}
             </p>
           </div>
         )}
@@ -586,7 +598,7 @@ export default function SetupPage() {
               }}
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              ＋ new matchup with a different team
+              {t("＋ new matchup with a different team")}
             </button>
           </div>
         )}
@@ -595,13 +607,13 @@ export default function SetupPage() {
           <section className="mt-12">
             <div className="flex items-baseline justify-between">
               <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                Your other teams
+                {t("Your other teams")}
               </h2>
               <Link
                 href="/matchups"
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
               >
-                all matchups (incl. account) →
+                {t("all matchups (incl. account) →")}
               </Link>
             </div>
             <div className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
@@ -609,7 +621,7 @@ export default function SetupPage() {
                 <button
                   key={group.teamId}
                   onClick={() => setMy(group.team)}
-                  title={`switch to ${group.team.name}`}
+                  title={t("switch to {team}", { team: group.team.name })}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-stone-50"
                 >
                   <TeamSprites team={group.team} scale={0.5} />
@@ -618,8 +630,7 @@ export default function SetupPage() {
                   </span>
                   <ImportedBadge team={group.team} />
                   <span className="shrink-0 text-[10px] text-stone-400">
-                    {group.matchups.length} matchup
-                    {group.matchups.length === 1 ? "" : "s"}
+                    {n(group.matchups.length, "matchup", "matchups")}
                   </span>
                 </button>
               ))}
