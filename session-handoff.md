@@ -1,5 +1,11 @@
 # Session handoff
 
+> Updated 2026-08-15: the whole interface **speaks Chinese**, behind an `EN·中`
+> toggle in every header. The locale is a cookie read on the server, so the
+> first paint is already in the right language — no flash, no reflow. Pokémon
+> data and every persisted name stay English, deliberately and with tests.
+> Top section, newest first.
+>
 > Updated 2026-08-14: importing someone else's shared group **no longer
 > overwrites your own plans**. Team identity is now roster *plus* provenance,
 > documents carry the id of the group they came from, a re-paste that changes
@@ -23,6 +29,74 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-08-15: the interface speaks Chinese
+
+User: _"provide a button on home page and all other page which provides chinese
+translation (only for the necessary parts, not the pokemon name)."_ Built for
+the **whole** UI — ~350 strings across six pages, the board included — after
+confirming scope: everything translated, the sample guide's author prose left
+English, and an `EN·中` pill in the nav. Rules in docs/ARCHITECTURE.md →
+**"Interface language"**; read that before changing any of it.
+
+- **`app/i18n/`** — `translate.ts` (pure, React-free, so the non-component string
+  builders use the same function as the JSX), `zh.ts` (one dictionary, ~285
+  entries, glossary at the top), `provider.tsx`, `T.tsx`, `toggle.tsx`,
+  `server.ts`. Not in `lib/` — a React context is disqualified by the
+  framework-free rule and a UI dictionary isn't extension-bound.
+- **The locale is a cookie read in the root layout**, not localStorage. The
+  reason is the project's own no-layout-shift rule: localStorage can't be read
+  during SSR, so it would mean painting English and swapping after mount, and
+  Chinese sets 40–60% narrower — a whole-page reflow on every load. **Price:
+  every route is now `ƒ (Dynamic)`** instead of static. Nothing here fetches on
+  the server, so it's a shell render, not a data round trip. Check `next build`
+  output if you touch the layout.
+- **Keys are the English sentence**, so a missing translation falls back to
+  correct English — which is what let this ship page by page. `context|` prefix
+  for the words used twice (`nav|← back` vs `slot|back`).
+- **The firewall, and it is the whole risk of this change**: species, moves,
+  items, types and `FORMATS` are lookup keys; `` `${my.name} vs ${opp.name}` ``,
+  `"Imported team"` and `teamLabel()` are **persisted to localStorage and
+  Supabase** and feed `encodeGroup` / `boardPrint` / `fallbackDocId`. If any of
+  them became locale-dependent, toggling the language would mark every board
+  dirty and re-upload it, and re-pasting a document in the other language would
+  **fork a parallel group**. Guarded by `workflow-io.test.ts` → "language never
+  reaches stored data".
+- **A latent bug fixed on the way**: `importSummary` chose singular vs plural by
+  comparing its *own rendered text* (`count === "1 matchup"`). That is false in
+  every language once a translation exists — including a reworded English. It now
+  branches on the number. All 13 existing English assertions passed unchanged
+  afterwards, which is the proof the `lang = "en"` default worked.
+- `workflow-io.ts`'s `warn` channel now carries `(key, params)` and **only the
+  collector renders**, so the `Card 3 (turn 1)` label, the colon joining it and
+  the multi-board `vs X —` wrapper are all translatable — Chinese gets `：`, not a
+  concatenated ASCII colon. English output is byte-identical; I reverted my own
+  smart quotes and a reworded possessive when the tests caught them.
+- **Typography, not just strings**: no CJK webfont (Geist has no CJK coverage and
+  Noto Sans SC is megabytes — per-glyph system fallback instead);
+  `body { font-family: Arial … }`, a create-next-app leftover, is gone; under
+  `:lang(zh)` `tracking-widest` relaxes and `text-[10px]` becomes 11px —
+  deliberately **not** `text-[9px]`, which is the board's fixed-height chip row.
+- `LegalFooter` extracted to `app/nav.tsx`: the attribution notice was
+  copy-pasted into five pages and would otherwise have been translated five
+  times.
+- **Two headers bypass `HeaderNav`** (`/` and `/login`) and mount the toggle
+  themselves — check both. `app/page.tsx` became a client component so the
+  landing page translates instantly instead of waiting on `router.refresh()`.
+- 162 tests (25 new), including a placeholder-parity sweep over every dictionary
+  entry — a dropped `{n}` silently loses a number and nothing else would catch it.
+- Verified over CDP in a real browser: the toggle's own box is byte-identical in
+  both languages (50×18 either way) while the page around it re-lays out; all six
+  pages Chinese with `lang="zh-Hans"`; the choice survives navigation; one toggle
+  and still exactly one back link per page; the import panel, species type-ahead
+  ("pika" still finds Pikachu), a real 2-board paste (*"已为 Sand 导入 2 个对阵。"*),
+  the re-paste no-op (*"没有要导入的内容——Sand 的这 2 个对阵你已经有了，且完全相同。"*)
+  and the delete confirm (*"从此浏览器删除这一组（2 个对阵）？"*). Console clean,
+  production build green.
+- **Not done, deliberately**: `lib/schema/warnings.ts` and `lib/schema/io.ts` have
+  no UI callers at all, so they were left alone; when a UI does consume them they
+  want structured `{code, params}` descriptors, not a `lang` parameter, so `lib/`
+  stays innocent of locales.
 
 ## 2026-08-14: importing a shared group keeps both sets
 

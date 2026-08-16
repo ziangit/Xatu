@@ -311,6 +311,120 @@ applies inside flows: every multi-step panel needs a cancel/back affordance
 `scratchpad/check-nav.mjs`-style CDP checks can assert this: load each route and
 require at least one visible `a[href="/"]`.
 
+## Interface language — English ⇄ 中文 (2026-08-15)
+
+`app/i18n/` holds the whole thing. It is **not** in `lib/`: a React context is
+disqualified by the framework-free rule, and a UI dictionary isn't
+extension-bound either. `app/auth/` is the precedent — cross-page chrome that
+isn't a route.
+
+**The locale is a cookie, read on the server.** `readLocale()` (`app/i18n/server.ts`)
+reads `xatu-lang` in the root layout, which passes it to `<LangProvider initial>`
+and stamps `<html lang>`. This is the only option of three where the **first
+paint is already in the final language**:
+
+- localStorage can't be read during SSR, so it means painting English and
+  swapping after mount — a whole-page reflow on every load. Chinese sets ~40–60%
+  narrower than the same English, so that is a big visible jump, and it is
+  exactly what the "no layout shift from async state" rule exists to prevent.
+- A pre-paint inline script can set `<html lang>` but cannot rewrite React-owned
+  text, `title=` attributes, or `InlineConfirm`'s `question` prop.
+
+**The cost, stated plainly:** `cookies()` is a request-time API, so every route
+went from `○ (Static)` to `ƒ (Dynamic)`. Nothing in this app fetches on the
+server, so what was a CDN file is now a server render of a shell — no data round
+trip, no ISR to lose. Confirm it in `next build` output when touching the layout.
+Do **not** reach for `cacheComponents` to win it back; it changes caching
+semantics app-wide to buy something unmeasurable here.
+
+Toggling does four things in order: set state (every client subtree re-renders in
+the same tick, so the page is translated before anything touches the network),
+write the cookie, set `document.documentElement.lang`, then `router.refresh()` —
+which exists only so the `<title>` from `generateMetadata` follows. `app/page.tsx`
+became a client component so the landing page translates instantly rather than
+waiting on that refresh; it already rendered two client components, so the cost
+is nil.
+
+**Keys are the English sentence.** `t("Open the matchup builder")`. A missing
+Chinese entry therefore falls back to correct English, which is what made it
+possible to ship this one page at a time — and editing English copy drops the
+stale translation instead of silently keeping it. Words this UI uses in two
+senses take a `context|` prefix (`nav|← back` is leaving the page, `slot|back` is
+the two Pokémon behind your leads); everything before the last `|` is stripped
+for the fallback.
+
+- **Plurals**: no `Intl.PluralRules`. The count-driven strings here are mostly
+  verb agreement (`was`/`were`, `is`/`are`), which it wouldn't solve anyway. Write
+  the **whole sentence per branch** and pick by the number. `count()` covers the
+  common `"3 matchups"` noun phrase by making both English forms separate keys
+  that Chinese maps to one string.
+- **Never interpolate a translated fragment into another translated string**,
+  except a noun phrase (`{count}`, `{places}`). Word order differs; a verb phrase
+  or clause spliced in produces garbage.
+- **Split sentences use `<T>`** (`app/i18n/T.tsx`) with numbered slots:
+  `<T k="… {0} to also see …" parts={[<Link/>]} />`. The point is that the
+  *spacing around the element becomes translatable* — English wants a space
+  either side of an inline link, Chinese wants none. If you're about to write
+  `{t("…")}{" "}<Link/>{" "}{t("…")}`, you've split a sentence; use `T`.
+
+**Non-React emitters take a `lang` parameter defaulted to `"en"`**, so every
+existing English test assertion keeps passing untouched. `importSummary(applied,
+lang)`; `decodeWorkflowGroup(text, lang)`. In `workflow-io.ts` the `warn` channel
+carries `(key, params)` and **only the collector renders** — that is what lets the
+`Card 3 (turn 1)` label, the colon joining it, and the multi-board `vs X —`
+wrapper all be translated, so Chinese gets its full-width `：` instead of a
+concatenated ASCII one.
+
+**The firewall — what must never pass through `t()`:**
+
+| never translated                                                    | why                                                                     |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| species, moves, items, abilities, natures, types                    | lookup keys for the icon sheet, `Dex.*`, and the `match_species` column |
+| `FORMATS` / regulation strings                                      | `.eq("regulation", …)` filters on them                                  |
+| `` `${my.name} vs ${opp.name}` ``, `"Imported team"`, `teamLabel()` | **persisted** to localStorage *and* Supabase                            |
+| anything reaching `encodeGroup` / `boardPrint` / `fallbackDocId`    | identity and the board's dirty-check fingerprint                        |
+
+If a stored name became locale-dependent, toggling the language would mark every
+board dirty and re-upload it, and re-pasting a document in the other language
+would fail its identity check and **fork a parallel group**. Guarded by tests in
+`workflow-io.test.ts` → "language never reaches stored data".
+
+Upstream English from Supabase Auth, PostgREST and Zod is passed through inside a
+translated frame (`t("Couldn't reach the catalogue — {error}", { error })`).
+Mapping error text we don't control is a trap; a translated frame around an
+English detail is honest.
+
+Author prose — the guide's `gameplan` and `reason` on `/demo/lookup` — stays as
+written. It is content, not chrome, and a real user's guide would show in
+whatever language they wrote it.
+
+**Typography.** No CJK webfont: Geist has no CJK coverage and no subset to
+request, so `--font-sans` carries a fallback chain (`PingFang SC`,
+`Hiragino Sans GB`, `Microsoft YaHei`, `Noto Sans SC`) and per-glyph fallback
+keeps Latin in Geist. Noto Sans SC would be megabytes for something every
+platform already has. `body { font-family: Arial … }` — a create-next-app
+leftover with no CJK fallback — is now `var(--font-sans)`. Under `:lang(zh)`,
+`tracking-widest` is relaxed to `0.02em` (0.1em inserts a gap between *every*
+glyph, which at 10px reads as broken) and `text-[10px]` becomes 11px. That
+bump deliberately stops short of `text-[9px]`: those are the board's move chips,
+which sit in a fixed-height row the SVG edge measurement assumes is
+deterministic — and they hold move names, which stay English anyway.
+
+**The toggle** (`app/i18n/toggle.tsx`) lives in `HeaderNav` before `AccountLink`,
+with its own leading hairline, outside the `onBeforeLeave` capture (it doesn't
+navigate). The two headers that bypass `HeaderNav` — `app/page.tsx` and
+`app/login/page.tsx` — mount it themselves; **check both when touching it**. Its
+height is pinned (`h-[18px]`) because `中` has a taller line box than `EN` *and*
+the `:lang(zh)` rule bumps its font size — either would grow the control by a
+pixel the moment you used it. Its own box is identical in both languages;
+its absolute position may move, because the nav labels beside it are translated
+too and legitimately change width.
+
+Tests: `app/i18n/__tests__/translate.test.ts` covers fallback, context stripping,
+interpolation and the plumbing, plus a **placeholder-parity sweep over every
+dictionary entry** — a dropped `{n}` silently loses a number and nothing else
+would catch it.
+
 ## Known constraints & gotchas
 
 - Regulations rotate every few months and invalidate guides — `regulation` is a
