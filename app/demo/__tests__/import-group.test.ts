@@ -228,4 +228,56 @@ describe("importSummary", () => {
       "Imported 2 matchups as a separate set for Aero + Zard — your 2 for this team were left alone.",
     );
   });
+  /**
+   * The bug this guards: the no-op branch used to pick singular vs plural by
+   * comparing its own rendered text (`count === "1 matchup"`). That is false in
+   * every language once a translation exists — including a reworded English —
+   * so it silently took the plural branch for a single matchup.
+   */
+  it("picks singular by the number, not by its own rendered text", () => {
+    expect(
+      importSummary({ ...base, entries: rows(1), unchanged: 1 }, "zh"),
+    ).toBe("没有要导入的内容——Aero + Zard 的这个对阵你已经有了，且完全相同。");
+    expect(
+      importSummary({ ...base, entries: rows(3), unchanged: 3 }, "zh"),
+    ).toBe(
+      "没有要导入的内容——Aero + Zard 的这 3 个对阵你已经有了，且完全相同。",
+    );
+  });
+
+  it("reads as one Chinese sentence when several things happened", () => {
+    expect(
+      importSummary(
+        {
+          ...base,
+          entries: rows(3),
+          written: rows(2),
+          added: 1,
+          updated: 1,
+          unchanged: 1,
+        },
+        "zh",
+      ),
+    ).toBe(
+      "已为 Aero + Zard 导入 3 个对阵——1 个新增、1 个更新、1 个完全相同。",
+    );
+  });
+
+  it("says what it left alone, in Chinese, when it kept the set apart", () => {
+    expect(
+      importSummary(
+        {
+          ...base,
+          entries: rows(2),
+          written: rows(2),
+          added: 2,
+          keptApart: true,
+          untouched: 2,
+        },
+        "zh",
+      ),
+    ).toBe(
+      "已把 2 个对阵作为 Aero + Zard 的独立一组导入——你自己给这支队伍写的 2 个原封不动。",
+    );
+  });
 });

@@ -534,3 +534,71 @@ describe("document identity (the `g` stamp)", () => {
     ).toMatchObject({ ok: true, docId: null });
   });
 });
+
+/**
+ * The firewall between copy and data. A team name, a matchup name and the
+ * encoded document are all *stored* — in localStorage and in the Supabase
+ * `matchups` row — and `encodeGroup` doubles as the board's dirty-check
+ * fingerprint and as `boardPrint`'s identity check. If any of them started
+ * depending on the interface language, toggling it would mark every board
+ * dirty and re-upload it, and re-pasting a document in the other language
+ * would fail its identity check and fork a parallel group.
+ *
+ * So: language changes the warnings and nothing else.
+ */
+describe("language never reaches stored data", () => {
+  const doc = JSON.stringify({
+    v: 3,
+    g: "team-abc",
+    my: { n: "Sand", f: "", s: MY },
+    b: [
+      // An overstuffed front, so this decode really does emit a warning.
+      { op: { n: "Zard", f: "", s: OPP }, t: [[0, "012|3", "01|23"]] },
+    ],
+  });
+
+  it("decodes identical teams, nodes and document id in either language", () => {
+    const en = decodeWorkflowGroup(doc, "en");
+    const zh = decodeWorkflowGroup(doc, "zh");
+    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
+
+    expect(zh.my.name).toBe(en.my.name);
+    expect(zh.boards[0].opp.name).toBe(en.boards[0].opp.name);
+    expect(zh.docId).toBe(en.docId);
+    const shape = (r: typeof en) =>
+      r.boards.map((b) =>
+        b.nodes.map(({ my, opp, turn }) => ({ my, opp, turn })),
+      );
+    expect(shape(zh)).toEqual(shape(en));
+  });
+
+  it("re-encodes byte-identically, so the fingerprint is language-free", () => {
+    const en = decodeWorkflowGroup(doc, "en");
+    const zh = decodeWorkflowGroup(doc, "zh");
+    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
+    expect(encodeGroup(zh.my, zh.boards)).toBe(encodeGroup(en.my, en.boards));
+  });
+
+  it("still names an untitled team in English — the name is persisted", () => {
+    const untitled = JSON.stringify({
+      v: 3,
+      my: { n: "", f: "", s: MY },
+      b: [{ op: { n: "", f: "", s: OPP }, t: [] }],
+    });
+    const zh = decodeWorkflowGroup(untitled, "zh");
+    if (!zh.ok) throw new Error("expected the decode to succeed");
+    expect(zh.my.name).toBe("Imported team");
+  });
+
+  it("does translate the warnings, prefix and all", () => {
+    const en = decodeWorkflowGroup(doc, "en");
+    const zh = decodeWorkflowGroup(doc, "zh");
+    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
+    expect(en.warnings.join(" ")).toContain("moved to the bench");
+    // The label prefix is translated too — that is the point of routing
+    // warnings through the collector rather than concatenating strings.
+    expect(zh.warnings.join(" ")).toContain("已移到替补");
+    expect(zh.warnings.join(" ")).toContain("第 1 张卡");
+    expect(zh.warnings.join(" ")).not.toContain("Card 1");
+  });
+});

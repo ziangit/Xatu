@@ -1,4 +1,5 @@
 import { rosterCode } from "@/lib/match";
+import { count, translate, type Lang, type Params } from "../i18n/translate";
 import { encodeGroup, type DecodedGroup } from "./workflow-io";
 import {
   findPairMatchup,
@@ -191,31 +192,71 @@ export function applyGroupImport(doc: DecodedGroup): AppliedImport {
  * alone. "Imported 3 matchups" when three identical rows were already there is
  * a lie the author can act on, so a no-op says so plainly.
  */
-export function importSummary(applied: AppliedImport): string {
+export function importSummary(
+  applied: AppliedImport,
+  lang: Lang = "en",
+): string {
   const { added, updated, unchanged, untouched, my } = applied;
-  const n = applied.entries.length;
-  const count = `${n} matchup${n === 1 ? "" : "s"}`;
+  const total = applied.entries.length;
+  const t = (key: string, params?: Params) => translate(lang, key, params);
+  const counted = (k: number) => count(lang, k, "matchup", "matchups");
 
   if (applied.written.length === 0) {
-    return applied.renamed
-      ? `Already had ${count === "1 matchup" ? "this matchup" : `these ${count}`} — no plan changed; the set is now called “${my.name}”.`
-      : `Nothing to import — you already have ${count === "1 matchup" ? "this exact matchup" : `these exact ${count}`} for ${my.name}.`;
+    // Branch on the number, never on the rendered text. This used to compare
+    // `count === "1 matchup"`, which the moment a translation existed would
+    // have been false in every language including a reworded English one.
+    if (applied.renamed) {
+      return total === 1
+        ? t(
+            "Already had this matchup — no plan changed; the set is now called “{team}”.",
+            { team: my.name },
+          )
+        : t(
+            "Already had these {count} — no plan changed; the set is now called “{team}”.",
+            { count: counted(total), team: my.name },
+          );
+    }
+    return total === 1
+      ? t(
+          "Nothing to import — you already have this exact matchup for {team}.",
+          { team: my.name },
+        )
+      : t(
+          "Nothing to import — you already have these exact {count} for {team}.",
+          { count: counted(total), team: my.name },
+        );
   }
 
   const parts = [
-    added > 0 && `${added} new`,
-    updated > 0 && `${updated} updated`,
-    unchanged > 0 && `${unchanged} already identical`,
+    added > 0 ? t("{n} new", { n: added }) : "",
+    updated > 0 ? t("{n} updated", { n: updated }) : "",
+    unchanged > 0 ? t("{n} already identical", { n: unchanged }) : "",
   ].filter(Boolean);
-  const detail = parts.length > 1 ? ` — ${parts.join(", ")}` : "";
+  // A single part is already stated by the sentence itself; only a mix needs
+  // spelling out.
+  const detail =
+    parts.length > 1
+      ? t("detail| — {parts}", { parts: parts.join(t("list|, ")) })
+      : "";
 
   if (applied.keptApart) {
-    return (
-      `Imported ${count} as a separate set for ${my.name}${detail}` +
-      (untouched > 0
-        ? `${detail ? ";" : " —"} your ${untouched} for this team ${untouched === 1 ? "was" : "were"} left alone.`
-        : ".")
-    );
+    const head = t("Imported {count} as a separate set for {team}{detail}", {
+      count: counted(total),
+      team: my.name,
+      detail,
+    });
+    if (untouched === 0) return t("sentence|{head}.", { head });
+    const tail =
+      untouched === 1
+        ? t("your 1 for this team was left alone.")
+        : t("your {n} for this team were left alone.", { n: untouched });
+    return detail
+      ? t("clause|{head}; {tail}", { head, tail })
+      : t("clause|{head} — {tail}", { head, tail });
   }
-  return `Imported ${count} for ${my.name}${detail}.`;
+  return t("Imported {count} for {team}{detail}.", {
+    count: counted(total),
+    team: my.name,
+    detail,
+  });
 }

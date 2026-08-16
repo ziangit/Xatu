@@ -1,5 +1,14 @@
 import { Icons } from "@pkmn/img";
+import { translate, type Lang, type Params } from "../i18n/translate";
 import type { SideState, SimSetup, StoredTeam, TurnNode } from "./storage";
+
+/**
+ * A warning is emitted as a key plus its parameters, never as a finished
+ * sentence: the collector in `decodeWorkflowGroup` is the only place that
+ * renders one, which is what lets the label prefix, its colon and the
+ * multi-board "vs X —" wrapper all be translated rather than concatenated.
+ */
+type Warn = (key: string, params?: Params) => void;
 
 /**
  * Compact workflow codec — the copy/paste artifact for the sim board.
@@ -219,10 +228,17 @@ function isKnownSpecies(species: string): boolean {
   return !/scroll 0px 0px/.test(css.background ?? "");
 }
 
-function unknownSpeciesError(rosters: string[][]): string | null {
+function unknownSpeciesError(
+  rosters: string[][],
+  lang: Lang = "en",
+): string | null {
   const unknown = rosters.flat().filter((s) => !isKnownSpecies(s));
   if (unknown.length === 0) return null;
-  return `Unknown Pokémon: ${[...new Set(unknown)].join(", ")} — not importing.`;
+  // The names themselves are data and stay as the author wrote them; only the
+  // sentence around them is translated.
+  return translate(lang, "Unknown Pokémon: {names} — not importing.", {
+    names: [...new Set(unknown)].join(", "),
+  });
 }
 
 /**
@@ -235,7 +251,7 @@ function decodeSide(
   roster: string[],
   foeRoster: string[],
   label: string,
-  warn: (msg: string) => void,
+  warn: Warn,
 ): SideState {
   const [f = "", b = "", ft = "", mv = "", mg = ""] = code.split("|");
   const seen = new Set<string>();
@@ -244,18 +260,26 @@ function decodeSide(
     for (const c of digits) {
       const species = roster[Number(c)];
       if (!species) {
-        warn(`${label}: reference "${c}" is off the roster — dropped.`);
+        warn('{label}: reference "{c}" is off the roster — dropped.', {
+          label,
+          c,
+        });
         continue;
       }
       if (seen.has(species)) {
         warn(
-          `${label}: ${species} was placed twice — kept its first placement.`,
+          "{label}: {species} was placed twice — kept its first placement.",
+          {
+            label,
+            species,
+          },
         );
         continue;
       }
       if (out.length >= cap) {
         warn(
-          `${label}: ${group} had more than ${cap} — ${species} moved to the bench.`,
+          "{label}: {group} had more than {cap} — {species} moved to the bench.",
+          { label, group, cap, species },
         );
         continue;
       }
@@ -264,10 +288,11 @@ function decodeSide(
     }
     return out;
   };
+  // The group names are keys, not prose — `warn` translates them in place.
   const side: SideState = {
-    front: list(f, 2, "front"),
-    back: list(b, 2, "back"),
-    fainted: list(ft, 6, "fainted"),
+    front: list(f, 2, "slot|front"),
+    back: list(b, 2, "slot|back"),
+    fainted: list(ft, 6, "slot|fainted"),
   };
   if (mv) {
     const moves: Record<string, string> = {};
@@ -276,17 +301,24 @@ function decodeSide(
       const [head, targetPart] = entry.split(">");
       const match = /^(\d):(.+)$/.exec(head);
       if (!match) {
-        warn(`${label}: unreadable move entry "${entry}" — dropped.`);
+        warn('{label}: unreadable move entry "{entry}" — dropped.', {
+          label,
+          entry,
+        });
         continue;
       }
       const species = roster[Number(match[1])];
       if (!species) {
-        warn(`${label}: a move points off the roster — dropped.`);
+        warn("{label}: a move points off the roster — dropped.", { label });
         continue;
       }
       if (!side.front.includes(species)) {
         warn(
-          `${label}: ${species} has a move but isn't in front — move dropped.`,
+          "{label}: {species} has a move but isn't in front — move dropped.",
+          {
+            label,
+            species,
+          },
         );
         continue;
       }
@@ -297,7 +329,10 @@ function decodeSide(
           ? (target[1] === "a" ? roster : foeRoster)[Number(target[2])]
           : undefined;
         if (!targetSpecies) {
-          warn(`${label}: ${species}'s move target is unreadable — dropped.`);
+          warn("{label}: {species}'s move target is unreadable — dropped.", {
+            label,
+            species,
+          });
         } else {
           targets[species] =
             `${target![1] === "a" ? "ally" : "foe"}:${targetSpecies}`;
@@ -310,9 +345,14 @@ function decodeSide(
   if (mg) {
     const species = roster[Number(mg)];
     if (!species) {
-      warn(`${label}: the recorded Mega points off the roster — dropped.`);
+      warn("{label}: the recorded Mega points off the roster — dropped.", {
+        label,
+      });
     } else if (!side.front.includes(species)) {
-      warn(`${label}: ${species} Megas but isn't in front — dropped.`);
+      warn("{label}: {species} Megas but isn't in front — dropped.", {
+        label,
+        species,
+      });
     } else {
       side.mega = species;
     }
@@ -326,7 +366,7 @@ function validateTargets(
   side: SideState,
   foe: SideState,
   label: string,
-  warn: (msg: string) => void,
+  warn: Warn,
 ) {
   if (!side.targets) return;
   for (const [attacker, ref] of Object.entries(side.targets)) {
@@ -337,7 +377,10 @@ function validateTargets(
         parsed.species,
       );
     if (!side.moves?.[attacker] || !onField) {
-      warn(`${label}: ${attacker}'s move target isn't on the field — dropped.`);
+      warn("{label}: {attacker}'s move target isn't on the field — dropped.", {
+        label,
+        attacker,
+      });
       delete side.targets[attacker];
     }
   }
@@ -374,7 +417,8 @@ function decodeTree(
   t: CompactNode[],
   myRoster: string[],
   opRoster: string[],
-  warn: (msg: string) => void,
+  warn: Warn,
+  lang: Lang,
 ): TurnNode[] {
   const ids = t.map(() => crypto.randomUUID());
   const turns: number[] = [];
@@ -384,38 +428,57 @@ function decodeTree(
       parentIdx = parent - 1;
     } else if (parent !== 0) {
       warn(
-        `Card ${i + 1}: invalid parent reference — treated as an alternate turn 1.`,
+        "Card {n}: invalid parent reference — treated as an alternate turn 1.",
+        { n: i + 1 },
       );
     }
     turns[i] = parentIdx >= 0 ? turns[parentIdx] + 1 : 1;
-    // Display numbering starts at turn 0 — the team-preview node.
-    const label = `Card ${i + 1} (turn ${turns[i] - 1})`;
+    // Display numbering starts at turn 0 — the team-preview node. The label is
+    // built here, translated, and handed to the leaves as a parameter, so the
+    // punctuation joining it to a warning belongs to the language too.
+    const cardLabel = translate(lang, "Card {n} (turn {t})", {
+      n: i + 1,
+      t: turns[i] - 1,
+    });
+    const label = cardLabel;
     const my = decodeSide(
       myCode,
       myRoster,
       opRoster,
-      `${label}, my side`,
+      translate(lang, "{label}, my side", { label }),
       warn,
     );
     const opp = decodeSide(
       opCode,
       opRoster,
       myRoster,
-      `${label}, opposing side`,
+      translate(lang, "{label}, opposing side", { label }),
       warn,
     );
     if (turns[i] === 1) {
       // Turn 0 is team preview: positions only, no declared moves.
       for (const side of [my, opp]) {
         if (side.moves) {
-          warn(`${label}: moves aren't recorded at team preview — dropped.`);
+          warn("{label}: moves aren't recorded at team preview — dropped.", {
+            label,
+          });
           delete side.moves;
           delete side.targets;
         }
       }
     }
-    validateTargets(my, opp, `${label}, my side`, warn);
-    validateTargets(opp, my, `${label}, opposing side`, warn);
+    validateTargets(
+      my,
+      opp,
+      translate(lang, "{label}, my side", { label }),
+      warn,
+    );
+    validateTargets(
+      opp,
+      my,
+      translate(lang, "{label}, opposing side", { label }),
+      warn,
+    );
     return {
       id: ids[i],
       turn: turns[i],
@@ -436,15 +499,22 @@ function decodeTree(
  * opponent is unreadable — a half-imported set of matchups is worse than a
  * refusal that names what's wrong.
  */
-export function decodeWorkflowGroup(text: string): GroupDecodeResult {
+export function decodeWorkflowGroup(
+  text: string,
+  lang: Lang = "en",
+): GroupDecodeResult {
+  const fail = (key: string, params?: Params): GroupDecodeResult => ({
+    ok: false,
+    error: translate(lang, key, params),
+  });
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    return { ok: false, error: "That isn't valid JSON." };
+    return fail("That isn't valid JSON.");
   }
   if (typeof data !== "object" || data === null) {
-    return { ok: false, error: "That isn't a workflow document." };
+    return fail("That isn't a workflow document.");
   }
 
   // Legacy verbose form — validate species, then pass through.
@@ -455,12 +525,15 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
   };
   if (legacy.version === 1 && legacy.setup && Array.isArray(legacy.nodes)) {
     if (!legacy.setup.my?.parsed || !legacy.setup.opp?.parsed) {
-      return { ok: false, error: "The workflow's teams are malformed." };
+      return fail("The workflow's teams are malformed.");
     }
-    const speciesError = unknownSpeciesError([
-      legacy.setup.my.parsed.map((m) => m.species),
-      legacy.setup.opp.parsed.map((m) => m.species),
-    ]);
+    const speciesError = unknownSpeciesError(
+      [
+        legacy.setup.my.parsed.map((m) => m.species),
+        legacy.setup.opp.parsed.map((m) => m.species),
+      ],
+      lang,
+    );
     if (speciesError) return { ok: false, error: speciesError };
     return {
       ok: true,
@@ -476,30 +549,30 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
   let entries: { op: CompactTeam; t: CompactNode[] }[];
   if (versioned.v === 3) {
     if (!Array.isArray(versioned.b)) {
-      return { ok: false, error: "That isn't a workflow document." };
+      return fail("That isn't a workflow document.");
     }
     if (versioned.b.length === 0) {
-      return { ok: false, error: "The document has no opposing teams." };
+      return fail("The document has no opposing teams.");
     }
     entries = versioned.b;
   } else if (versioned.v === 2) {
     if (!versioned.op || !Array.isArray(versioned.t)) {
-      return { ok: false, error: "That isn't a workflow document." };
+      return fail("That isn't a workflow document.");
     }
     entries = [{ op: versioned.op, t: versioned.t }];
   } else {
-    return { ok: false, error: "That isn't a workflow document." };
+    return fail("That isn't a workflow document.");
   }
 
   if (!validTeam(versioned.my)) {
-    return { ok: false, error: "The workflow's teams are malformed." };
+    return fail("The workflow's teams are malformed.");
   }
   for (const entry of entries) {
     if (!entry || !validTeam(entry.op) || !Array.isArray(entry.t)) {
-      return { ok: false, error: "The workflow's teams are malformed." };
+      return fail("The workflow's teams are malformed.");
     }
     if (!entry.t.every(validNode)) {
-      return { ok: false, error: "The workflow's turn list is malformed." };
+      return fail("The workflow's turn list is malformed.");
     }
     // An empty turn list is legal and means "lined up, not planned yet" — the
     // same thing `nodes: []` means in storage. Sharing a group has to be able
@@ -508,10 +581,10 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
 
   const myCompact = versioned.my!;
   const myRoster = myCompact.s.slice(0, 6);
-  const speciesError = unknownSpeciesError([
-    myRoster,
-    ...entries.map((e) => e.op.s.slice(0, 6)),
-  ]);
+  const speciesError = unknownSpeciesError(
+    [myRoster, ...entries.map((e) => e.op.s.slice(0, 6))],
+    lang,
+  );
   if (speciesError) return { ok: false, error: speciesError };
 
   const warnings: string[] = [];
@@ -519,9 +592,18 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
   const boards = entries.map((entry) => {
     const opp = teamFromCompact(entry.op);
     // With several opponents, a warning has to say which board it came from.
-    const prefix = entries.length > 1 ? `vs ${opp.name} — ` : "";
-    const warn = (msg: string) => {
-      const line = prefix + msg;
+    // Rendering happens here and only here: the leaves emit a key and its
+    // parameters, so the prefix — and the dash and colon joining it on — are
+    // the translator's to place.
+    const warn: Warn = (key, params) => {
+      const message = translate(lang, key, params);
+      const line =
+        entries.length > 1
+          ? translate(lang, "vs {opp} — {warning}", {
+              opp: opp.name,
+              warning: message,
+            })
+          : message;
       if (!warnings.includes(line)) warnings.push(line);
     };
     return {
@@ -531,6 +613,7 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
         myRoster,
         opp.parsed.map((m) => m.species),
         warn,
+        lang,
       ),
     };
   });
@@ -548,8 +631,8 @@ export function decodeWorkflowGroup(text: string): GroupDecodeResult {
  * board (the sim page's own board state). A multi-opponent paste yields its
  * first board here; use `decodeWorkflowGroup` to keep the rest.
  */
-export function decodeWorkflow(text: string): DecodeResult {
-  const result = decodeWorkflowGroup(text);
+export function decodeWorkflow(text: string, lang: Lang = "en"): DecodeResult {
+  const result = decodeWorkflowGroup(text, lang);
   if (!result.ok) return result;
   const [first] = result.boards;
   return {
