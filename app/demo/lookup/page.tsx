@@ -7,6 +7,9 @@ import type { ParsedMon, Plan, Rule, TurnCondition } from "@/lib/schema";
 import { formeCandidates, matchOpponent } from "@/lib/match";
 import { importTeamText } from "@/lib/team";
 import { HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
+import { T } from "../../i18n/T";
+import { useT } from "../../i18n/provider";
+import type { Params } from "../../i18n/translate";
 import { demoGuide, SAMPLE_TEAMS } from "../demo-data";
 
 // Demo of the lookup flow: paste the opposing team (Showdown export or
@@ -36,6 +39,9 @@ function MonIcon({ species, scale = 2 }: { species: string; scale?: number }) {
   );
 }
 
+// Weather and terrain names are Pokémon data, but "… is up" is chrome, and the
+// two are fused in one phrase — so the whole phrase is the key and the
+// translation keeps the name inside it.
 const WEATHER_LABEL: Record<string, string> = {
   sun: "Sun is up",
   rain: "Rain is up",
@@ -52,37 +58,70 @@ const TERRAIN_LABEL: Record<string, string> = {
   none: "No terrain",
 };
 
-/** Plain-language rendering of a condition — never its internal shape. */
-function conditionLabel(c: TurnCondition): { text: string; sprite?: string } {
+/**
+ * Plain-language rendering of a condition — never its internal shape.
+ *
+ * Each branch is a whole sentence, because the subject-dropping variants
+ * ("They use Protect" vs "Kingambit uses Protect") and the verb agreement are
+ * English grammar that Chinese doesn't share.
+ */
+function conditionLabel(
+  c: TurnCondition,
+  t: (key: string, params?: Params) => string,
+): { text: string; sprite?: string } {
   switch (c.kind) {
     case "opponentLeads":
-      return { text: `They lead ${c.species}`, sprite: c.species };
+      return {
+        text: t("They lead {species}", { species: c.species }),
+        sprite: c.species,
+      };
     case "opponentSwitchesIn":
-      return { text: `${c.species} switches in`, sprite: c.species };
+      return {
+        text: t("{species} switches in", { species: c.species }),
+        sprite: c.species,
+      };
     case "opponentUsesMove":
       return c.species
-        ? { text: `${c.species} uses ${c.move}`, sprite: c.species }
-        : { text: `They use ${c.move}` };
+        ? {
+            text: t("{species} uses {move}", {
+              species: c.species,
+              move: c.move,
+            }),
+            sprite: c.species,
+          }
+        : { text: t("They use {move}", { move: c.move }) };
     case "opponentMegaEvolves":
       return c.species
-        ? { text: `${c.species} Mega Evolves`, sprite: c.species }
-        : { text: "They Mega Evolve" };
+        ? {
+            text: t("{species} Mega Evolves", { species: c.species }),
+            sprite: c.species,
+          }
+        : { text: t("They Mega Evolve") };
     case "opponentTerastallizes":
       return c.species
-        ? { text: `${c.species} Terastallizes`, sprite: c.species }
-        : { text: "They Terastallize" };
+        ? {
+            text: t("{species} Terastallizes", { species: c.species }),
+            sprite: c.species,
+          }
+        : { text: t("They Terastallize") };
     case "weatherIs":
-      return { text: WEATHER_LABEL[c.weather] };
+      return { text: t(WEATHER_LABEL[c.weather]) };
     case "terrainIs":
-      return { text: TERRAIN_LABEL[c.terrain] };
+      return { text: t(TERRAIN_LABEL[c.terrain]) };
     case "tailwindUp":
       return {
-        text: c.side === "own" ? "Your Tailwind is up" : "Their Tailwind is up",
+        text:
+          c.side === "own"
+            ? t("Your Tailwind is up")
+            : t("Their Tailwind is up"),
       };
     case "trickRoomUp":
-      return { text: "Trick Room is up" };
+      return { text: t("Trick Room is up") };
     case "ownFainted":
-      return { text: `Your ${c.species} is down`, sprite: c.species };
+      return {
+        text: t("Your {species} is down", { species: c.species }),
+        sprite: c.species,
+      };
   }
 }
 
@@ -104,14 +143,24 @@ function conditionKey(c: TurnCondition): string {
   return JSON.stringify(c);
 }
 
-function actionText(a: Rule["actions"][number]): string {
+function actionText(
+  a: Rule["actions"][number],
+  t: (key: string, params?: Params) => string,
+): string {
   const act = a.action;
-  if ("move" in act) return `${a.species}: ${act.move}`;
-  if ("switchTo" in act) return `${a.species} → ${act.switchTo}`;
-  return `${a.species}: Protect`;
+  // "Protect" is a move name, not chrome — it stays as the dex spells it.
+  if ("move" in act)
+    return t("{species}: {move}", { species: a.species, move: act.move });
+  if ("switchTo" in act)
+    return t("{species} → {target}", {
+      species: a.species,
+      target: act.switchTo,
+    });
+  return t("{species}: {move}", { species: a.species, move: "Protect" });
 }
 
 export default function DemoPage() {
+  const t = useT();
   const [pasteInput, setPasteInput] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -122,7 +171,7 @@ export default function DemoPage() {
   const loadTeam = (text: string) => {
     const team = importTeamText(text);
     if (!team) {
-      setPasteError("That doesn't parse as a Showdown team export.");
+      setPasteError(t("That doesn't parse as a Showdown team export."));
       return;
     }
     setOpponent(team.parsed);
@@ -143,7 +192,7 @@ export default function DemoPage() {
         if (!res.ok) throw new Error(await res.text());
         loadTeam(await res.text());
       } catch {
-        setPasteError("Couldn't fetch that paste — check the link.");
+        setPasteError(t("Couldn't fetch that paste — check the link."));
       } finally {
         setFetching(false);
       }
@@ -207,17 +256,20 @@ export default function DemoPage() {
               {demoGuide.title}
             </h1>
             <p className="text-xs text-stone-400">
-              by {demoGuide.authorName} · {demoGuide.regulation}
+              {t("by {author} · {regulation}", {
+                author: demoGuide.authorName,
+                regulation: demoGuide.regulation,
+              })}
             </p>
           </div>
           <HeaderNav back="/demo">
-            <NavLink href="/demo">builder</NavLink>
+            <NavLink href="/demo">{t("builder")}</NavLink>
             {opponent && (
               <button
                 onClick={reset}
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
               >
-                change team
+                {t("change team")}
               </button>
             )}
           </HeaderNav>
@@ -227,14 +279,14 @@ export default function DemoPage() {
         {!opponent && (
           <section className="mt-8">
             <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-              Opposing team
+              {t("Opposing team")}
             </h2>
             <textarea
               value={pasteInput}
               onChange={(e) => setPasteInput(e.target.value)}
-              placeholder={
-                "Paste a Showdown team export or a pokepast.es link…"
-              }
+              placeholder={t(
+                "Paste a Showdown team export or a pokepast.es link…",
+              )}
               rows={8}
               spellCheck={false}
               className="mt-2 w-full resize-y rounded-md border border-stone-200 bg-white p-3 font-mono text-xs text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
@@ -245,9 +297,9 @@ export default function DemoPage() {
                 disabled={fetching || !pasteInput.trim()}
                 className="rounded-md bg-stone-900 px-4 py-1.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-30"
               >
-                {fetching ? "Fetching…" : "Look up"}
+                {fetching ? t("Fetching…") : t("Look up")}
               </button>
-              <span className="text-xs text-stone-400">or try</span>
+              <span className="text-xs text-stone-400">{t("or try")}</span>
               {/* A shortcut into the flow, not a catalogue — the full sample
                   set lives in the builder's "use existing". Any of them is a
                   fair test: a team this guide has no matchup for is a case the
@@ -274,19 +326,26 @@ export default function DemoPage() {
             <section className="mt-8">
               <div className="flex items-baseline justify-between">
                 <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                  Their six
+                  {t("Their six")}
                 </h2>
                 {matched ? (
                   <p className="text-xs text-stone-500">
-                    matchup:{" "}
-                    <span className="font-medium text-emerald-700">
-                      {matched.matchup.name}
-                    </span>{" "}
-                    · {Math.round(matched.score * 100)}% fit
+                    <T
+                      k="matchup: {0} · {1}% fit"
+                      parts={[
+                        <span
+                          key="name"
+                          className="font-medium text-emerald-700"
+                        >
+                          {matched.matchup.name}
+                        </span>,
+                        Math.round(matched.score * 100),
+                      ]}
+                    />
                   </p>
                 ) : (
                   <p className="text-xs text-stone-400">
-                    no matchup in this guide fits
+                    {t("no matchup in this guide fits")}
                   </p>
                 )}
               </div>
@@ -310,7 +369,7 @@ export default function DemoPage() {
               <>
                 <section className="mt-8">
                   <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                    Your line
+                    {t("Your line")}
                   </h2>
                   <div className="mt-2 flex items-end gap-8">
                     <div>
@@ -323,7 +382,7 @@ export default function DemoPage() {
                         ))}
                       </div>
                       <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-stone-400">
-                        lead
+                        {t("slot|lead")}
                       </p>
                     </div>
                     <div>
@@ -336,16 +395,20 @@ export default function DemoPage() {
                         ))}
                       </div>
                       <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-stone-400">
-                        back
+                        {t("slot|back")}
                       </p>
                     </div>
                   </div>
                   {plan.when && (
                     <p className="mt-2 text-xs text-stone-500">
-                      picked because they have{" "}
-                      <span className="font-medium text-stone-700">
-                        {plan.when.map((g) => g.species).join(" + ")}
-                      </span>
+                      <T
+                        k="picked because they have {0}"
+                        parts={[
+                          <span key="sp" className="font-medium text-stone-700">
+                            {plan.when.map((g) => g.species).join(" + ")}
+                          </span>,
+                        ]}
+                      />
                     </p>
                   )}
                   <p className="mt-3 max-w-prose text-[13px] leading-relaxed text-stone-500">
@@ -356,7 +419,7 @@ export default function DemoPage() {
                 {/* ── Turn procedure ── */}
                 <section className="mt-8">
                   <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
-                    Toggle what you see
+                    {t("Toggle what you see")}
                   </h2>
                   <div className="mt-3 space-y-0">
                     {TURNS.map((turn) => {
@@ -381,14 +444,15 @@ export default function DemoPage() {
                           <div className="min-w-0 flex-1">
                             {rules.length === 0 ? (
                               <p className="py-0.5 text-xs text-stone-400">
-                                nothing stored for this turn — play the plan
-                                above
+                                {t(
+                                  "nothing stored for this turn — play the plan above",
+                                )}
                               </p>
                             ) : (
                               <>
                                 <div className="flex flex-wrap gap-1.5">
                                   {[...conditions.values()].map((c) => {
-                                    const label = conditionLabel(c);
+                                    const label = conditionLabel(c, t);
                                     const key = `${plan.id}|${turn}|${conditionKey(c)}`;
                                     const on = active.has(key);
                                     return (
@@ -429,12 +493,12 @@ export default function DemoPage() {
                                             species={a.species}
                                             scale={1.2}
                                           />
-                                          {actionText(a)}
+                                          {actionText(a, t)}
                                         </span>
                                       ))}
                                       {r.actions.length === 0 && (
                                         <span className="text-sm text-stone-500">
-                                          no specific call stored
+                                          {t("no specific call stored")}
                                         </span>
                                       )}
                                     </div>
@@ -457,7 +521,7 @@ export default function DemoPage() {
             ) : (
               matched && (
                 <p className="mt-8 text-sm text-stone-400">
-                  The author didn&apos;t store a plan for this exact team.
+                  {t("The author didn't store a plan for this exact team.")}
                 </p>
               )
             )}
