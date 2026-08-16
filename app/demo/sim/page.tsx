@@ -2,13 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  BackLink,
-  HeaderNav,
-  LegalFooter,
-  NavLink,
-  Wordmark,
-} from "../../nav";
+import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
+import { T } from "../../i18n/T";
+import { useLang, useT } from "../../i18n/provider";
 import { useCopy } from "../../ui";
 import { cascadePositions, stripMove, switchedInSpecies } from "../board";
 import { MonIcon, TYPE_COLORS } from "../components";
@@ -169,6 +165,7 @@ function MovePicker({
   onBench: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [stage, setStage] = useState<"move" | "target">("move");
   const [targetKind, setTargetKind] = useState<string | null>(null);
 
@@ -205,7 +202,7 @@ function MovePicker({
       <button
         className="fixed inset-0 z-40 cursor-default"
         onClick={onClose}
-        aria-label="close move picker"
+        aria-label={t("close move picker")}
       />
       {/* Fixed positioning escapes the board's scroll-clipping entirely. */}
       <div
@@ -219,8 +216,10 @@ function MovePicker({
           <>
             {switchedIn ? (
               <p className="px-2 py-1 text-[10px] leading-relaxed text-stone-500">
-                {species} switched in this turn — switching is its action, so it
-                can&rsquo;t also move.
+                {t(
+                  "{species} switched in this turn — switching is its action, so it can’t also move.",
+                  { species },
+                )}
               </p>
             ) : (
               <>
@@ -236,7 +235,7 @@ function MovePicker({
                     }`}
                   >
                     <MonIcon species={megaForme} scale={0.6} />
-                    {megaActive ? "⟡ Mega — recorded" : "⟡ Mega Evolve"}
+                    {megaActive ? t("⟡ Mega — recorded") : t("⟡ Mega Evolve")}
                   </button>
                 )}
                 {moves.map((m) => (
@@ -251,14 +250,14 @@ function MovePicker({
                 ))}
                 {moves.length === 0 && (
                   <p className="px-2 py-1 text-[10px] text-stone-400">
-                    no moves in this import
+                    {t("no moves in this import")}
                   </p>
                 )}
               </>
             )}
             {backChoices.length > 0 && (
               <p className="mt-1 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-stone-400">
-                switch out
+                {t("switch out")}
               </p>
             )}
             {backChoices.map((b) => (
@@ -271,7 +270,9 @@ function MovePicker({
                 className="flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left text-[11px] text-stone-700 hover:bg-stone-100"
               >
                 <MonIcon species={b} scale={1} />
-                <span className="truncate">switch to {b}</span>
+                <span className="truncate">
+                  {t("switch to {species}", { species: b })}
+                </span>
               </button>
             ))}
             {!switchedIn && (
@@ -282,7 +283,7 @@ function MovePicker({
                 }}
                 className="mt-1 block w-full rounded px-2 py-1 text-left text-[11px] text-stone-500 hover:bg-stone-100"
               >
-                no move — just position
+                {t("no move — just position")}
               </button>
             )}
             <button
@@ -292,27 +293,29 @@ function MovePicker({
               }}
               className="block w-full rounded px-2 py-1 text-left text-[11px] text-stone-500 hover:bg-stone-100"
             >
-              send to bench
+              {t("send to bench")}
             </button>
           </>
         ) : (
           <>
             <p className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-stone-400">
-              target
+              {t("target")}
             </p>
             {targetKind !== "adjacentAlly" &&
               targetKind !== "adjacentAllyOrSelf" &&
-              foeFront.map((t) => targetRow(t, `foe:${t}`, t))}
+              foeFront.map((tg) => targetRow(tg, `foe:${tg}`, tg))}
             {targetKind !== "adjacentFoe" &&
               allyFront
-                .filter((t) =>
-                  t === species ? targetKind === "adjacentAllyOrSelf" : true,
+                .filter((tg) =>
+                  tg === species ? targetKind === "adjacentAllyOrSelf" : true,
                 )
-                .map((t) =>
+                .map((tg) =>
                   targetRow(
-                    t === species ? `${t} (self)` : `${t} (ally)`,
-                    `ally:${t}`,
-                    t,
+                    tg === species
+                      ? t("{species} (self)", { species: tg })
+                      : t("{species} (ally)", { species: tg }),
+                    `ally:${tg}`,
+                    tg,
                   ),
                 )}
             <button
@@ -322,7 +325,7 @@ function MovePicker({
               }}
               className="block w-full rounded px-1.5 py-1 text-left text-[11px] text-stone-500 hover:bg-stone-100"
             >
-              no target
+              {t("no target")}
             </button>
           </>
         )}
@@ -339,6 +342,7 @@ function Slot({
   species?: string;
   onRemove?: () => void;
 }) {
+  const t = useT();
   if (!species) {
     return (
       <span className="inline-block h-[34px] w-[46px] rounded border border-dashed border-stone-200" />
@@ -347,7 +351,7 @@ function Slot({
   return (
     <button
       onClick={onRemove}
-      title={`${species} — click to send back`}
+      title={t("{species} — click to send back", { species })}
       className="h-[34px] w-[46px] rounded border border-stone-300 bg-white pl-0.5 hover:border-stone-500"
     >
       <MonIcon species={species} scale={1} />
@@ -414,6 +418,7 @@ function SideBoard({
   onFaint: (species: string) => void;
   onRemove: (species: string) => void;
 }) {
+  const t = useT();
   const moveColor = (move: string) => {
     const type = moveMetaOf?.(move)?.type ?? null;
     return (type && TYPE_COLORS[type]) || "#a8a29e";
@@ -450,9 +455,13 @@ function SideBoard({
               }
               title={
                 excluded
-                  ? `${s} — not brought (chosen at turn 1)`
+                  ? t("{species} — not brought (chosen at turn 1)", {
+                      species: s,
+                    })
                   : state.fainted.includes(s)
-                    ? `${s} — fainted (right-click to revive)`
+                    ? t("{species} — fainted (right-click to revive)", {
+                        species: s,
+                      })
                     : s
               }
               className={
@@ -471,7 +480,9 @@ function SideBoard({
         })}
       </div>
       <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">Front</span>
+        <span className="w-9 text-[10px] text-stone-400">
+          {t("slot|Front")}
+        </span>
         {[0, 1].map((i) => {
           const s = state.front[i];
           if (!s) {
@@ -494,8 +505,10 @@ function SideBoard({
                   }}
                   title={
                     switchedIn.has(s)
-                      ? `${s} — switched in this turn`
-                      : `${s} — declare a move, Mega, or send back`
+                      ? t("{species} — switched in this turn", { species: s })
+                      : t("{species} — declare a move, Mega, or send back", {
+                          species: s,
+                        })
                   }
                   className={`h-[34px] w-[46px] rounded border bg-white pl-0.5 hover:border-stone-500 ${
                     state.mega === s
@@ -547,10 +560,22 @@ function SideBoard({
                   }}
                   title={
                     switchedIn.has(s)
-                      ? `${s} switched in this turn — no move`
+                      ? t("{species} switched in this turn — no move", {
+                          species: s,
+                        })
                       : move
-                        ? `${s}: ${state.mega === s ? "Mega, " : ""}${move}${targetSpecies ? ` → ${targetSpecies}` : ""}`
-                        : `${s} — declare a move or Mega`
+                        ? t("{species}: {detail}", {
+                            species: s,
+                            detail:
+                              (state.mega === s ? t("Mega, ") : "") +
+                              move +
+                              (targetSpecies
+                                ? t(" → {target}", { target: targetSpecies })
+                                : ""),
+                          })
+                        : t("{species} — declare a move or Mega", {
+                            species: s,
+                          })
                   }
                   className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none transition-opacity ${
                     move
@@ -566,8 +591,8 @@ function SideBoard({
                   }
                 >
                   <MonIcon species={shownAs(s)} scale={0.5} />
-                  {state.mega === s && <span title="Mega Evolves">⟡</span>}
-                  {switchedIn.has(s) ? "switched in" : (move ?? "+ move")}
+                  {state.mega === s && <span title={t("Mega Evolves")}>⟡</span>}
+                  {switchedIn.has(s) ? t("switched in") : (move ?? t("+ move"))}
                   {move && targetSpecies && (
                     <>
                       <span className="opacity-80">→</span>
@@ -603,7 +628,7 @@ function SideBoard({
         </div>
       )}
       <div className="mt-1 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">Back</span>
+        <span className="w-9 text-[10px] text-stone-400">{t("slot|Back")}</span>
         {[0, 1].map((i) => (
           <div key={i} className="flex w-[64px] justify-center">
             <Slot
@@ -642,6 +667,7 @@ const CHOICE_TARGETS = new Set([
 ]);
 
 export default function SimPage() {
+  const { lang, t } = useLang();
   const [setup, setSetup] = useState<SimSetup | null>(null);
   const [nodes, setNodes] = useState<TurnNode[]>([]);
   const [ready, setReady] = useState(false);
@@ -805,13 +831,27 @@ export default function SimPage() {
   if (!setup) {
     return (
       <div className="min-h-screen w-full bg-[#fafaf8] p-12 font-sans text-sm text-stone-500">
-        No teams set.{" "}
-        <Link href="/demo" className="underline underline-offset-2">
-          Pick teams first →
-        </Link>
+        <T
+          k="No teams set. {0}"
+          parts={[
+            <Link
+              key="pick"
+              href="/demo"
+              className="underline underline-offset-2"
+            >
+              {t("Pick teams first →")}
+            </Link>,
+          ]}
+        />
       </div>
     );
   }
+
+  // Formatted here rather than inline so the save line's two variants share one
+  // value — and so the clock follows the interface language.
+  const savedTime = savedAt
+    ? new Date(savedAt).toLocaleTimeString(lang === "zh" ? "zh-Hans" : "en")
+    : "";
 
   // Where this board sits among the opponents planned with the same team.
   const groupIdx = group.findIndex((m) =>
@@ -1098,7 +1138,7 @@ export default function SimPage() {
    * from the moment it lands now, exactly like the ones behind it.
    */
   const importWorkflow = () => {
-    const result = decodeWorkflowGroup(importText.trim());
+    const result = decodeWorkflowGroup(importText.trim(), lang);
     if (!result.ok) {
       setImportError(result.error);
       return;
@@ -1122,10 +1162,16 @@ export default function SimPage() {
     setImportText("");
     setImportError(null);
     setImportWarnings([
-      importSummary(applied),
+      importSummary(applied, lang),
+      // Whole sentences per branch, so the verb agrees and the awkward
+      // "The other 1 opposing team" disappears in English too.
       ...(rest.length > 0
         ? [
-            `The other ${rest.length} opposing team${rest.length === 1 ? "" : "s"} ${rest.length === 1 ? "is" : "are"} in this team's matchups.`,
+            rest.length === 1
+              ? t("The other opposing team is in this team's matchups.")
+              : t("The other {n} opposing teams are in this team's matchups.", {
+                  n: rest.length,
+                }),
           ]
         : []),
       ...result.warnings,
@@ -1147,17 +1193,23 @@ export default function SimPage() {
               <Wordmark heading={false} />
             </span>
             <HeaderNav onBeforeLeave={saveIfDirty}>
-              <NavLink href="/demo">builder</NavLink>
-              <NavLink href="/matchups">matchups</NavLink>
+              <NavLink href="/demo">{t("builder")}</NavLink>
+              <NavLink href="/matchups">{t("matchups")}</NavLink>
             </HeaderNav>
           </div>
 
           <div className="mt-4 flex items-end justify-between gap-6">
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold tracking-tight">
-                {setup.my.name}{" "}
-                <span className="font-normal text-stone-400">vs.</span>{" "}
-                {setup.opp.name}
+                {/* This "vs." is presentational — the one inside a stored
+                    matchup name is data and stays as it was written. */}
+                <T
+                  k="{0} vs. {1}"
+                  parts={[
+                    setup.my.name,
+                    <span key="opp">{setup.opp.name}</span>,
+                  ]}
+                />
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {group.length > 1 && (
@@ -1165,7 +1217,7 @@ export default function SimPage() {
                     <button
                       onClick={() => switchTo(group[groupIdx - 1])}
                       disabled={groupIdx <= 0}
-                      title="previous opponent"
+                      title={t("previous opponent")}
                       className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
                     >
                       ‹
@@ -1179,37 +1231,50 @@ export default function SimPage() {
                       className="max-w-[22rem] rounded border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 focus:border-stone-500 focus:outline-none"
                     >
                       {groupIdx < 0 && (
-                        <option value="">this board (unsaved)</option>
+                        <option value="">{t("this board (unsaved)")}</option>
                       )}
                       {group.map((m, i) => (
                         <option key={m.id} value={m.id}>
-                          {i + 1}. vs {m.setup.opp.name}
-                          {m.nodes.length > 0 ? "" : " · no plan yet"}
+                          {m.nodes.length > 0
+                            ? t("{n}. vs {team}", {
+                                n: i + 1,
+                                team: m.setup.opp.name,
+                              })
+                            : t("{n}. vs {team} · no plan yet", {
+                                n: i + 1,
+                                team: m.setup.opp.name,
+                              })}
                         </option>
                       ))}
                     </select>
                     <button
                       onClick={() => switchTo(group[groupIdx + 1])}
                       disabled={groupIdx < 0 || groupIdx >= group.length - 1}
-                      title="next opponent"
+                      title={t("next opponent")}
                       className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
                     >
                       ›
                     </button>
                     <span className="text-[10px] text-stone-400">
                       {groupIdx >= 0
-                        ? `${groupIdx + 1} of ${group.length}`
+                        ? t("{i} of {total}", {
+                            i: groupIdx + 1,
+                            total: group.length,
+                          })
                         : ""}
-                      {plannedCount > 0 && ` · ${plannedCount} planned`}
+                      {plannedCount > 0 &&
+                        t(" · {n} planned", { n: plannedCount })}
                     </span>
                   </>
                 )}
                 <Link
                   href={`/demo?team=${encodeURIComponent(setup.my.id)}&add=1`}
-                  title={`add another opposing team to plan against ${setup.my.name}`}
+                  title={t("add another opposing team to plan against {team}", {
+                    team: setup.my.name,
+                  })}
                   className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
                 >
-                  + add opponent
+                  {t("+ add opponent")}
                 </Link>
               </div>
             </div>
@@ -1227,7 +1292,7 @@ export default function SimPage() {
                 onClick={resetBoard}
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                Reset
+                {t("Reset")}
               </button>
               <button
                 onClick={() => {
@@ -1236,20 +1301,22 @@ export default function SimPage() {
                 }}
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                Import
+                {t("Import")}
               </button>
               <button
                 onClick={copyJson}
-                title="copy this board as JSON — paste it here or on My matchups"
+                title={t(
+                  "copy this board as JSON — paste it here or on My matchups",
+                )}
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                {copied ? "Copied ✓" : "Copy JSON"}
+                {copied ? t("Copied ✓") : t("Copy JSON")}
               </button>
               <button
                 onClick={() => save()}
                 className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
               >
-                Save
+                {t("Save")}
               </button>
             </div>
           </div>
@@ -1261,19 +1328,31 @@ export default function SimPage() {
               onClick={() => setShowHelp(!showHelp)}
               className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
             >
-              {showHelp ? "▾" : "▸"} how the board works
+              {showHelp ? "▾" : "▸"} {t("how the board works")}
             </button>
             {showHelp && (
               <ul className="grow-in mt-2 grid gap-x-8 gap-y-1 text-[11px] leading-relaxed text-stone-500 sm:grid-cols-2">
-                <li>· turn 0 is team preview — pick the four you bring</li>
-                <li>· from turn 1, click a front slot to declare its move</li>
-                <li>· moves are optional; spread moves aim themselves</li>
-                <li>· a Pokémon that switches in can&rsquo;t also move</li>
-                <li>· a Mega Stone holder can Mega and move the same turn</li>
-                <li>· positions carry into the next turn automatically</li>
-                <li>· right-click a Pokémon to faint it</li>
-                <li>· ⑂ records an alternate version of that same turn</li>
-                <li>· turn 2 is the last</li>
+                <li>
+                  · {t("turn 0 is team preview — pick the four you bring")}
+                </li>
+                <li>
+                  · {t("from turn 1, click a front slot to declare its move")}
+                </li>
+                <li>
+                  · {t("moves are optional; spread moves aim themselves")}
+                </li>
+                <li>· {t("a Pokémon that switches in can’t also move")}</li>
+                <li>
+                  · {t("a Mega Stone holder can Mega and move the same turn")}
+                </li>
+                <li>
+                  · {t("positions carry into the next turn automatically")}
+                </li>
+                <li>· {t("right-click a Pokémon to faint it")}</li>
+                <li>
+                  · {t("⑂ records an alternate version of that same turn")}
+                </li>
+                <li>· {t("turn 2 is the last")}</li>
               </ul>
             )}
           </div>
@@ -1285,19 +1364,28 @@ export default function SimPage() {
           {cloudState !== "ok" && cloudState !== "off" ? (
             <p
               className="truncate text-amber-700"
-              title={`account sync failed: ${cloudState}`}
+              title={t("account sync failed: {error}", { error: cloudState })}
             >
-              saved to this browser, but the account sync failed: {cloudState}
+              {t(
+                "saved to this browser, but the account sync failed: {error}",
+                { error: cloudState },
+              )}
             </p>
           ) : savedAt && matchup ? (
             <p className="truncate text-stone-400">
-              saved as “{matchup.name}” ·{" "}
-              {new Date(savedAt).toLocaleTimeString()}
-              {cloudState === "ok" && " · synced to your account"}
+              {cloudState === "ok"
+                ? t("saved as “{name}” · {time} · synced to your account", {
+                    name: matchup.name,
+                    time: savedTime,
+                  })
+                : t("saved as “{name}” · {time}", {
+                    name: matchup.name,
+                    time: savedTime,
+                  })}
             </p>
           ) : (
             <p className="text-stone-300">
-              not saved yet — Save keeps this board
+              {t("not saved yet — Save keeps this board")}
             </p>
           )}
         </div>
@@ -1306,13 +1394,13 @@ export default function SimPage() {
           <div className="grow-in mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-baseline justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-700">
-                Import notes
+                {t("Import notes")}
               </p>
               <button
                 onClick={() => setImportWarnings([])}
                 className="text-[11px] text-amber-600 hover:text-amber-800"
               >
-                dismiss
+                {t("dismiss")}
               </button>
             </div>
             <ul className="mt-1.5 space-y-0.5 text-[11px] leading-relaxed text-amber-800">
@@ -1326,14 +1414,14 @@ export default function SimPage() {
         {showImport && (
           <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-              Import a matchup workflow
+              {t("Import a matchup workflow")}
             </p>
             <textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
               rows={4}
               spellCheck={false}
-              placeholder="Paste a workflow copied with Copy JSON…"
+              placeholder={t("Paste a workflow copied with Copy JSON…")}
               className="mt-2 w-full resize-y rounded border border-stone-300 bg-white p-2.5 font-mono text-[11px] text-stone-700 placeholder:text-stone-300 focus:border-stone-500 focus:outline-none"
             />
             <div className="mt-2 flex items-center gap-3">
@@ -1342,7 +1430,7 @@ export default function SimPage() {
                 disabled={!importText.trim()}
                 className="rounded bg-stone-900 px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-30"
               >
-                Load
+                {t("Load")}
               </button>
               {importError && (
                 <p className="text-xs text-red-600">{importError}</p>
@@ -1408,7 +1496,9 @@ export default function SimPage() {
                   className="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
                   style={{ gridColumn: i + 1, gridRow: 1 }}
                 >
-                  {i === 0 ? "Turn 0 · team preview" : `Turn ${i}`}
+                  {i === 0
+                    ? t("Turn 0 · team preview")
+                    : t("Turn {n}", { n: i })}
                 </p>
               ))}
 
@@ -1433,8 +1523,12 @@ export default function SimPage() {
                   >
                     {isAlternate && (
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
-                        ⑂ alternate turn {node.turn - 1}
-                        {parent ? ` · after turn ${parent.turn - 1}` : ""}
+                        {parent
+                          ? t("⑂ alternate turn {n} · after turn {p}", {
+                              n: node.turn - 1,
+                              p: parent.turn - 1,
+                            })
+                          : t("⑂ alternate turn {n}", { n: node.turn - 1 })}
                       </p>
                     )}
                     {/* The two sides read as a matchup, so they're separated by
@@ -1451,7 +1545,7 @@ export default function SimPage() {
                         vs
                       </span>
                       <SideBoard
-                        title="My Team"
+                        title={t("My Team")}
                         roster={setup.my.parsed.map((m) => m.species)}
                         movesFor={(s) =>
                           setup.my.parsed.find((m) => m.species === s)?.moves ??
@@ -1513,7 +1607,7 @@ export default function SimPage() {
                         }
                       />
                       <SideBoard
-                        title="Opposing Team"
+                        title={t("Opposing Team")}
                         roster={setup.opp.parsed.map((m) => m.species)}
                         movesFor={(s) =>
                           setup.opp.parsed.find((m) => m.species === s)
@@ -1583,7 +1677,7 @@ export default function SimPage() {
                             onClick={() => toggleNote(node.id)}
                             className="text-[10px] font-medium text-stone-400 hover:text-stone-600"
                           >
-                            ▾ note
+                            {t("▾ note")}
                           </button>
                           <textarea
                             value={node.note ?? ""}
@@ -1597,7 +1691,9 @@ export default function SimPage() {
                               3,
                               (node.note ?? "").split("\n").length + 1,
                             )}
-                            placeholder="Why this line, what to watch for — optional"
+                            placeholder={t(
+                              "Why this line, what to watch for — optional",
+                            )}
                             className="mt-1 w-full resize-y rounded border border-stone-200 bg-stone-50 p-2 text-[11px] leading-relaxed text-stone-700 field-sizing-content placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
                           />
                           <div className="mt-1 flex justify-end">
@@ -1605,7 +1701,7 @@ export default function SimPage() {
                               onClick={() => commitNote(node.id)}
                               className="rounded bg-stone-900 px-2.5 py-1 text-[10px] font-medium text-white hover:opacity-80"
                             >
-                              save note
+                              {t("save note")}
                             </button>
                           </div>
                         </div>
@@ -1624,7 +1720,7 @@ export default function SimPage() {
                           onClick={() => toggleNote(node.id)}
                           className="text-[10px] text-stone-300 hover:text-stone-500"
                         >
-                          + note
+                          {t("+ note")}
                         </button>
                       )}
                     </div>
@@ -1636,21 +1732,21 @@ export default function SimPage() {
                             onClick={() => addNextTurn(node)}
                             className="rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400"
                           >
-                            + turn {node.turn}
+                            {t("+ turn {n}", { n: node.turn })}
                           </button>
                         )}
                       <button
                         onClick={() => addAlternate(node)}
                         className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700 hover:border-amber-400"
                       >
-                        ⑂ branch
+                        {t("⑂ branch")}
                       </button>
                       {removable && (
                         <button
                           onClick={() => removeSubtree(node.id)}
                           className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
                         >
-                          remove
+                          {t("remove")}
                         </button>
                       )}
                     </div>
