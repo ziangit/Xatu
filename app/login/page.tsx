@@ -6,6 +6,9 @@ import { getSupabase } from "../auth/client";
 // The account widget is deliberately absent here — this page IS the account
 // page — so the nav is hand-rolled instead of using HeaderNav.
 import { BackLink, HomeLink, LegalFooter, Wordmark } from "../nav";
+import { T } from "../i18n/T";
+import { useT } from "../i18n/provider";
+import { LangToggle } from "../i18n/toggle";
 
 // Sign in / create account. Both paths — Google OAuth and email/password —
 // go through Supabase Auth; xatu never sees or stores a password. Accounts
@@ -15,6 +18,7 @@ import { BackLink, HomeLink, LegalFooter, Wordmark } from "../nav";
 type Mode = "signin" | "signup";
 
 export default function LoginPage() {
+  const t = useT();
   const [checked, setChecked] = useState(false);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("signin");
@@ -79,7 +83,9 @@ export default function LoginPage() {
       if (err) setError(err.message);
       else if (!data.session) {
         setNotice(
-          "Almost there — check your email for a confirmation link, then sign in.",
+          t(
+            "Almost there — check your email for a confirmation link, then sign in.",
+          ),
         );
       }
     }
@@ -98,59 +104,77 @@ export default function LoginPage() {
               href="/demo"
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              builder
+              {t("builder")}
             </Link>
+            {/* No AccountLink on this page — it *is* the account page — so the
+                toggle simply ends the bar. */}
+            <LangToggle />
           </nav>
         </header>
 
         {!checked ? null : !supabase ? (
           <div className="mt-10 rounded-lg border border-stone-200 bg-[#f6f5ef] p-5 text-sm leading-relaxed text-stone-600">
-            Accounts aren&rsquo;t set up in this build. Everything still works
-            without one — teams and matchups save to your browser.{" "}
-            <Link href="/demo" className="underline underline-offset-2">
-              Open the builder →
-            </Link>
+            <T
+              k="Accounts aren’t set up in this build. Everything still works without one — teams and matchups save to your browser. {0}"
+              parts={[
+                <Link
+                  key="builder"
+                  href="/demo"
+                  className="underline underline-offset-2"
+                >
+                  {t("Open the builder →")}
+                </Link>,
+              ]}
+            />
           </div>
         ) : sessionEmail ? (
           <div className="mt-10 rounded-lg border border-stone-200 bg-white p-5">
             <p className="text-sm text-stone-700">
-              Signed in as <span className="font-medium">{sessionEmail}</span>
+              <T
+                k="Signed in as {0}"
+                parts={[
+                  <span key="email" className="font-medium">
+                    {sessionEmail}
+                  </span>,
+                ]}
+              />
             </p>
             <div className="mt-4 flex items-center gap-3">
               <Link
                 href="/demo"
                 className="rounded-md bg-[#e5484d] px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:opacity-85"
               >
-                Open the builder
+                {t("Open the builder")}
               </Link>
               <button
                 onClick={() => supabase.auth.signOut()}
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
               >
-                sign out
+                {t("sign out")}
               </button>
             </div>
           </div>
         ) : (
           <div className="mt-10">
             <h1 className="text-lg font-semibold tracking-tight">
-              {mode === "signin" ? "Sign in" : "Create an account"}
+              {mode === "signin" ? t("Sign in") : t("Create an account")}
             </h1>
             <p className="mt-1 text-xs leading-relaxed text-stone-400">
-              An account syncs your teams and matchups across browsers. Only you
-              can see them. Everything also works without one.
+              {t(
+                "An account syncs your teams and matchups across browsers. Only you can see them. Everything also works without one.",
+              )}
             </p>
 
             <button
               onClick={signInWithGoogle}
               className="mt-6 w-full rounded-md border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 hover:border-stone-500"
             >
-              Continue with Google
+              {t("Continue with Google")}
             </button>
 
             <div className="mt-5 flex items-center gap-3 text-[10px] uppercase tracking-widest text-stone-300">
               <span className="h-px flex-1 bg-stone-200" />
-              or
+              {t("or")}
               <span className="h-px flex-1 bg-stone-200" />
             </div>
 
@@ -160,7 +184,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="email"
+                placeholder={t("email")}
                 autoComplete="email"
                 className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm placeholder:text-stone-300 focus:border-stone-500 focus:outline-none"
               />
@@ -171,7 +195,9 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={
-                  mode === "signup" ? "password (8+ characters)" : "password"
+                  mode === "signup"
+                    ? t("password (8+ characters)")
+                    : t("password")
                 }
                 autoComplete={
                   mode === "signin" ? "current-password" : "new-password"
@@ -183,7 +209,7 @@ export default function LoginPage() {
                 disabled={busy}
                 className="w-full rounded-md bg-[#e5484d] px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:opacity-85 disabled:opacity-40"
               >
-                {mode === "signin" ? "Sign in" : "Create account"}
+                {mode === "signin" ? t("Sign in") : t("Create account")}
               </button>
             </form>
 
@@ -201,31 +227,41 @@ export default function LoginPage() {
             <p className="mt-6 text-xs text-stone-400">
               {mode === "signin" ? (
                 <>
-                  New here?{" "}
-                  <button
-                    onClick={() => {
-                      setMode("signup");
-                      setError(null);
-                      setNotice(null);
-                    }}
-                    className="underline underline-offset-2 hover:text-stone-800"
-                  >
-                    Create an account
-                  </button>
+                  <T
+                    k="New here? {0}"
+                    parts={[
+                      <button
+                        key="signup"
+                        onClick={() => {
+                          setMode("signup");
+                          setError(null);
+                          setNotice(null);
+                        }}
+                        className="underline underline-offset-2 hover:text-stone-800"
+                      >
+                        {t("Create an account")}
+                      </button>,
+                    ]}
+                  />
                 </>
               ) : (
                 <>
-                  Already have an account?{" "}
-                  <button
-                    onClick={() => {
-                      setMode("signin");
-                      setError(null);
-                      setNotice(null);
-                    }}
-                    className="underline underline-offset-2 hover:text-stone-800"
-                  >
-                    Sign in
-                  </button>
+                  <T
+                    k="Already have an account? {0}"
+                    parts={[
+                      <button
+                        key="signin"
+                        onClick={() => {
+                          setMode("signin");
+                          setError(null);
+                          setNotice(null);
+                        }}
+                        className="underline underline-offset-2 hover:text-stone-800"
+                      >
+                        {t("Sign in")}
+                      </button>,
+                    ]}
+                  />
                 </>
               )}
             </p>
