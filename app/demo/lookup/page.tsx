@@ -6,7 +6,7 @@ import { selectPlan } from "@/lib/schema";
 import type { ParsedMon, Plan, Rule, TurnCondition } from "@/lib/schema";
 import { formeCandidates, matchOpponent } from "@/lib/match";
 import { importTeamText } from "@/lib/team";
-import { HeaderNav, NavLink, Wordmark } from "../../nav";
+import { HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
 import { demoGuide, SAMPLE_TEAMS } from "../demo-data";
 
 // Demo of the lookup flow: paste the opposing team (Showdown export or
@@ -464,10 +464,7 @@ export default function DemoPage() {
           </>
         )}
 
-        <footer className="mt-16 border-t border-stone-200 pt-4 text-[11px] leading-relaxed text-stone-400">
-          xatu is an unaffiliated, non-commercial fan project. Pokémon is owned
-          by Nintendo, The Pokémon Company, Game Freak, and Creatures.
-        </footer>
+        <LegalFooter />
       </main>
     </div>
   );

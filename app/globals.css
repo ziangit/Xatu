@@ -5,12 +5,21 @@
   --foreground: #171717;
 }
 
+/* Geist and Bricolage have no CJK coverage at all, and there is no CJK subset to
+   request from them. Per-glyph fallback is the whole answer: Latin stays in
+   Geist, Chinese picks the first installed system face. Shipping a CJK webfont
+   would be megabytes for something every platform already has a good one of. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-bricolage);
+  --font-sans:
+    var(--font-geist-sans), "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "Sarasa Mono SC", monospace;
+  --font-display:
+    var(--font-bricolage), "PingFang SC", "Noto Sans SC", ui-sans-serif,
+    sans-serif;
 }
 
 /* Landing page load sequence: headline rises, tree cards follow, edges draw.
@@ -160,5 +169,26 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was `Arial, Helvetica, sans-serif` — a create-next-app leftover that won
+     anywhere a page root forgot `font-sans`, and that names no CJK fallback.
+     Every page already sets `font-sans` on its own root, so this only fixes
+     what falls outside them. */
+  font-family: var(--font-sans);
+}
+
+/* Chinese typography. `uppercase` is a harmless no-op for CJK, but the small
+   caps labels are `tracking-widest` (0.1em), which inserts a gap between every
+   single glyph — at 10px that reads as broken spacing rather than as emphasis.
+   Written unlayered so it beats Tailwind's utility layer, and scoped to the
+   language so English is untouched. `:lang()` matches `zh-Hans` by prefix. */
+:lang(zh) .tracking-widest,
+:lang(zh) .tracking-wider {
+  letter-spacing: 0.02em;
+}
+/* 10px Latin is small; 10px CJK is unreadable — those glyphs carry far more
+   detail per em. Deliberately NOT extended to `text-[9px]`: the board's move
+   chips sit in a fixed-height row that the SVG edge measurement assumes is
+   deterministic, and those chips hold move names, which stay English anyway. */
+:lang(zh) .text-\[10px\] {
+  font-size: 11px;
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getSupabase } from "../auth/client";
 // The account widget is deliberately absent here — this page IS the account
 // page — so the nav is hand-rolled instead of using HeaderNav.
-import { BackLink, HomeLink, Wordmark } from "../nav";
+import { BackLink, HomeLink, LegalFooter, Wordmark } from "../nav";
 
 // Sign in / create account. Both paths — Google OAuth and email/password —
 // go through Supabase Auth; xatu never sees or stores a password. Accounts
@@ -232,10 +232,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <footer className="mt-16 border-t border-stone-200 pt-4 text-[11px] leading-relaxed text-stone-400">
-          xatu is an unaffiliated, non-commercial fan project. Pokémon is owned
-          by Nintendo, The Pokémon Company, Game Freak, and Creatures.
-        </footer>
+        <LegalFooter />
       </main>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { getSupabase, supabaseConfigured } from "./client";
+import { useT } from "../i18n/provider";
 
 /**
  * Header account control: "sign in" when signed out, an initial-avatar menu
@@ -13,6 +14,7 @@ import { getSupabase, supabaseConfigured } from "./client";
  * bar they were the widest thing in it, and every page carries this widget.
  */
 export function AccountLink() {
+  const t = useT();
   // Known before the first paint, so the slot never appears out of nowhere.
   const configured = supabaseConfigured();
   const [email, setEmail] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function AccountLink() {
         href="/login"
         className="fade-in whitespace-nowrap text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
       >
-        sign in
+        {t("sign in")}
       </Link>,
     );
   }
@@ -87,7 +89,7 @@ export function AccountLink() {
         title={email}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`account menu for ${email}`}
+        aria-label={t("account menu for {email}", { email })}
         className="rise-in flex h-6 w-6 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold uppercase text-stone-600 transition-colors hover:bg-stone-300"
       >
         {email[0]}
@@ -98,7 +100,7 @@ export function AccountLink() {
           <button
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
-            aria-label="close account menu"
+            aria-label={t("close account menu")}
           />
           <div
             role="menu"
@@ -116,7 +118,7 @@ export function AccountLink() {
               onClick={() => setOpen(false)}
               className="block rounded px-2 py-1.5 text-xs text-stone-700 hover:bg-stone-50"
             >
-              My matchups
+              {t("My matchups")}
             </Link>
             <button
               role="menuitem"
@@ -126,7 +128,7 @@ export function AccountLink() {
               }}
               className="block w-full rounded px-2 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-50"
             >
-              Sign out
+              {t("Sign out")}
             </button>
           </div>
         </>

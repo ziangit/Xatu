@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "./i18n/provider";
 
 /**
  * Small shared UI pieces.
@@ -46,17 +47,19 @@ export function useCopy(ms = 1500) {
 
 export function InlineConfirm({
   question,
-  confirmLabel = "Delete",
+  confirmLabel,
   busy = false,
   onConfirm,
   onCancel,
 }: {
   question: string;
+  /** Defaults to a translated "Delete"; callers pass their own verb. */
   confirmLabel?: string;
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <span className="flex shrink-0 items-center gap-2">
       <span className="text-[11px] text-stone-500">{question}</span>
@@ -66,13 +69,13 @@ export function InlineConfirm({
         autoFocus
         className="rounded bg-[#e5484d] px-2 py-0.5 text-[11px] font-semibold text-white hover:opacity-85 disabled:opacity-40"
       >
-        {confirmLabel}
+        {confirmLabel ?? t("Delete")}
       </button>
       <button
         onClick={onCancel}
         className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
       >
-        cancel
+        {t("cancel")}
       </button>
     </span>
   );

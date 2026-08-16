@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { AccountLink } from "./auth/AccountLink";
+import { useT } from "./i18n/provider";
+import { LangToggle } from "./i18n/toggle";
 
 /**
  * Shared page chrome. Every page gets the same three guarantees from here: the
@@ -27,6 +29,7 @@ export function Wordmark({
   tag?: string;
   heading?: boolean;
 }) {
+  const t = useT();
   const Tag = heading ? "h1" : "div";
   return (
     <Tag
@@ -38,7 +41,7 @@ export function Wordmark({
     >
       <Link
         href="/"
-        title="back to the home page"
+        title={t("back to the home page")}
         className="font-display font-bold underline-offset-4 hover:underline"
       >
         xatu
@@ -69,14 +72,15 @@ function HouseIcon() {
 
 /** The explicit way home, for headers that can't use `HeaderNav` wholesale. */
 export function HomeLink() {
+  const t = useT();
   return (
     <Link
       href="/"
-      title="back to the home page"
+      title={t("back to the home page")}
       className={`${LINK} inline-flex items-center gap-1`}
     >
       <HouseIcon />
-      home
+      {t("home")}
     </Link>
   );
 }
@@ -103,6 +107,7 @@ export function BackLink({
   className?: string;
 }) {
   const router = useRouter();
+  const t = useT();
 
   // Decided at click time, not in an effect: no state to hydrate, and the
   // answer is only ever needed once the reader has actually clicked.
@@ -117,10 +122,10 @@ export function BackLink({
     <button
       type="button"
       onClick={() => (canGoBack() ? router.back() : router.push(fallback))}
-      title="back to the previous page"
+      title={t("back to the previous page")}
       className={`${className} cursor-pointer`}
     >
-      ← back
+      {t("nav|← back")}
     </button>
   );
 }
@@ -153,10 +158,33 @@ export function HeaderNav({
         <HomeLink />
         {children}
       </span>
+      {/* Site chrome, not an action: the toggle doesn't navigate, so it sits
+          outside the onBeforeLeave capture with the account widget. It brings
+          its own leading hairline, as AccountLink does. */}
+      <LangToggle />
       {/* AccountLink brings its own leading hairline — it renders nothing at
           all in local-only builds, and a stray divider would be left behind. */}
       <AccountLink />
     </nav>
+  );
+}
+
+/**
+ * The attribution notice, which has to appear in the UI. It was copy-pasted into
+ * five pages; one copy means it can't drift and it's translated once. The
+ * landing page keeps its own markup because it pairs the notice with a github
+ * link on the same row — but it uses this same sentence.
+ */
+export function LegalFooter({ className = "mt-16" }: { className?: string }) {
+  const t = useT();
+  return (
+    <footer
+      className={`${className} border-t border-stone-200 pt-4 text-[11px] leading-relaxed text-stone-400`}
+    >
+      {t(
+        "xatu is an unaffiliated, non-commercial fan project. Pokémon is owned by Nintendo, The Pokémon Company, Game Freak, and Creatures.",
+      )}
+    </footer>
   );
 }
 

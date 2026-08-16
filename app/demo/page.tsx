@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BackLink, HeaderNav, NavLink, Wordmark } from "../nav";
+import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { InlineConfirm } from "../ui";
 import { importTeamText } from "@/lib/team";
 import {
@@ -627,10 +627,7 @@ export default function SetupPage() {
           </section>
         )}
 
-        <footer className="mt-16 border-t border-stone-200 pt-4 text-[11px] leading-relaxed text-stone-400">
-          xatu is an unaffiliated, non-commercial fan project. Pokémon is owned
-          by Nintendo, The Pokémon Company, Game Freak, and Creatures.
-        </footer>
+        <LegalFooter />
       </main>
     </div>
   );
