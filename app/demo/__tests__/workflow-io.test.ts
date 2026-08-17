@@ -557,48 +557,66 @@ describe("language never reaches stored data", () => {
     ],
   });
 
-  it("decodes identical teams, nodes and document id in either language", () => {
-    const en = decodeWorkflowGroup(doc, "en");
-    const zh = decodeWorkflowGroup(doc, "zh");
-    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
+  it.each(["zh", "ja"] as const)(
+    "decodes identical teams, nodes and document id in %s",
+    (lang) => {
+      const en = decodeWorkflowGroup(doc, "en");
+      const other = decodeWorkflowGroup(doc, lang);
+      if (!en.ok || !other.ok)
+        throw new Error("expected both decodes to succeed");
 
-    expect(zh.my.name).toBe(en.my.name);
-    expect(zh.boards[0].opp.name).toBe(en.boards[0].opp.name);
-    expect(zh.docId).toBe(en.docId);
-    const shape = (r: typeof en) =>
-      r.boards.map((b) =>
-        b.nodes.map(({ my, opp, turn }) => ({ my, opp, turn })),
+      expect(other.my.name).toBe(en.my.name);
+      expect(other.boards[0].opp.name).toBe(en.boards[0].opp.name);
+      expect(other.docId).toBe(en.docId);
+      const shape = (r: typeof en) =>
+        r.boards.map((b) =>
+          b.nodes.map(({ my, opp, turn }) => ({ my, opp, turn })),
+        );
+      expect(shape(other)).toEqual(shape(en));
+    },
+  );
+
+  it.each(["zh", "ja"] as const)(
+    "re-encodes byte-identically from %s, so the fingerprint is language-free",
+    (lang) => {
+      const en = decodeWorkflowGroup(doc, "en");
+      const other = decodeWorkflowGroup(doc, lang);
+      if (!en.ok || !other.ok)
+        throw new Error("expected both decodes to succeed");
+      expect(encodeGroup(other.my, other.boards)).toBe(
+        encodeGroup(en.my, en.boards),
       );
-    expect(shape(zh)).toEqual(shape(en));
-  });
+    },
+  );
 
-  it("re-encodes byte-identically, so the fingerprint is language-free", () => {
-    const en = decodeWorkflowGroup(doc, "en");
-    const zh = decodeWorkflowGroup(doc, "zh");
-    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
-    expect(encodeGroup(zh.my, zh.boards)).toBe(encodeGroup(en.my, en.boards));
-  });
-
-  it("still names an untitled team in English — the name is persisted", () => {
-    const untitled = JSON.stringify({
-      v: 3,
-      my: { n: "", f: "", s: MY },
-      b: [{ op: { n: "", f: "", s: OPP }, t: [] }],
-    });
-    const zh = decodeWorkflowGroup(untitled, "zh");
-    if (!zh.ok) throw new Error("expected the decode to succeed");
-    expect(zh.my.name).toBe("Imported team");
-  });
+  it.each(["zh", "ja"] as const)(
+    "still names an untitled team in English in %s — the name is persisted",
+    (lang) => {
+      const untitled = JSON.stringify({
+        v: 3,
+        my: { n: "", f: "", s: MY },
+        b: [{ op: { n: "", f: "", s: OPP }, t: [] }],
+      });
+      const other = decodeWorkflowGroup(untitled, lang);
+      if (!other.ok) throw new Error("expected the decode to succeed");
+      expect(other.my.name).toBe("Imported team");
+    },
+  );
 
   it("does translate the warnings, prefix and all", () => {
     const en = decodeWorkflowGroup(doc, "en");
     const zh = decodeWorkflowGroup(doc, "zh");
-    if (!en.ok || !zh.ok) throw new Error("expected both decodes to succeed");
+    const ja = decodeWorkflowGroup(doc, "ja");
+    if (!en.ok || !zh.ok || !ja.ok)
+      throw new Error("expected every decode to succeed");
     expect(en.warnings.join(" ")).toContain("moved to the bench");
     // The label prefix is translated too — that is the point of routing
     // warnings through the collector rather than concatenating strings.
     expect(zh.warnings.join(" ")).toContain("已移到替补");
     expect(zh.warnings.join(" ")).toContain("第 1 张卡");
     expect(zh.warnings.join(" ")).not.toContain("Card 1");
+    expect(ja.warnings.join(" ")).toContain("未選出に移しました");
+    expect(ja.warnings.join(" ")).toContain("カード 1");
+    expect(ja.warnings.join(" ")).not.toContain("Card 1");
   });
 });

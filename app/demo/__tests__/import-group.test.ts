@@ -243,6 +243,16 @@ describe("importSummary", () => {
     ).toBe(
       "没有要导入的内容——Aero + Zard 的这 3 个对阵你已经有了，且完全相同。",
     );
+    expect(
+      importSummary({ ...base, entries: rows(1), unchanged: 1 }, "ja"),
+    ).toBe(
+      "読み込むものはありません——Aero + Zard のこのマッチアップは、まったく同じ内容ですでにあります。",
+    );
+    expect(
+      importSummary({ ...base, entries: rows(3), unchanged: 3 }, "ja"),
+    ).toBe(
+      "読み込むものはありません——Aero + Zard のこの 3 件のマッチアップは、まったく同じ内容ですでにあります。",
+    );
   });
 
   it("reads as one Chinese sentence when several things happened", () => {
@@ -278,6 +288,47 @@ describe("importSummary", () => {
       ),
     ).toBe(
       "已把 2 个对阵作为 Aero + Zard 的独立一组导入——你自己给这支队伍写的 2 个原封不动。",
+    );
+  });
+
+  it("reads as one Japanese sentence when several things happened", () => {
+    expect(
+      importSummary(
+        {
+          ...base,
+          entries: rows(3),
+          written: rows(2),
+          added: 1,
+          updated: 1,
+          unchanged: 1,
+        },
+        "ja",
+      ),
+    ).toBe(
+      "Aero + Zard に 3 件のマッチアップを読み込みました——1 件を新規追加、1 件を更新、1 件は同一。",
+    );
+  });
+
+  /**
+   * Japanese ends the head clause outright instead of joining with "; ", so
+   * this is also the check that `clause|…` really is a translatable unit
+   * rather than punctuation frozen into the builder.
+   */
+  it("says what it left alone, in Japanese, when it kept the set apart", () => {
+    expect(
+      importSummary(
+        {
+          ...base,
+          entries: rows(2),
+          written: rows(2),
+          added: 2,
+          keptApart: true,
+          untouched: 2,
+        },
+        "ja",
+      ),
+    ).toBe(
+      "2 件のマッチアップを Aero + Zard の別グループとして読み込みました。このパーティ用に自分で作った 2 件はそのままです。",
     );
   });
 });
