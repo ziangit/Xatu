@@ -7,8 +7,10 @@
 
 /* Geist and Bricolage have no CJK coverage at all, and there is no CJK subset to
    request from them. Per-glyph fallback is the whole answer: Latin stays in
-   Geist, Chinese picks the first installed system face. Shipping a CJK webfont
-   would be megabytes for something every platform already has a good one of. */
+   Geist, CJK picks the first installed system face. Shipping a CJK webfont
+   would be megabytes for something every platform already has a good one of.
+   This chain names the Chinese faces; Japanese overrides it below, and must,
+   for the Han-unification reason spelled out there. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -176,19 +178,51 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Chinese typography. `uppercase` is a harmless no-op for CJK, but the small
+/* Japanese needs its own stack rather than more names appended to the shared
+   one. Han unification means 直 骨 today 今 and hundreds more are one code point
+   with two correct drawings, and a Chinese face installed on the machine would
+   happily render the whole Japanese UI in Chinese letterforms — legible, and
+   wrong in the way a Japanese reader notices immediately. Font selection is
+   per-glyph and stops at the first family that has the character, so the only
+   fix is to put the Japanese faces in front for this language. Latin still
+   resolves in Geist either way. Unlayered, so it beats Tailwind's `@theme`. */
+:lang(ja) {
+  --font-sans:
+    var(--font-geist-sans), "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+    "Yu Gothic", "Noto Sans JP", Meiryo, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Sarasa Mono J", monospace;
+  --font-display:
+    var(--font-bricolage), "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    ui-sans-serif, sans-serif;
+}
+
+/* Japanese has no spaces, so a line may break between any two characters — at
+   body size nobody minds, but the landing hero is 60px and broke 見通す across
+   two lines, splitting one verb. `auto-phrase` breaks at phrase boundaries
+   instead. Chrome-only for now; every other engine ignores the declaration and
+   keeps today's behaviour, so this is upside with no fallback to write. Display
+   type only: it costs the browser a dictionary pass, and it is only large text
+   where a mid-word break is loud enough to notice. */
+:lang(ja) .font-display {
+  word-break: auto-phrase;
+}
+
+/* CJK typography. `uppercase` is a harmless no-op for CJK, but the small
    caps labels are `tracking-widest` (0.1em), which inserts a gap between every
    single glyph — at 10px that reads as broken spacing rather than as emphasis.
    Written unlayered so it beats Tailwind's utility layer, and scoped to the
    language so English is untouched. `:lang()` matches `zh-Hans` by prefix. */
 :lang(zh) .tracking-widest,
-:lang(zh) .tracking-wider {
+:lang(zh) .tracking-wider,
+:lang(ja) .tracking-widest,
+:lang(ja) .tracking-wider {
   letter-spacing: 0.02em;
 }
 /* 10px Latin is small; 10px CJK is unreadable — those glyphs carry far more
    detail per em. Deliberately NOT extended to `text-[9px]`: the board's move
    chips sit in a fixed-height row that the SVG edge measurement assumes is
    deterministic, and those chips hold move names, which stay English anyway. */
-:lang(zh) .text-\[10px\] {
+:lang(zh) .text-\[10px\],
+:lang(ja) .text-\[10px\] {
   font-size: 11px;
 }

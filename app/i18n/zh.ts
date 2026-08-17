@@ -50,6 +50,7 @@ export const ZH: Record<string, string> = {
   Language: "语言",
   "Switch to English": "切换到英文",
   "Switch to Chinese": "切换到中文",
+  "Switch to Japanese": "切换到日文",
 
   // ── account ────────────────────────────────────────────────────────────────
   "sign in": "登录",

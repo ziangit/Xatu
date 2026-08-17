@@ -7,6 +7,7 @@ import {
   readLang,
   translate,
 } from "../translate";
+import { JA } from "../ja";
 import { ZH } from "../zh";
 
 describe("translate", () => {
@@ -16,22 +17,26 @@ describe("translate", () => {
     );
   });
 
-  it("falls back to readable English when Chinese is missing", () => {
+  it("falls back to readable English when a translation is missing", () => {
     const missing = "a sentence nobody has translated yet";
     expect(translate("zh", missing)).toBe(missing);
+    expect(translate("ja", missing)).toBe(missing);
   });
 
-  it("looks up Chinese when it exists", () => {
+  it("looks up each language in its own dictionary", () => {
     expect(translate("zh", "home")).toBe("首页");
+    expect(translate("ja", "home")).toBe("ホーム");
   });
 
   it("strips the disambiguating context from the English fallback", () => {
     // "back" is the nav's leave-this-page and also the two Pokémon behind your
-    // leads; they need different Chinese but the same English.
+    // leads; they need different translations but the same English.
     expect(translate("en", "nav|← back")).toBe("← back");
     expect(translate("en", "slot|back")).toBe("back");
     expect(translate("zh", "nav|← back")).toBe("← 返回");
     expect(translate("zh", "slot|back")).toBe("后备");
+    expect(translate("ja", "nav|← back")).toBe("← 戻る");
+    expect(translate("ja", "slot|back")).toBe("後発");
   });
 
   it("substitutes named placeholders", () => {
@@ -61,13 +66,17 @@ describe("count", () => {
     expect(count("en", 0, "matchup", "matchups")).toBe("0 matchups");
   });
 
-  it("does not inflect in Chinese — both forms give the same string", () => {
+  it("does not inflect in CJK — both forms give the same string", () => {
     expect(count("zh", 1, "matchup", "matchups")).toBe("1 个对阵");
     expect(count("zh", 3, "matchup", "matchups")).toBe("3 个对阵");
+    // Japanese uses the freed-up singular/plural distinction for its counter.
+    expect(count("ja", 1, "matchup", "matchups")).toBe("1 件のマッチアップ");
+    expect(count("ja", 3, "matchup", "matchups")).toBe("3 件のマッチアップ");
   });
 
-  it("still inflects correctly when the Chinese entry is missing", () => {
+  it("still inflects correctly when the entry is missing", () => {
     expect(count("zh", 2, "widget", "widgets")).toBe("2 widgets");
+    expect(count("ja", 2, "widget", "widgets")).toBe("2 widgets");
   });
 });
 
@@ -77,6 +86,9 @@ describe("joinList", () => {
       "this browser and your account",
     );
     expect(joinList("zh", ["此浏览器", "你的账号"])).toBe("此浏览器、你的账号");
+    expect(joinList("ja", ["このブラウザ", "あなたのアカウント"])).toBe(
+      "このブラウザ、あなたのアカウント",
+    );
   });
 
   it("drops empties and returns a lone item unadorned", () => {
@@ -89,19 +101,27 @@ describe("lang plumbing", () => {
   it("only accepts what we write; anything else is English", () => {
     // The cookie is user-editable, so garbage must not become a locale.
     expect(readLang("zh")).toBe("zh");
+    expect(readLang("ja")).toBe("ja");
     expect(readLang("en")).toBe("en");
     expect(readLang(undefined)).toBe("en");
     expect(readLang("zh-TW; drop table")).toBe("en");
+    expect(readLang("ja-JP")).toBe("en");
   });
 
-  it("uses a script subtag for <html lang> — it drives font fallback", () => {
+  it("uses a subtag for <html lang> — it drives font fallback", () => {
+    // The Chinese and Japanese faces draw a good many shared code points
+    // differently, so this tag is what keeps them apart on screen.
     expect(htmlLang("zh")).toBe("zh-Hans");
+    expect(htmlLang("ja")).toBe("ja");
     expect(htmlLang("en")).toBe("en");
   });
 });
 
-describe("the dictionary itself", () => {
-  const entries = Object.entries(ZH);
+describe.each([
+  ["Chinese", ZH],
+  ["Japanese", JA],
+])("the %s dictionary", (_name, dict) => {
+  const entries = Object.entries(dict);
   const placeholders = (s: string) =>
     [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
@@ -116,7 +136,7 @@ describe("the dictionary itself", () => {
    * the number, and nothing fails until someone reads a sentence missing its
    * count. Cheap to check, so check every entry.
    */
-  it("keeps every placeholder from the English in the Chinese", () => {
+  it("keeps every placeholder from the English", () => {
     for (const [key, value] of entries) {
       expect(placeholders(value), `placeholders differ for "${key}"`).toEqual(
         placeholders(englishOf(key)),
@@ -132,5 +152,25 @@ describe("the dictionary itself", () => {
         slots(englishOf(key)),
       );
     }
+  });
+});
+
+/**
+ * A second language is what turns "the dictionary is complete" from a claim
+ * into something checkable: the English keys are the same set for both, so any
+ * key one has and the other doesn't is a gap in one of them.
+ */
+describe("the dictionaries together", () => {
+  it("translate the same set of English keys", () => {
+    const zh = Object.keys(ZH).sort();
+    const ja = Object.keys(JA).sort();
+    expect(
+      ja.filter((k) => !ZH[k]),
+      "in Japanese but not Chinese",
+    ).toEqual([]);
+    expect(
+      zh.filter((k) => !JA[k]),
+      "in Chinese but not Japanese",
+    ).toEqual([]);
   });
 });
