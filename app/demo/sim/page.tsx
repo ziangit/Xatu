@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
 import { T } from "../../i18n/T";
 import { useLang, useT } from "../../i18n/provider";
+import { htmlLang } from "../../i18n/translate";
 import { useCopy } from "../../ui";
 import { cascadePositions, stripMove, switchedInSpecies } from "../board";
 import { MonIcon, TYPE_COLORS } from "../components";
@@ -850,7 +851,7 @@ export default function SimPage() {
   // Formatted here rather than inline so the save line's two variants share one
   // value — and so the clock follows the interface language.
   const savedTime = savedAt
-    ? new Date(savedAt).toLocaleTimeString(lang === "zh" ? "zh-Hans" : "en")
+    ? new Date(savedAt).toLocaleTimeString(htmlLang(lang))
     : "";
 
   // Where this board sits among the opponents planned with the same team.

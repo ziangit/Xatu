@@ -5,6 +5,7 @@ import { Team } from "@pkmn/sets";
 import { importTeams, teamLabel } from "@/lib/team";
 import { T } from "../i18n/T";
 import { useLang, useT } from "../i18n/provider";
+import { htmlLang } from "../i18n/translate";
 import { useCopy } from "../ui";
 import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
@@ -38,7 +39,7 @@ export function ImportedBadge({ team }: { team: StoredTeam }) {
         "pasted in on {date} · your own plans for these six are a separate set",
         {
           date: new Date(team.origin!.importedAt).toLocaleDateString(
-            lang === "zh" ? "zh-Hans" : "en",
+            htmlLang(lang),
           ),
         },
       )}

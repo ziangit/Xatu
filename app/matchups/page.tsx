@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
 import { useLang } from "../i18n/provider";
+import { htmlLang } from "../i18n/translate";
 import { InlineConfirm, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
 import { supabaseConfigured } from "../auth/client";
@@ -600,7 +601,9 @@ export default function MatchupsPage() {
                           </span>
                           <span className="shrink-0 text-[10px] text-stone-400">
                             {row.entry.nodes.length > 0
-                              ? new Date(row.entry.savedAt).toLocaleDateString()
+                              ? new Date(row.entry.savedAt).toLocaleDateString(
+                                  htmlLang(lang),
+                                )
                               : t("no plan yet")}
                           </span>
                         </button>
