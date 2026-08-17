@@ -1,5 +1,11 @@
 # Session handoff
 
+> Updated 2026-08-16: the interface **also speaks Japanese** — same mechanism,
+> a third cell in the toggle (`EN·中·日`). Adding a language is now a dictionary
+> plus four one-line edits the type checker points at. Japanese needed one thing
+> Chinese did not: its **own font stack**, or every kanji renders in Chinese
+> letterforms. Top section, newest first.
+>
 > Updated 2026-08-15: the whole interface **speaks Chinese**, behind an `EN·中`
 > toggle in every header. The locale is a cookie read on the server, so the
 > first paint is already in the right language — no flash, no reflow. Pokémon
@@ -29,6 +35,68 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-08-16: the interface also speaks Japanese
+
+User: _"work on the japanese translation feature, similar to the chinese
+version."_ Done for the same whole UI — one new dictionary, `app/i18n/ja.ts`,
+332 entries, and the toggle became `EN·中·日`. The mechanism from 2026-08-15 took
+it without an argument; read docs/ARCHITECTURE.md → **"Interface language"**
+before touching any of it. 171 tests (9 new), tsc / eslint / `next build` green,
+all routes still `ƒ (Dynamic)`.
+
+- **The generalisation is small and now written down**: `Lang` widened,
+  `DICTIONARIES` and `HTML_LANG` became records, `readLang` accepts one more
+  value. `joinList` uses `、` for anything that isn't English. That is the whole
+  core change — everything else was the dictionary.
+- **`htmlLang()` is now the only place a language is branched on.** Three
+  `toLocaleDateString` / `toLocaleTimeString` call sites had `lang === "zh" ?
+  "zh-Hans" : "en"` inlined, which would have silently given Japanese users US
+  dates; they call `htmlLang(lang)` instead. **A fourth was found doing it
+  wrong** — `/matchups` row dates called `toLocaleDateString()` with no argument
+  at all, so they read `8/16/2026` in every language. Now `2026/8/16` under both
+  中 and 日, verified in the browser.
+- **Japanese needs its own font stack, and this is the one real trap.** Han
+  unification means Chinese and Japanese drawings of hundreds of characters share
+  a code point; font matching is per-glyph and stops at the first family that has
+  the character; the existing chain names PingFang SC first. Without an override
+  the whole Japanese UI renders in Chinese letterforms — perfectly legible and
+  immediately wrong to a Japanese reader. `:lang(ja)` redefines `--font-sans` /
+  `--font-mono` / `--font-display`; it works because the theme is `@theme inline`
+  and the block is unlayered. Verified by reading the resolved `font-family` in
+  the browser: `Geist, "Geist Fallback", "Hiragino Kaku Gothic ProN"`.
+  Same reason each toggle cell carries its own `lang` — `中` and `日` are shared
+  code points too.
+- **`word-break: auto-phrase` on `:lang(ja) .font-display`**: the 60px landing
+  headline broke 見通す across two lines, splitting one verb. Chrome-only, other
+  engines ignore it, so there's no fallback to write. Display type only.
+- **The terminology is the part worth a second opinion.** Where the Japanese VGC
+  scene has a word it beat a literal translation: 先発 / 後発 for the lead and
+  back pairs, 選出 for team preview and bring-4, **未選出 for the bench** (which
+  says "not picked" rather than inventing a bench), ひんし, メガシンカ,
+  テラスタル. `team` is **パーティ**, not チーム. `set` is two different words —
+  グループ for a set of matchups, 構成 for a Pokémon's moves/EVs. Glossary at the
+  top of `app/i18n/ja.ts`; edit a value there and every use follows.
+- **Two dictionaries make completeness checkable.** New test: both translate the
+  same set of English keys. A string added to one and forgotten in the other is
+  exactly the failure a per-dictionary check cannot see. The placeholder-parity
+  and numbered-slot sweeps now run over both via `describe.each`.
+- The firewall tests were parametrised over both languages rather than copied:
+  decoding in Japanese yields identical teams, nodes and `docId`, re-encodes
+  byte-identically, and an untitled team is still named `"Imported team"`.
+  Confirmed live too — after a Japanese paste, storage held
+  `["Sand vs Miraidon","Sand vs Zard"]`.
+- Verified over CDP in a real browser: all six pages Japanese with `lang="ja"`,
+  one toggle and exactly one back link each, the choice surviving navigation;
+  the toggle's own box **74×18 in all three languages** while the nav around it
+  re-lays out; the species type-ahead still finds Pikachu from "pika"; a real
+  2-board paste (*"Sand に 2 件のマッチアップを読み込みました。"*), the re-paste
+  no-op (*"読み込むものはありません——Sand のこの 2 件のマッチアップは、まったく
+  同じ内容ですでにあります。"*) and the delete confirm (*"このブラウザからこの
+  グループ（2 件のマッチアップ）を削除しますか？"*). Console clean.
+- **Not done, deliberately**: same as last time — `lib/schema/warnings.ts` and
+  `lib/schema/io.ts` still have no UI callers, so `lib/` stays innocent of
+  locales. The sample guide's author prose on `/demo/lookup` stays English.
 
 ## 2026-08-15: the interface speaks Chinese
 

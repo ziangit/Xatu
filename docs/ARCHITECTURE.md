@@ -311,7 +311,7 @@ applies inside flows: every multi-step panel needs a cancel/back affordance
 `scratchpad/check-nav.mjs`-style CDP checks can assert this: load each route and
 require at least one visible `a[href="/"]`.
 
-## Interface language — English ⇄ 中文 (2026-08-15)
+## Interface language — English ⇄ 中文 ⇄ 日本語 (2026-08-15, Japanese 2026-08-16)
 
 `app/i18n/` holds the whole thing. It is **not** in `lib/`: a React context is
 disqualified by the framework-free rule, and a UI dictionary isn't
@@ -346,18 +346,35 @@ waiting on that refresh; it already rendered two client components, so the cost
 is nil.
 
 **Keys are the English sentence.** `t("Open the matchup builder")`. A missing
-Chinese entry therefore falls back to correct English, which is what made it
-possible to ship this one page at a time — and editing English copy drops the
-stale translation instead of silently keeping it. Words this UI uses in two
-senses take a `context|` prefix (`nav|← back` is leaving the page, `slot|back` is
-the two Pokémon behind your leads); everything before the last `|` is stripped
-for the fallback.
+entry therefore falls back to correct English, which is what made it possible to
+ship the first language one page at a time and the second one all at once — and
+editing English copy drops the stale translation instead of silently keeping it.
+Words this UI uses in two senses take a `context|` prefix (`nav|← back` is
+leaving the page, `slot|back` is the two Pokémon behind your leads); everything
+before the last `|` is stripped for the fallback.
+
+**Adding a language** is a dictionary plus four one-line edits, and the type
+system finds all four: widen `Lang`, add the dictionary to `DICTIONARIES`, add
+its `<html lang>` subtag to `HTML_LANG`, and let `readLang` accept its cookie
+value. Then a cell in the toggle and, if it is CJK, a look at the type rules
+below. Nothing else in the app branches on the language — `htmlLang()` is the
+only thing the three `toLocaleDateString` / `toLocaleTimeString` call sites need,
+so keep it that way rather than reintroducing a ternary.
+
+Two dictionaries also make completeness checkable: the test asserting **both
+translate the same set of English keys** is what catches a string added to one
+and forgotten in the other, which no per-dictionary check can see.
 
 - **Plurals**: no `Intl.PluralRules`. The count-driven strings here are mostly
   verb agreement (`was`/`were`, `is`/`are`), which it wouldn't solve anyway. Write
   the **whole sentence per branch** and pick by the number. `count()` covers the
   common `"3 matchups"` noun phrase by making both English forms separate keys
-  that Chinese maps to one string.
+  that a dictionary maps to one string — which is also where Japanese puts its
+  counter word (`3 件のマッチアップ`), for free.
+- **Watch the space before a `{count}`/`{places}` slot.** Those expand to a
+  phrase ending in a CJK glyph, and the particle after it attaches directly. A
+  trailing space inside the dictionary entry is invisible in review and obvious
+  on screen; two Chinese entries shipped with one.
 - **Never interpolate a translated fragment into another translated string**,
   except a noun phrase (`{count}`, `{places}`). Word order differs; a verb phrase
   or clause spliced in produces garbage.
@@ -366,14 +383,18 @@ for the fallback.
   *spacing around the element becomes translatable* — English wants a space
   either side of an inline link, Chinese wants none. If you're about to write
   `{t("…")}{" "}<Link/>{" "}{t("…")}`, you've split a sentence; use `T`.
+- **Punctuation joining two clauses is part of the key, not the builder.**
+  `importSummary` joins its head and tail through `clause|{head}; {tail}`;
+  English wants `; `, Chinese `；`, and Japanese ends the first clause outright
+  with `。`. Freeze any of those into the code and the other two read wrong.
 
 **Non-React emitters take a `lang` parameter defaulted to `"en"`**, so every
 existing English test assertion keeps passing untouched. `importSummary(applied,
 lang)`; `decodeWorkflowGroup(text, lang)`. In `workflow-io.ts` the `warn` channel
 carries `(key, params)` and **only the collector renders** — that is what lets the
 `Card 3 (turn 1)` label, the colon joining it, and the multi-board `vs X —`
-wrapper all be translated, so Chinese gets its full-width `：` instead of a
-concatenated ASCII one.
+wrapper all be translated, so Chinese and Japanese get their full-width `：`
+instead of a concatenated ASCII one.
 
 **The firewall — what must never pass through `t()`:**
 
@@ -403,12 +424,34 @@ request, so `--font-sans` carries a fallback chain (`PingFang SC`,
 `Hiragino Sans GB`, `Microsoft YaHei`, `Noto Sans SC`) and per-glyph fallback
 keeps Latin in Geist. Noto Sans SC would be megabytes for something every
 platform already has. `body { font-family: Arial … }` — a create-next-app
-leftover with no CJK fallback — is now `var(--font-sans)`. Under `:lang(zh)`,
-`tracking-widest` is relaxed to `0.02em` (0.1em inserts a gap between *every*
-glyph, which at 10px reads as broken) and `text-[10px]` becomes 11px. That
-bump deliberately stops short of `text-[9px]`: those are the board's move chips,
-which sit in a fixed-height row the SVG edge measurement assumes is
-deterministic — and they hold move names, which stay English anyway.
+leftover with no CJK fallback — is now `var(--font-sans)`.
+
+**Japanese gets its own stack, and this is not optional.** Han unification puts
+Chinese and Japanese drawings of hundreds of characters on the same code point,
+font selection is per-glyph and stops at the first family that *has* the
+character, and the shared chain names Chinese faces first — so without an
+override the entire Japanese UI renders in Chinese letterforms. Legible, and
+wrong in the way a Japanese reader notices instantly. `:lang(ja)` therefore
+redefines `--font-sans` / `--font-mono` / `--font-display` with Hiragino / Yu
+Gothic / Noto Sans JP in front. This works because the theme is `@theme inline`
+(the utilities emit `var(--font-sans)` rather than a resolved value) and because
+the block is **unlayered**, which beats Tailwind's `@theme` layer. Verify a
+change here by reading `getComputedStyle(document.body).fontFamily` in a browser
+with `<html lang="ja">`, not by reading the CSS.
+
+Under `:lang(zh)` and `:lang(ja)` alike, `tracking-widest` is relaxed to `0.02em`
+(0.1em inserts a gap between *every* glyph, which at 10px reads as broken) and
+`text-[10px]` becomes 11px. That bump deliberately stops short of `text-[9px]`:
+those are the board's move chips, which sit in a fixed-height row the SVG edge
+measurement assumes is deterministic — and they hold move names, which stay
+English anyway.
+
+`:lang(ja) .font-display` also sets `word-break: auto-phrase`. Japanese has no
+spaces so a line may break between any two characters, which the 60px landing
+headline did mid-verb (見通/す). `auto-phrase` breaks at phrase boundaries
+instead. Chrome-only; other engines ignore the declaration and keep the previous
+behaviour, so there is no fallback to write. **Display type only** — it costs a
+dictionary pass, and body text is small enough that nobody notices the break.
 
 **The toggle** (`app/i18n/toggle.tsx`) lives in `HeaderNav` before `AccountLink`,
 with its own leading hairline, outside the `onBeforeLeave` capture (it doesn't
@@ -420,10 +463,18 @@ pixel the moment you used it. Its own box is identical in both languages;
 its absolute position may move, because the nav labels beside it are translated
 too and legitimately change width.
 
+Each cell carries **its own `lang`** (`htmlLang(value)`). `中` and `日` are
+shared code points, so without it a Japanese system font letters the Chinese cell
+and vice versa — the same Han-unification problem as the body text, in two
+glyphs. One glyph per language keeps the cells equal-width and the whole control
+at 74×18 in every language (measured, all three). **Three cells is the limit**;
+a fourth language turns this into a menu — still not a `<select>`, for the same
+reason `window.confirm` is banned.
+
 Tests: `app/i18n/__tests__/translate.test.ts` covers fallback, context stripping,
-interpolation and the plumbing, plus a **placeholder-parity sweep over every
-dictionary entry** — a dropped `{n}` silently loses a number and nothing else
-would catch it.
+interpolation and the plumbing; a **placeholder-parity sweep over every entry of
+every dictionary** — a dropped `{n}` silently loses a number and nothing else
+would catch it; and the cross-dictionary key-set check described above.
 
 ## Known constraints & gotchas
 
