@@ -10,16 +10,11 @@ import { useCopy } from "../ui";
 import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
 import { TYPE_COLORS } from "./type-colors";
+import { FORMATS } from "./formats";
 import { SpeciesPicker, emptySlots } from "./species-picker";
 import { isKeptApart, type StoredTeam } from "./storage";
 
-export { MonIcon, TYPE_COLORS };
-
-export const FORMATS = [
-  "[Gen 9 Champions] VGC 2026 Reg M-B",
-  "[Gen 9 Champions] VGC 2026 Reg M-A",
-  "[Gen 9] SV VGC Reg I",
-];
+export { MonIcon, TYPE_COLORS, FORMATS };
 
 /**
  * Says a team arrived in a pasted document rather than being built here. Two
