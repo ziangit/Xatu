@@ -74,6 +74,14 @@ export const demoGuide: Guide = {
 };
 
 /**
+ * The regulation these eight were played in. Stated here rather than taken from
+ * `FORMATS[0]`, which is whatever regulation is *current* — these are real M-B
+ * pastes and stay M-B when the ladder moves on. Replacing the set (as in
+ * 2026-08-13) means revisiting this line with it.
+ */
+export const SAMPLE_FORMAT = "[Gen 9 Champions] VGC 2026 Reg M-B";
+
+/**
  * Sample teams offered by the builder's "use existing" and the lookup demo's
  * "or try" row. User-chosen (2026-08-13), all Champions Reg M-B, all fetched
  * verbatim from pokepast.es — the export text round-trips losslessly, so a

@@ -7,15 +7,9 @@ import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { useLang, useT } from "../i18n/provider";
 import { InlineConfirm } from "../ui";
 import { importTeamText } from "@/lib/team";
-import {
-  ImportPanel,
-  ImportedBadge,
-  MonIcon,
-  TeamPanel,
-  FORMATS,
-} from "./components";
+import { ImportPanel, ImportedBadge, MonIcon, TeamPanel } from "./components";
 import { deleteCloudMatchup, upsertCloudMatchup } from "./cloud";
-import { SAMPLE_TEAMS } from "./demo-data";
+import { SAMPLE_FORMAT, SAMPLE_TEAMS } from "./demo-data";
 import {
   deleteMatchup,
   groupByMyTeam,
@@ -42,7 +36,10 @@ import {
 const PRESETS: StoredTeam[] = SAMPLE_TEAMS.map((s, i) => ({
   id: `preset-${i}`,
   name: s.label,
-  format: FORMATS[0],
+  // Their own regulation, NOT `FORMATS[0]` — that is whichever regulation is
+  // current, so when the ladder rotates this would silently relabel eight real
+  // M-B teams as the new one.
+  format: SAMPLE_FORMAT,
   exportText: s.text,
   parsed: importTeamText(s.text)?.parsed ?? [],
 }));
