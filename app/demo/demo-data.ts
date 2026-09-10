@@ -707,6 +707,73 @@ Relaxed Nature
   },
   // Huyubare's Ranked Season M-4 3rd Place Team 442E6DPRET
   // https://pokepast.es/e9d1cbb36f03d559
+  // Shmon's Gardevoir Gallade Team JACB614WLG — by VGCPastes
+  // https://pokepast.es/f088ca02dfea05be
+  {
+    label: "Gardevoir Trick Room",
+    format: "[Gen 9 Champions] VGC 2026 Reg M-C",
+    text: `Indeedee-F (F) @ Colbur Berry  
+Ability: Psychic Surge  
+Level: 50  
+EVs: 32 HP / 32 Def / 2 SpD  
+Relaxed Nature  
+- Follow Me  
+- Terrain Pulse  
+- Helping Hand  
+- Trick Room  
+
+Torkoal @ Charcoal  
+Ability: Drought  
+Level: 50  
+EVs: 32 HP / 1 Def / 32 SpA / 1 SpD  
+Quiet Nature  
+- Heat Wave  
+- Eruption  
+- Weather Ball  
+- Protect  
+
+Hatterene (F) @ Life Orb  
+Ability: Magic Bounce  
+Level: 50  
+EVs: 32 HP / 32 SpA  
+Quiet Nature  
+- Dazzling Gleam  
+- Trick Room  
+- Expanding Force  
+- Protect  
+
+Gallade (M) @ White Herb  
+Ability: Sharpness  
+Level: 50  
+EVs: 32 HP / 32 Atk / 2 Def  
+Adamant Nature  
+- Sacred Sword  
+- Trick Room  
+- Psycho Cut  
+- Wide Guard  
+
+Basculegion (M) @ Choice Scarf  
+Ability: Adaptability  
+Level: 50  
+EVs: 4 HP / 30 Atk / 32 Spe  
+Adamant Nature  
+- Wave Crash  
+- Aqua Jet  
+- Last Respects  
+- Flip Turn  
+
+Gardevoir @ Gardevoirite  
+Ability: Trace  
+Level: 50  
+EVs: 12 HP / 3 Def / 25 SpA / 1 SpD / 25 Spe  
+Modest Nature  
+- Expanding Force  
+- Aura Sphere  
+- Protect  
+- Hyper Voice  
+
+`,
+  },
   {
     label: "Mega Aerodactyl + Zard Y",
     format: "[Gen 9 Champions] VGC 2026 Reg M-B",

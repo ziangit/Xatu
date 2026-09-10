@@ -6,7 +6,7 @@
 > bug found and fixed on the way: the eight sample teams were pinned to
 > `FORMATS[0]`, so they would have silently relabelled themselves M-C.
 > **Seeded: the catalogue now holds 780 teams** (66 M-C, 709 M-B, 5 M-A), and the
-> built-in sample teams now cover **both regulations** — ten M-C (temporary,
+> built-in sample teams now cover **both regulations** — eleven M-C (temporary,
 > first-weekend tournament teams) and the eight M-B, behind a `M-C · M-B · all`
 > tab row on the samples divider.
 > `SUPABASE_CONNECT_STRING` had to move to the Session Pooler — the direct host
@@ -124,7 +124,7 @@ belong. Worth remembering; it beats hunting for dashboard access.
 **Sample teams: both regulations, user-selectable.** The M-B eight were first
 replaced outright by ten M-C teams, then restored alongside them when the user
 pointed out that old teams are still viable. `SAMPLE_TEAMS` entries now each
-carry their own `format` (18 total), `SAMPLE_FORMAT` is gone, and the "use
+carry their own `format` (19 total), `SAMPLE_FORMAT` is gone, and the "use
 existing" list grew a `M-C · M-B · all` tab row.
 
 - **The tabs scope only the samples**, and sit on a `SAMPLES` divider below your
@@ -132,7 +132,7 @@ existing" list grew a `M-C · M-B · all` tab row.
   someone concludes their work is gone; putting the tabs on the samples header
   makes the scope obvious without explaining it. Default is the newest
   regulation that actually has samples — not `FORMATS[0]` (may have none), not
-  "all" (18 rows is a scroll).
+  "all" (19 rows is a scroll).
 - `ExistingTeamList` is a new component because that list was **two copies of
   the same markup** (My Team, Opposing Teams) and the filter would have made it
   three. `SAMPLE_REGULATIONS` is derived from `FORMATS` ∩ what the samples
@@ -142,10 +142,10 @@ existing" list grew a `M-C · M-B · all` tab row.
   badge is literally `id.startsWith("preset-") ? sample : saved`. Picking a
   sample writes it into your library under a fresh id, so it stops reading
   "sample" from then on. Nothing from the old M-B sample set leaks in.
-- Verified in a browser: default M-C shows 10, M-B shows 8, all shows 18, and
+- Verified in a browser: default M-C shows 11, M-B shows 8, all shows 19, and
   saved teams stay put through every switch.
 
-**The M-C ten** (user-supplied, 2026-09-10): teams from the
+**The M-C eleven** (user-supplied, 2026-09-10): teams from the
 opening weekend of M-C online tournaments, all by LenVGC, fetched verbatim from
 pokepast.es and validated — six Pokémon each, byte-identical on re-export, every
 species drawable by the icon sheet, all declaring `gen9championsvgc2026regmc`.

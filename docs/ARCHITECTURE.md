@@ -1027,8 +1027,8 @@ as the comma-separated species list that path has always accepted.
 
 ## Sample teams (`SAMPLE_TEAMS`, 2026-08-13, extended 2026-09-10)
 
-The eighteen built-in teams behind `/demo`'s "use existing" list (`PRESETS` is exactly
-`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. **Two regulations on purpose**: ten
+The nineteen built-in teams behind `/demo`'s "use existing" list (`PRESETS` is exactly
+`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. **Two regulations on purpose**: eleven
 Champions Reg M-C, from the opening weekend of M-C online tournaments and explicitly
 temporary, plus the eight Reg M-B teams that have been here since 2026-08-13. A
 rotation does not make the previous regulation's teams worthless — people still play
@@ -1051,7 +1051,7 @@ Rules, in order of how easy they are to break:
   they are *yours*, so hiding them behind a tab is how someone concludes their work is
   gone; and putting the tabs on the samples header makes the scope self-evident without
   a sentence explaining it. It defaults to the newest regulation that actually has
-  samples — not to `FORMATS[0]` (which may have none) and not to "all" (eighteen rows
+  samples — not to `FORMATS[0]` (which may have none) and not to "all" (nineteen rows
   is a scroll).
 - **`SAMPLE_REGULATIONS` is derived**, by intersecting `FORMATS` with the regulations
   the samples actually carry. Adding a sample from a new regulation must not need a
