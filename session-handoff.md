@@ -1,5 +1,12 @@
 # Session handoff
 
+> Updated 2026-09-10: **Regulation M-C** is live on Showdown and xatu knows it —
+> `FORMATS` leads with it, and the catalogue has its 68 teams. A runbook for the
+> next rotation is in docs/ARCHITECTURE.md → **"Regulation rotation"**. One real
+> bug found and fixed on the way: the eight sample teams were pinned to
+> `FORMATS[0]`, so they would have silently relabelled themselves M-C.
+> **The Supabase project looks paused** — see below. Top section, newest first.
+>
 > Updated 2026-08-16: the interface **also speaks Japanese** — same mechanism,
 > a third cell in the toggle (`EN·中·日`). Adding a language is now a dictionary
 > plus four one-line edits the type checker points at. Japanese needed one thing
@@ -35,6 +42,70 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-09-10: Regulation M-C
+
+User: _"Regulation M-C just updated on Pokemonshowdown. We need to do the update.
+First check what do we need to update before writing code."_ Audited first, then
+built. 177 tests (6 new), tsc / eslint / `next build` green.
+
+**What the audit ruled out, so nobody re-checks it.** No new Pokémon: Showdown's
+live `pokedex.js` diffed against `lib/species/names.ts` is max dex 1025 on both
+sides, and every "missing" forme is Gmax/Totem/cosplay that `gen-species.mjs`
+drops deliberately (plus `Flabébé`, which differs only by NFC vs NFD). All three
+`@pkmn` packages are already at latest and `gen-species --check` is clean. So the
+species list, sprite sheet, Mega-stone metadata and deps needed **nothing** —
+this was a string-and-data job, not a dex job.
+
+- **The exact string is `[Gen 9 Champions] VGC 2026 Reg M-C`**, taken from
+  Showdown's `formats.js`, never typed from memory — it is a lookup key that
+  `catalogue.ts` filters `.eq("regulation", …)` on. Showdown also moved M-B to a
+  legacy `championsregmb` mod with `searchShow: false`, which is how you can tell
+  a regulation has actually left the ladder and should stop leading `FORMATS`.
+- **The bug**: `PRESETS` built the eight sample teams with `format: FORMATS[0]` —
+  whichever regulation is *current*. Putting M-C first would have relabelled eight
+  real M-B pastes as M-C, silently. They now take a `SAMPLE_FORMAT` constant that
+  states their own regulation. Verified in a browser: the dropdown defaults to M-C
+  while a picked preset still reads "VGC 2026 Reg M-B".
+- **`FORMATS` moved to `app/demo/formats.ts`** (re-exported from `components.tsx`,
+  so no importer changed — the `type-colors` precedent). Two reasons: it is now
+  unit-testable without pulling React in, and **`ingest.mjs` imports it and exits
+  if `TABS` or `FORMAT_BY_ID` name a regulation the app doesn't list.** Writing
+  catalogue rows under a label the app never asks for is invisible until someone
+  wonders why a lookup is empty; that class is now dead rather than tested for.
+- **A pre-existing gap found while there**: `FORMAT_BY_ID` mapped `…regibo3` but
+  no `…regmbbo3`. Every regulation ships a Bo3 ladder with its own id, and a paste
+  from it declares that id; a missing entry falls back to the tab, which is right
+  only by luck. All four regulations now carry both ids.
+- **`ingest.mjs --only "<tab>"`** ingests one regulation and writes suffixed files
+  (`community-teams.champions-m-c.ndjson` / `seed-…champions-m-c.sql`), so the
+  712-row M-B record isn't clobbered; `seed.mjs --file <name>` applies one, and
+  now prints a per-regulation breakdown. That is the shape of every future
+  rotation. **Ran it: 68 teams, 66 M-C + 2 M-B** (the paste's own `Format:` wins
+  over the tab, same as the 5 M-A strays in the M-B ingest), 0 fetch failures, 0
+  malformed. All 68 validated locally: lossless `export_text` round-trip, and
+  `match_species` / `roster_code` byte-equal to what `lib/match` recomputes.
+- **VGCPastes has no M-C Featured tab yet**, so `featuredGid` is omitted; the
+  script already did `if (!tab.featuredGid) continue;`. 0 featured is correct, not
+  a miss.
+
+**Open — the seed is generated and validated but NOT applied.**
+`db.twvwwxhbqsjplduujfcz.supabase.co` does not resolve, while `supabase.co` itself
+does; the project was last touched 2026-08-13 and free-tier projects auto-pause,
+so it is very likely **paused, which would also mean sign-in and cloud sync are
+down in production right now**. Unpause it, then:
+
+```
+node scripts/vgcpastes/seed.mjs --file seed-community-teams.champions-m-c.sql
+```
+
+Expect ~780 teams across 2 regulations. If it still fails, the connect string may
+need moving to the pooler host (Supabase deprecated direct `db.<ref>` for IPv4).
+
+**Deliberately not done**: M-B was left at its 712 rows (user's call) — the tab has
+grown to 861, so a `--only "Champions M-B"` re-ingest would add ~149 whenever
+wanted, and 712 pastes are already cached so it is nearly free. The sample teams
+stay M-B until the user picks a new set.
 
 ## 2026-08-16: the interface also speaks Japanese
 

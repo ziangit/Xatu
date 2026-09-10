@@ -813,12 +813,13 @@ Two consequences elsewhere:
   Order-sensitivity was a latent bug: the same team imported twice in a different
   order became two teams and split its group.
 
-## Community team catalogue (VGCPastes, 2026-08-12)
+## Community team catalogue (VGCPastes, 2026-08-12; M-C added 2026-09-10)
 
-712 Champions M-B teams from the public **VGCPastes Repository** sheet, ingested by
+Champions teams from the public **VGCPastes Repository** sheet, ingested by
 `scripts/vgcpastes/ingest.mjs` into `public.community_teams`
-(`supabase/community-teams.sql`). These are raw material for choosing opponents — the
-user picks sample teams by hand, so nothing here is a "sample team".
+(`supabase/community-teams.sql`) — 712 M-B and 68 M-C. These are raw material for
+choosing opponents — the user picks sample teams by hand, so nothing here is a
+"sample team".
 
 What the source does and doesn't give:
 
@@ -832,8 +833,20 @@ What the source does and doesn't give:
 - "…Featured Teams" tabs are **strict subsets** of their main tab (verified: all 184
   M-B featured IDs and paste URLs appear in the main tab), so they contribute
   `featured` + the archetype `category`, never extra rows.
-- Other regulations are one entry in the script's `TABS` array: Champions M-A is gid
-  791705272 (featured 417374305), SV Reg I is 972834435 (featured 1863148622).
+- Other regulations are one entry in the script's `TABS` array. Ingested: Champions
+  M-C is gid 2001945654 (**no Featured tab** — `featuredGid` is simply omitted and
+  the script skips that pass), Champions M-B is 1458357160 (featured 1774271567).
+  Not ingested: Champions M-A is 791705272 (featured 417374305), SV Reg I is
+  972834435 (featured 1863148622).
+- **The tab is a fallback, and a weak one.** 2 of the 68 rows on the M-C tab are M-B
+  pastes, exactly as 5 of the 712 on the M-B tab are M-A. The paste's own `Format:`
+  string wins, which is why `FORMAT_BY_ID` must carry **both** the plain and the
+  `…bo3` id for every regulation — a missing one falls back to the tab silently, and
+  is right only by luck.
+- **`FORMAT_BY_ID` and `TABS` are checked against the app at startup.** The script
+  imports `FORMATS` from `app/demo/formats.ts` and exits if either table names a
+  regulation the app doesn't list. Writing rows under a label `catalogue.ts` never
+  asks for produces an empty lookup months later with nothing to debug.
 
 Rules the ingest holds to:
 
@@ -882,9 +895,51 @@ Rules the ingest holds to:
 - Attribution: every row keeps `author`, `owner`, `source_link` and `paste_url`, so
   anywhere these surface can credit the player and the repository.
 
-Not built: any UI over this. 712 teams (and 3,096 if the other regulations land) is far
-past what `/demo`'s "use existing" list can show, so surfacing it needs its own design
-pass — storing it commits us to nothing.
+Not built: any UI over this. 780 teams (and more as regulations land) is far past what
+`/demo`'s "use existing" list can show, so surfacing it needs its own design pass —
+storing it commits us to nothing.
+
+## Regulation rotation — the runbook (written 2026-09-10, doing M-C)
+
+Regulations rotate every few months, so this is a recurring chore rather than a
+one-off. Done in this order it is about an hour, most of it waiting on pastes.
+
+1. **Get the format string from Showdown, don't type it.**
+   `curl -s https://play.pokemonshowdown.com/data/formats.js | grep -o 'Champions] VGC[^"]*'`
+   The M-C strings were `[Gen 9 Champions] VGC 2026 Reg M-C` and its `(Bo3)` twin.
+   Also worth reading: the new regulation becomes the base `champions` mod and the
+   outgoing one moves to a legacy mod with `searchShow: false` — that is the signal
+   it has actually left the ladder, and therefore that it should stop leading
+   `FORMATS`.
+2. **Check whether the dex moved.** Almost always it hasn't:
+   `node scripts/gen-species.mjs --check` and `npm outdated @pkmn/dex @pkmn/img`.
+   The decisive test is a diff of Showdown's live `pokedex.js` against
+   `lib/species/names.ts` — for M-C it was zero new species (max dex number 1025
+   either side; every "missing" forme was Gmax/Totem/cosplay, which
+   `gen-species.mjs` drops on purpose, plus `Flabébé` differing only by NFC/NFD).
+   Only if that diff is non-empty does any sprite or picker work exist.
+3. **`app/demo/formats.ts`** — add the new string at the **front**. `FORMATS[0]` is
+   the import default. Keep the outgoing regulations listed forever: saved teams and
+   published guides reference them.
+4. **Check nothing else was quietly pinned to `FORMATS[0]`.** This is where the one
+   real bug was: `PRESETS` took it, so eight M-B sample teams would have relabelled
+   themselves M-C. `grep -rn 'FORMATS\[0\]' app`.
+5. **`scripts/vgcpastes/ingest.mjs`** — a `TABS` entry (find the gid from the sheet;
+   a new regulation may have no Featured tab, and `featuredGid` is then omitted) and
+   **both** `FORMAT_BY_ID` ids, plain and `…bo3`. The startup check against `FORMATS`
+   will refuse to run if these disagree with step 3.
+6. **Ingest just the new regulation**: `node scripts/vgcpastes/ingest.mjs --only
+   "Champions M-C"`. It writes suffixed files, so the previous regulation's NDJSON
+   record survives, and the seed upserts on `paste_url`, so applying it adds and
+   refreshes only its own rows. Then `node scripts/vgcpastes/seed.mjs --file
+   seed-community-teams.champions-m-c.sql`, which now prints a per-regulation count.
+7. **Expect the new regulation's catalogue to be thin for a while.** VGCPastes had 68
+   M-C teams against 861 M-B on the day M-C shipped, and no Featured tab yet. The
+   lookup filters by regulation, so four-of-six hits are sparse at first. That is the
+   honest state of the world and the panel's existing wording already says so; re-run
+   the ingest in a few weeks rather than widening the filter.
+8. **The sample teams are a separate, human decision.** They stay on their own
+   regulation until the user replaces the set (see `SAMPLE_FORMAT`).
 
 ## Species type-ahead (`lib/species/`, 2026-08-13)
 
@@ -962,6 +1017,12 @@ as the comma-separated species list that path has always accepted.
 The eight built-in teams behind `/demo`'s "use existing" (`PRESETS` is exactly
 `SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. Chosen by the user, all Champions
 Reg M-B. Rules, in order of how easy they are to break:
+
+- **Their regulation is `SAMPLE_FORMAT`, never `FORMATS[0]`.** `PRESETS` used to take
+  the first entry of `FORMATS`, which is whichever regulation is *current* — so the
+  moment M-C shipped, eight real M-B pastes would have relabelled themselves M-C with
+  nothing to notice. A sample's regulation describes the paste; it moves only when the
+  sample set is replaced. Guarded by `app/demo/__tests__/formats.test.ts`.
 
 - **Stored as the verbatim paste.** A preset is a real pasted team, not a special kind of
   one — the same `exportText` rule as `ownTeam`. Never hand-trim EVs, natures or trailing
