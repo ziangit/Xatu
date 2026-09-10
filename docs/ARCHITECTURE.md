@@ -933,6 +933,14 @@ one-off. Done in this order it is about an hour, most of it waiting on pastes.
    record survives, and the seed upserts on `paste_url`, so applying it adds and
    refreshes only its own rows. Then `node scripts/vgcpastes/seed.mjs --file
    seed-community-teams.champions-m-c.sql`, which now prints a per-regulation count.
+   **`SUPABASE_CONNECT_STRING` must be the Session Pooler**, not the direct
+   `db.<ref>.supabase.co` host: direct is IPv6-only now (IPv4 there is a paid
+   add-on), so on a machine without IPv6 getaddrinfo returns nothing and `pg`
+   reports `ENOTFOUND` — indistinguishable from a deleted project, and it cost
+   this session a confident wrong diagnosis. `seed.mjs` now detects that case
+   and says so. The pooler (`aws-0-<region>.pooler.supabase.com:5432`, user
+   `postgres.<ref>`) is dual-stack. The REST/API host is unaffected — it has A
+   records — so the app never meets this and only the scripts do.
 7. **Expect the new regulation's catalogue to be thin for a while.** VGCPastes had 68
    M-C teams against 861 M-B on the day M-C shipped, and no Featured tab yet. The
    lookup filters by regulation, so four-of-six hits are sparse at first. That is the

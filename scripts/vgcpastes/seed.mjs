@@ -24,7 +24,9 @@
  * as intended for a table the anon key deliberately cannot write.
  */
 
+import dns from "node:dns/promises";
 import { readFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -63,9 +65,56 @@ function redact(url) {
   return `${u.username}@${u.host}${u.pathname}`;
 }
 
+/**
+ * Turn the one failure this script actually hits into an explanation.
+ *
+ * Supabase's direct database host, `db.<ref>.supabase.co`, is **IPv6-only** —
+ * IPv4 there is a paid add-on. On a machine with no global IPv6 address,
+ * getaddrinfo suppresses the AAAA (AI_ADDRCONFIG) and `pg` fails with a bare
+ * `ENOTFOUND`, which reads exactly like a dead project and isn't one. The fix
+ * is the Session Pooler, which is dual-stack.
+ */
+async function explainHostOrThrow(target) {
+  const host = new URL(target).hostname;
+  const [v4, v6] = await Promise.all([
+    dns.resolve4(host).catch(() => []),
+    dns.resolve6(host).catch(() => []),
+  ]);
+  if (v4.length > 0) return; // reachable the ordinary way
+  const hasIPv6 = Object.values(networkInterfaces())
+    .flat()
+    .some(
+      (n) =>
+        n &&
+        n.family === "IPv6" &&
+        !n.internal &&
+        !n.address.startsWith("fe80"),
+    );
+  if (v6.length > 0 && !hasIPv6) {
+    console.error(
+      `\n${host} has only an IPv6 address, and this machine has no IPv6 route.\n` +
+        `That is Supabase's direct connection, which dropped IPv4 — it is not a\n` +
+        `paused or missing project.\n\n` +
+        `Use the Session Pooler instead (dual-stack). Dashboard → Project Settings\n` +
+        `→ Database → Connection string → "Session pooler". It looks like:\n` +
+        `  postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres\n` +
+        `Put that in SUPABASE_CONNECT_STRING in .env.local and re-run.\n`,
+    );
+    process.exit(1);
+  }
+  if (v6.length === 0) {
+    console.error(
+      `\n${host} does not resolve at all — the project is probably paused or\n` +
+        `deleted. Check the Supabase dashboard.\n`,
+    );
+    process.exit(1);
+  }
+}
+
 const url = connectionString();
 const checkOnly = process.argv.includes("--check");
 console.log(`target: ${redact(url)}`);
+await explainHostOrThrow(url);
 
 const client = new pg.Client({
   connectionString: url,

@@ -5,7 +5,8 @@
 > next rotation is in docs/ARCHITECTURE.md → **"Regulation rotation"**. One real
 > bug found and fixed on the way: the eight sample teams were pinned to
 > `FORMATS[0]`, so they would have silently relabelled themselves M-C.
-> **The Supabase project looks paused** — see below. Top section, newest first.
+> **The M-C rows are ingested and validated but not yet seeded** — that needs a
+> pooler connection string, see below. Top section, newest first.
 >
 > Updated 2026-08-16: the interface **also speaks Japanese** — same mechanism,
 > a third cell in the toggle (`EN·中·日`). Adding a language is now a dictionary
@@ -89,18 +90,32 @@ this was a string-and-data job, not a dex job.
   script already did `if (!tab.featuredGid) continue;`. 0 featured is correct, not
   a miss.
 
-**Open — the seed is generated and validated but NOT applied.**
-`db.twvwwxhbqsjplduujfcz.supabase.co` does not resolve, while `supabase.co` itself
-does; the project was last touched 2026-08-13 and free-tier projects auto-pause,
-so it is very likely **paused, which would also mean sign-in and cloud sync are
-down in production right now**. Unpause it, then:
+**Open — the seed is generated and validated but NOT applied.** It needs one
+thing from the user: a **Session Pooler** connection string.
+
+`SUPABASE_CONNECT_STRING` still points at `db.<ref>.supabase.co`, Supabase's
+direct connection, and **that hostname is IPv6-only now** — IPv4 there became a
+paid add-on. This machine has no global IPv6 address, so getaddrinfo drops the
+AAAA (AI_ADDRCONFIG), leaves nothing, and `pg` reports a bare `ENOTFOUND` that
+reads exactly like a dead project. It is not one: verified 2026-09-10 that
+`db.<ref>.supabase.co` has an AAAA and no A record, while the API host
+`<ref>.supabase.co` has A records and serves fine.
+
+*(An earlier note in this section guessed the project was paused. It wasn't —
+same symptom, wrong cause. `seed.mjs` now diagnoses this case explicitly instead
+of surfacing the raw DNS error.)*
+
+Fix: Dashboard → Project Settings → Database → Connection string → **Session
+pooler** (dual-stack, port 5432, user `postgres.<project-ref>`). Put it in
+`SUPABASE_CONNECT_STRING` in `.env.local`, then:
 
 ```
 node scripts/vgcpastes/seed.mjs --file seed-community-teams.champions-m-c.sql
 ```
 
-Expect ~780 teams across 2 regulations. If it still fails, the connect string may
-need moving to the pooler host (Supabase deprecated direct `db.<ref>` for IPv4).
+Verified live over the REST API on 2026-09-10 (so the project is definitely
+healthy): `community_teams` holds **712 rows — 707 M-B, 5 M-A, 0 M-C**. After
+seeding expect 780 across two regulations.
 
 **Deliberately not done**: M-B was left at its 712 rows (user's call) — the tab has
 grown to 861, so a `--only "Champions M-B"` re-ingest would add ~149 whenever
