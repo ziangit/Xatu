@@ -100,6 +100,39 @@ describe("the sample teams", () => {
     }
   });
 
+  /**
+   * Provenance is a comment, which means nothing type-checks it and a scripted
+   * edit can silently detach one — that happened: inserting a team between the
+   * next entry's comments and its object left one team carrying two titles and
+   * the following team carrying none. Comments are the only record of where a
+   * paste came from, so they get checked.
+   */
+  it("each carry exactly one title and pokepaste URL above them", () => {
+    const src = readFileSync(
+      join(import.meta.dirname, "..", "demo-data.ts"),
+      "utf8",
+    ).split("\n");
+    const labels = src
+      .map((line, i) => (/^\s+label: "/.test(line) ? i : -1))
+      .filter((i) => i >= 0);
+    expect(labels).toHaveLength(SAMPLE_TEAMS.length);
+    for (const i of labels) {
+      const name = /label: "([^"]+)"/.exec(src[i])![1];
+      const comments: string[] = [];
+      for (let c = i - 2; c >= 0 && src[c].trim().startsWith("//"); c--) {
+        comments.unshift(src[c].trim());
+      }
+      expect(
+        comments,
+        `${name}: expected a title line and a URL line`,
+      ).toHaveLength(2);
+      expect(
+        comments.filter((l) => l.includes("pokepast.es")),
+        `${name}: expected exactly one pokepaste URL`,
+      ).toHaveLength(1);
+    }
+  });
+
   it("have a label short enough for a picker row", () => {
     for (const sample of SAMPLE_TEAMS) {
       expect(sample.label.length, sample.label).toBeLessThanOrEqual(28);

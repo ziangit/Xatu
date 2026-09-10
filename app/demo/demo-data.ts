@@ -705,75 +705,75 @@ Relaxed Nature
 
 `,
   },
-  // Huyubare's Ranked Season M-4 3rd Place Team 442E6DPRET
-  // https://pokepast.es/e9d1cbb36f03d559
-  // Shmon's Gardevoir Gallade Team JACB614WLG — by VGCPastes
-  // https://pokepast.es/f088ca02dfea05be
+  // LenVGC's Gardevoir HTR Team 93U7AF0CAB — by VGCPastes
+  // https://pokepast.es/b409f9d80e8f830b
   {
     label: "Gardevoir Trick Room",
     format: "[Gen 9 Champions] VGC 2026 Reg M-C",
-    text: `Indeedee-F (F) @ Colbur Berry  
+    text: `Indeedee-F (F) @ Sitrus Berry  
 Ability: Psychic Surge  
 Level: 50  
 EVs: 32 HP / 32 Def / 2 SpD  
 Relaxed Nature  
-- Follow Me  
 - Terrain Pulse  
 - Helping Hand  
+- Follow Me  
 - Trick Room  
+
+Armarouge @ Life Orb  
+Ability: Flash Fire  
+Level: 50  
+EVs: 29 HP / 32 SpA / 5 SpD  
+Quiet Nature  
+- Expanding Force  
+- Armor Cannon  
+- Trick Room  
+- Protect  
 
 Torkoal @ Charcoal  
 Ability: Drought  
 Level: 50  
 EVs: 32 HP / 1 Def / 32 SpA / 1 SpD  
 Quiet Nature  
-- Heat Wave  
 - Eruption  
 - Weather Ball  
+- Helping Hand  
 - Protect  
 
-Hatterene (F) @ Life Orb  
-Ability: Magic Bounce  
+Kingambit @ Black Glasses  
+Ability: Defiant  
 Level: 50  
-EVs: 32 HP / 32 SpA  
-Quiet Nature  
-- Dazzling Gleam  
-- Trick Room  
-- Expanding Force  
-- Protect  
-
-Gallade (M) @ White Herb  
-Ability: Sharpness  
-Level: 50  
-EVs: 32 HP / 32 Atk / 2 Def  
-Adamant Nature  
-- Sacred Sword  
-- Trick Room  
-- Psycho Cut  
-- Wide Guard  
-
-Basculegion (M) @ Choice Scarf  
-Ability: Adaptability  
-Level: 50  
-EVs: 4 HP / 30 Atk / 32 Spe  
-Adamant Nature  
-- Wave Crash  
-- Aqua Jet  
-- Last Respects  
-- Flip Turn  
+EVs: 32 HP / 32 Atk / 2 SpD  
+Brave Nature  
+- Kowtow Cleave  
+- Sucker Punch  
+- Low Kick  
+- Swords Dance  
 
 Gardevoir @ Gardevoirite  
 Ability: Trace  
 Level: 50  
-EVs: 12 HP / 3 Def / 25 SpA / 1 SpD / 25 Spe  
+EVs: 28 HP / 17 Def / 10 SpA / 11 Spe  
 Modest Nature  
-- Expanding Force  
-- Aura Sphere  
-- Protect  
 - Hyper Voice  
+- Expanding Force  
+- Trick Room  
+- Protect  
+
+Sneasler @ Psychic Seed  
+Ability: Unburden  
+Level: 50  
+EVs: 1 HP / 32 Atk / 1 Def / 32 Spe  
+Adamant Nature  
+- Close Combat  
+- Dire Claw  
+- Throat Chop  
+- Protect  
 
 `,
   },
+  // Huyubare's Ranked Season M-4 3rd Place Team 442E6DPRET
+  // https://pokepast.es/e9d1cbb36f03d559
   {
     label: "Mega Aerodactyl + Zard Y",
     format: "[Gen 9 Champions] VGC 2026 Reg M-B",

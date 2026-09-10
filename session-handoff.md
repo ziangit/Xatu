@@ -145,6 +145,15 @@ existing" list grew a `M-C · M-B · all` tab row.
 - Verified in a browser: default M-C shows 11, M-B shows 8, all shows 19, and
   saved teams stay put through every switch.
 
+**Provenance comments are now tested.** Inserting the Gardevoir team by script
+put it between the *next* entry's comment lines and that entry's object, so one
+team carried two titles and `Mega Aerodactyl + Zard Y` carried none — silently,
+because a comment type-checks as nothing. Fixed, and `formats.test.ts` asserts
+every sample has exactly one title line and one pokepaste URL above it (verified
+by re-introducing the break). Worth knowing before the next scripted edit of
+`demo-data.ts`: expand to the whole block including comments, and assert the
+boundaries rather than trusting a backwards scan.
+
 **The M-C eleven** (user-supplied, 2026-09-10): teams from the
 opening weekend of M-C online tournaments, all by LenVGC, fetched verbatim from
 pokepast.es and validated — six Pokémon each, byte-identical on re-export, every

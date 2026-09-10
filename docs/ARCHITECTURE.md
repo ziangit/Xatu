@@ -1066,7 +1066,10 @@ Rules, in order of how easy they are to break:
   Recreation of LexiconVGC's Grand Champions Festival Encore Champion Team EMHMY5SAK0")
   don't fit a picker row, so each entry carries a short archetype label plus a comment
   holding the paste's real title and URL. Keep the comment when editing — it is the
-  only provenance.
+  only provenance, nothing type-checks it, and a scripted edit detached one exactly
+  once (a team inserted between the next entry's comments and its object left one
+  team carrying two titles and the next carrying none). `formats.test.ts` now
+  asserts every entry has exactly one title line and one pokepaste URL above it.
 - **Regenerate, don't retype.** To swap a set, fetch `https://pokepast.es/<id>/json`
   for each link, take `.paste`, normalise CRLF→LF, and emit the entries; then confirm
   each one parses to six species and re-exports identically. Hand-transcribing a paste is
