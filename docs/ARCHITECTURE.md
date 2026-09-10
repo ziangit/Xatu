@@ -1025,49 +1025,60 @@ as the comma-separated species list that path has always accepted.
   `matchKey`'s in-battle-forme pattern accepts `z` alongside `x`/`y`. Stored roster codes
   are unaffected — nothing in the 712-team catalogue names one.
 
-## Sample teams (`SAMPLE_TEAMS`, replaced 2026-08-13, again 2026-09-10)
+## Sample teams (`SAMPLE_TEAMS`, 2026-08-13, extended 2026-09-10)
 
-The ten built-in teams behind `/demo`'s "use existing" (`PRESETS` is exactly
-`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. Chosen by the user, all Champions
-Reg M-C, from the first weekend of M-C online tournaments — and **explicitly
-temporary**: a snapshot of an opening metagame, to be replaced once M-C settles. The
-previous eight (Reg M-B) are in git history. Rules, in order of how easy they are to
-break:
+The eighteen built-in teams behind `/demo`'s "use existing" list (`PRESETS` is exactly
+`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. **Two regulations on purpose**: ten
+Champions Reg M-C, from the opening weekend of M-C online tournaments and explicitly
+temporary, plus the eight Reg M-B teams that have been here since 2026-08-13. A
+rotation does not make the previous regulation's teams worthless — people still play
+them and still plan against them — so the list offers both and lets you choose.
 
-- **Their regulation is `SAMPLE_FORMAT`, never `FORMATS[0]`.** `PRESETS` used to take
-  the first entry of `FORMATS`, which is whichever regulation is *current* — so the
-  moment M-C shipped, eight real M-B pastes would have relabelled themselves M-C with
-  nothing to notice. A sample's regulation describes the paste; it moves only when the
-  sample set is replaced. Note the samples are *currently* M-C, which is also
-  `FORMATS[0]`, so no comparison of values can tell a stated regulation from an
-  inherited one — `app/demo/__tests__/formats.test.ts` therefore checks the **wiring**,
-  asserting `page.tsx` never reaches for `FORMATS[0]` (comments stripped first, since
-  the comment explaining the rule names the thing it forbids).
+Rules, in order of how easy they are to break:
 
+- **Each entry states its own regulation**, in a `format` field. Never derive it from
+  `FORMATS[0]`: that is whichever regulation is *current*, so the samples would relabel
+  themselves the moment the ladder rotated. That bug shipped once — `PRESETS` took
+  `FORMATS[0]`, and M-C going first would have turned eight real M-B pastes into M-C
+  with nothing to notice.
+  Since the samples now span regulations, no comparison of values can catch a
+  regression here, so `app/demo/__tests__/formats.test.ts` checks the **wiring**:
+  `page.tsx` must not reach for `FORMATS[0]`, with comments stripped first (the comment
+  explaining the rule naturally names the thing it forbids).
+- **The regulation tabs scope only the samples.** `ExistingTeamList` renders your saved
+  teams first, then a `SAMPLES` divider carrying `M-C · M-B · all`, then the filtered
+  samples. Two reasons the filter stops at the divider: your own teams are few and
+  they are *yours*, so hiding them behind a tab is how someone concludes their work is
+  gone; and putting the tabs on the samples header makes the scope self-evident without
+  a sentence explaining it. It defaults to the newest regulation that actually has
+  samples — not to `FORMATS[0]` (which may have none) and not to "all" (eighteen rows
+  is a scroll).
+- **`SAMPLE_REGULATIONS` is derived**, by intersecting `FORMATS` with the regulations
+  the samples actually carry. Adding a sample from a new regulation must not need a
+  second edit, and a regulation nothing is tagged with must not appear as a dead tab.
 - **Stored as the verbatim paste.** A preset is a real pasted team, not a special kind of
   one — the same `exportText` rule as `ownTeam`. Never hand-trim EVs, natures or trailing
   whitespace to tidy the source file: the round trip through `importTeamText` must come
   back byte-identical, and picking a sample must be indistinguishable from pasting it.
-- **`label` is ours, the title is theirs.** VGCPastes titles ("zeen's Recreation of
-  LexiconVGC's Grand Champions Festival Encore Champion Team EMHMY5SAK0") don't fit a
-  picker row, so each entry carries a short archetype label plus a comment holding the
-  paste's real title and URL. Keep the comment when editing — it is the only provenance.
-- **Regenerate, don't retype.** To swap the set, fetch `https://pokepast.es/<id>/json`
+  Tested, not just asserted here: every sample parses to six species and re-exports
+  byte-identically.
+- **`label` is ours, the title is theirs.** VGCPastes and pokepaste titles ("zeen's
+  Recreation of LexiconVGC's Grand Champions Festival Encore Champion Team EMHMY5SAK0")
+  don't fit a picker row, so each entry carries a short archetype label plus a comment
+  holding the paste's real title and URL. Keep the comment when editing — it is the
+  only provenance.
+- **Regenerate, don't retype.** To swap a set, fetch `https://pokepast.es/<id>/json`
   for each link, take `.paste`, normalise CRLF→LF, and emit the entries; then confirm
   each one parses to six species and re-exports identically. Hand-transcribing a paste is
   how a sample stops matching what the reader would get from the same link.
 - **The lookup row shows the first three, deliberately** — it's a shortcut into the flow,
   not a catalogue. It doesn't need every sample to match `demoGuide`: a team with no
   matchup is a case the page handles anyway ("no matchup in this guide fits"). Since the
-  2026-09-10 swap none of the samples is the guide's own team — `demoGuide` is an M-B
-  guide and the samples are M-C — so what the row now demonstrates is a **weak** match:
-  sample 1 reads "Aerodactyl + Charizard core · 6% fit". That is `matchOpponent` working
-  as designed (top-3 with scores, never a confident single answer) and the percentage is
-  right there to be read. Do not add a score threshold to hide it — the honest number is
-  the feature.
-- **Round-trip and six species are tested**, not just asserted in prose
-  (`formats.test.ts`): every sample must parse to six Pokémon and re-export
-  byte-identically, which is what makes picking one indistinguishable from pasting it.
+  first three are now M-C and `demoGuide` is an M-B guide, what the row demonstrates is
+  a **weak** match — sample 1 reads "Aerodactyl + Charizard core · 6% fit". That is
+  `matchOpponent` working as designed (top-3 with scores, never a confident single
+  answer) and the percentage is right there to read. Do not add a score threshold to
+  hide it — the honest number is the feature.
 
 ## Key decisions
 

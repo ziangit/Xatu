@@ -3,7 +3,7 @@ import { FORMATS } from "../formats";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { importTeamText } from "@/lib/team";
-import { SAMPLE_FORMAT, SAMPLE_TEAMS } from "../demo-data";
+import { SAMPLE_TEAMS } from "../demo-data";
 
 /**
  * These strings are lookup keys, not labels: `catalogue.ts` filters
@@ -55,13 +55,28 @@ describe("the sample teams", () => {
     // comment explaining the rule naturally names the thing it forbids.
     const code = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     expect(code).not.toMatch(/FORMATS\s*\[\s*0\s*\]/);
-    expect(code).toContain("SAMPLE_FORMAT");
   });
 
-  it("state a regulation the format dropdown can show", () => {
+  it("each state a regulation the format dropdown can show", () => {
     // A sample tagged with a regulation `FORMATS` has dropped would render a
-    // team the picker cannot represent.
-    expect(FORMATS).toContain(SAMPLE_FORMAT);
+    // team the picker cannot represent — and, since the list's tabs are derived
+    // from `FORMATS`, would be unreachable behind every one of them.
+    for (const sample of SAMPLE_TEAMS) {
+      expect(FORMATS, sample.label).toContain(sample.format);
+    }
+  });
+
+  it("span more than one regulation", () => {
+    // The whole point of the picker's regulation tabs: a rotation does not make
+    // the previous regulation's teams worthless, so both sets stay available.
+    const regs = new Set(SAMPLE_TEAMS.map((s) => s.format));
+    expect(regs.size).toBeGreaterThan(1);
+    for (const reg of regs) {
+      expect(
+        SAMPLE_TEAMS.filter((s) => s.format === reg).length,
+        `${reg} has no samples`,
+      ).toBeGreaterThan(0);
+    }
   });
 
   /**

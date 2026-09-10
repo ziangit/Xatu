@@ -9,7 +9,8 @@ import { InlineConfirm } from "../ui";
 import { importTeamText } from "@/lib/team";
 import { ImportPanel, ImportedBadge, MonIcon, TeamPanel } from "./components";
 import { deleteCloudMatchup, upsertCloudMatchup } from "./cloud";
-import { SAMPLE_FORMAT, SAMPLE_TEAMS } from "./demo-data";
+import { SAMPLE_TEAMS } from "./demo-data";
+import { FORMATS } from "./formats";
 import {
   deleteMatchup,
   groupByMyTeam,
@@ -36,13 +37,117 @@ import {
 const PRESETS: StoredTeam[] = SAMPLE_TEAMS.map((s, i) => ({
   id: `preset-${i}`,
   name: s.label,
-  // Their own regulation, NOT `FORMATS[0]` — that is whichever regulation is
-  // current, so when the ladder rotates this would silently relabel eight real
-  // M-B teams as the new one.
-  format: SAMPLE_FORMAT,
+  // Each sample states its own regulation. NOT `FORMATS[0]` — that is whichever
+  // regulation is current, so when the ladder rotates this would silently
+  // relabel real M-B pastes as the new one. It is also what the list filters on.
+  format: s.format,
   exportText: s.text,
   parsed: importTeamText(s.text)?.parsed ?? [],
 }));
+
+/** Regulations the built-in samples actually span, newest first. Derived, not
+ * hard-coded: adding a sample from a new regulation must not need a second edit
+ * here, and a regulation nothing is tagged with must not appear as a dead tab. */
+const SAMPLE_REGULATIONS = FORMATS.filter((f) =>
+  PRESETS.some((p) => p.format === f),
+);
+
+/**
+ * The "use existing" list — your saved teams, then the built-in samples.
+ *
+ * One component because it was two copies of the same markup (My Team and
+ * Opposing Teams), and the regulation filter would otherwise have been a third.
+ *
+ * The filter scopes **only the samples**. Your own teams are few, they are
+ * yours, and hiding them behind a regulation tab is how someone concludes their
+ * work is gone. Putting the tabs on the samples divider makes that scope
+ * self-evident without a sentence explaining it.
+ */
+function ExistingTeamList({
+  teams,
+  onPick,
+  onImport,
+  importLabel,
+  emptyNote,
+}: {
+  teams: StoredTeam[];
+  onPick: (team: StoredTeam) => void;
+  onImport: () => void;
+  importLabel: string;
+  emptyNote?: string;
+}) {
+  const t = useT();
+  // Defaults to the current regulation rather than "all": the common case is
+  // planning for what is being played now, and 18 rows is a scroll.
+  const [reg, setReg] = useState<string>(SAMPLE_REGULATIONS[0] ?? "");
+  const mine = teams.filter((tm) => !tm.id.startsWith("preset-"));
+  const samples = teams.filter(
+    (tm) => tm.id.startsWith("preset-") && (reg === "" || tm.format === reg),
+  );
+
+  const row = (tm: StoredTeam) => (
+    <button
+      key={tm.id}
+      onClick={() => onPick(tm)}
+      className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-stone-50"
+    >
+      <TeamSprites team={tm} scale={0.45} />
+      <span className="min-w-0 truncate text-xs font-medium text-stone-700">
+        {tm.name}
+      </span>
+      <span className="ml-auto shrink-0 text-[10px] text-stone-400">
+        {tm.id.startsWith("preset-")
+          ? t("sample")
+          : isKeptApart(tm)
+            ? t("imported")
+            : t("saved")}
+      </span>
+    </button>
+  );
+
+  return (
+    <div className="grow-in rounded-lg border border-stone-200 bg-white py-1">
+      {teams.length === 0 && emptyNote && (
+        <p className="px-3 py-2 text-xs text-stone-400">{emptyNote}</p>
+      )}
+      {mine.map(row)}
+      {SAMPLE_REGULATIONS.length > 0 && (
+        <div className="mt-1 flex items-center gap-2 border-t border-stone-100 px-3 pb-1 pt-2">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+            {t("samples")}
+          </span>
+          <span className="ml-auto flex shrink-0 items-center gap-1">
+            {[...SAMPLE_REGULATIONS, ""].map((f) => (
+              <button
+                key={f || "all"}
+                type="button"
+                onClick={() => setReg(f)}
+                aria-pressed={reg === f}
+                // The bracketed generation prefix is noise in a 40px chip; the
+                // full string stays in `title` and on the team's own badge.
+                title={f || t("samples from every regulation")}
+                className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+                  reg === f
+                    ? "bg-stone-200 text-stone-700"
+                    : "text-stone-400 hover:text-stone-700"
+                }`}
+              >
+                {f ? f.replace(/^.*\bReg\s*/, "") : t("all")}
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      {samples.map(row)}
+      <button
+        onClick={onImport}
+        className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
+      >
+        {importLabel}
+      </button>
+    </div>
+  );
+}
 
 type SlotChoice = "closed" | "choice" | "import" | "existing";
 
@@ -185,33 +290,12 @@ function MyTeamSlot({
         )}
 
         {mode === "existing" && (
-          <div className="grow-in rounded-lg border border-stone-200 bg-white py-1">
-            {existing.map((tm) => (
-              <button
-                key={tm.id}
-                onClick={() => pick(tm)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-stone-50"
-              >
-                <TeamSprites team={tm} scale={0.45} />
-                <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-                  {tm.name}
-                </span>
-                <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {tm.id.startsWith("preset-")
-                    ? t("sample")
-                    : isKeptApart(tm)
-                      ? t("imported")
-                      : t("saved")}
-                </span>
-              </button>
-            ))}
-            <button
-              onClick={() => setMode("import")}
-              className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
-            >
-              {t("+ import a new one instead")}
-            </button>
-          </div>
+          <ExistingTeamList
+            teams={existing}
+            onPick={pick}
+            onImport={() => setMode("import")}
+            importLabel={t("+ import a new one instead")}
+          />
         )}
       </div>
     </section>
@@ -395,38 +479,13 @@ function OpponentList({
         )}
 
         {mode === "existing" && (
-          <div className="rounded-lg border border-stone-200 bg-white py-1">
-            {existing.length === 0 && (
-              <p className="px-3 py-2 text-xs text-stone-400">
-                {t("No other saved teams yet — import one.")}
-              </p>
-            )}
-            {existing.map((tm) => (
-              <button
-                key={tm.id}
-                onClick={() => add([tm])}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-stone-50"
-              >
-                <TeamSprites team={tm} scale={0.45} />
-                <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-                  {tm.name}
-                </span>
-                <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-                  {tm.id.startsWith("preset-")
-                    ? t("sample")
-                    : isKeptApart(tm)
-                      ? t("imported")
-                      : t("saved")}
-                </span>
-              </button>
-            ))}
-            <button
-              onClick={() => setMode("import")}
-              className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
-            >
-              {t("+ import new ones instead")}
-            </button>
-          </div>
+          <ExistingTeamList
+            teams={existing}
+            onPick={(tm) => add([tm])}
+            onImport={() => setMode("import")}
+            importLabel={t("+ import new ones instead")}
+            emptyNote={t("No other saved teams yet — import one.")}
+          />
         )}
       </div>
     </section>

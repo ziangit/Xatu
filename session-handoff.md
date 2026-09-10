@@ -6,8 +6,9 @@
 > bug found and fixed on the way: the eight sample teams were pinned to
 > `FORMATS[0]`, so they would have silently relabelled themselves M-C.
 > **Seeded: the catalogue now holds 780 teams** (66 M-C, 709 M-B, 5 M-A), and the
-> ten built-in sample teams are now M-C (temporary — first-weekend tournament
-> teams, replace once the format settles).
+> built-in sample teams now cover **both regulations** — ten M-C (temporary,
+> first-weekend tournament teams) and the eight M-B, behind a `M-C · M-B · all`
+> tab row on the samples divider.
 > `SUPABASE_CONNECT_STRING` had to move to the Session Pooler — the direct host
 > is IPv6-only now. Top section, newest first.
 >
@@ -120,7 +121,31 @@ failed"*, every other answers *"Tenant or user not found"*. One host replied
 differently — ca-central-1. No real credential is sent anywhere it doesn't
 belong. Worth remembering; it beats hunting for dashboard access.
 
-**Sample teams swapped to M-C** (user-supplied, 2026-09-10): ten teams from the
+**Sample teams: both regulations, user-selectable.** The M-B eight were first
+replaced outright by ten M-C teams, then restored alongside them when the user
+pointed out that old teams are still viable. `SAMPLE_TEAMS` entries now each
+carry their own `format` (18 total), `SAMPLE_FORMAT` is gone, and the "use
+existing" list grew a `M-C · M-B · all` tab row.
+
+- **The tabs scope only the samples**, and sit on a `SAMPLES` divider below your
+  own saved teams. Hiding a user's own teams behind a regulation tab is how
+  someone concludes their work is gone; putting the tabs on the samples header
+  makes the scope obvious without explaining it. Default is the newest
+  regulation that actually has samples — not `FORMATS[0]` (may have none), not
+  "all" (18 rows is a scroll).
+- `ExistingTeamList` is a new component because that list was **two copies of
+  the same markup** (My Team, Opposing Teams) and the filter would have made it
+  three. `SAMPLE_REGULATIONS` is derived from `FORMATS` ∩ what the samples
+  actually carry, so a new regulation needs no second edit and an empty one
+  never shows a dead tab.
+- **If you see M-B teams in that list badged `saved`, those are yours** — the
+  badge is literally `id.startsWith("preset-") ? sample : saved`. Picking a
+  sample writes it into your library under a fresh id, so it stops reading
+  "sample" from then on. Nothing from the old M-B sample set leaks in.
+- Verified in a browser: default M-C shows 10, M-B shows 8, all shows 18, and
+  saved teams stay put through every switch.
+
+**The M-C ten** (user-supplied, 2026-09-10): teams from the
 opening weekend of M-C online tournaments, all by LenVGC, fetched verbatim from
 pokepast.es and validated — six Pokémon each, byte-identical on re-export, every
 species drawable by the icon sheet, all declaring `gen9championsvgc2026regmc`.
