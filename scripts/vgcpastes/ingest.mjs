@@ -43,31 +43,76 @@ const PASTES = join(DATA, "pastes");
 const SHEET_ID = "1axlwmzPA49rYkqXh7zHvAtSP-TKbM0ijGYBPRflLSWw";
 
 /**
- * The tabs to ingest. `featured` tabs are strict subsets of their main tab
- * (checked: all 184 M-B featured IDs and paste URLs appear in the main tab), so
- * they contribute a flag and the archetype `Category`, never extra rows.
+ * The app's closed list, imported rather than restated. Every regulation this
+ * script can write has to be one the app can also ask for — `catalogue.ts`
+ * filters `.eq("regulation", …)` on exactly these strings, so a row written
+ * under a label the app doesn't list is a row nothing will ever find.
+ */
+const { FORMATS } = await import("../../app/demo/formats.ts");
+
+/**
+ * The tabs to ingest, newest regulation first. `featured` tabs are strict
+ * subsets of their main tab (checked: all 184 M-B featured IDs and paste URLs
+ * appear in the main tab), so they contribute a flag and the archetype
+ * `Category`, never extra rows. A regulation without one simply omits
+ * `featuredGid` — M-C has no Featured tab yet.
  *
- * Adding a regulation is adding an entry here — the other two tabs are
+ * Adding a regulation is adding an entry here. The two not listed are
  * "Champions M-A" (gid 791705272, featured 417374305) and "SV Regulation I"
  * (gid 972834435, featured 1863148622).
+ *
+ * Use `--only <label>` to ingest one of these on its own; that is the normal
+ * shape of a regulation rotation, and it leaves the other regulations' rows in
+ * the database exactly as they are (the seed upserts, it never deletes).
  */
 const TABS = [
   {
+    gid: "2001945654",
+    label: "Champions M-C",
+    /** Fallback when a paste doesn't declare its own format. */
+    regulation: "[Gen 9 Champions] VGC 2026 Reg M-C",
+  },
+  {
     gid: "1458357160",
     label: "Champions M-B",
-    /** Fallback when a paste doesn't declare its own format. */
     regulation: "[Gen 9 Champions] VGC 2026 Reg M-B",
     featuredGid: "1774271567",
   },
 ];
 
-/** Paste format strings → the app's closed FORMATS list (app/demo/components). */
+/**
+ * Paste format strings → the app's closed FORMATS list (app/demo/components).
+ * Every Showdown regulation ships a Bo3 variant with its own id, and a paste
+ * saved from that ladder declares it, so each regulation needs both ids — a
+ * missing one silently falls back to the tab's regulation, which is only right
+ * by luck when the paste happens to sit on its own tab.
+ */
 const FORMAT_BY_ID = {
+  gen9championsvgc2026regmc: "[Gen 9 Champions] VGC 2026 Reg M-C",
+  gen9championsvgc2026regmcbo3: "[Gen 9 Champions] VGC 2026 Reg M-C",
   gen9championsvgc2026regmb: "[Gen 9 Champions] VGC 2026 Reg M-B",
+  gen9championsvgc2026regmbbo3: "[Gen 9 Champions] VGC 2026 Reg M-B",
   gen9championsvgc2026regma: "[Gen 9 Champions] VGC 2026 Reg M-A",
+  gen9championsvgc2026regmabo3: "[Gen 9 Champions] VGC 2026 Reg M-A",
   gen9vgc2025regi: "[Gen 9] SV VGC Reg I",
   gen9vgc2025regibo3: "[Gen 9] SV VGC Reg I",
 };
+
+// Checked at startup rather than trusted: both tables above are hand-written
+// against Showdown's format names, and a typo in one produces rows the app can
+// never query — silently, months later, as an empty catalogue lookup.
+for (const [where, label] of [
+  ...Object.entries(FORMAT_BY_ID).map(([id, l]) => [`FORMAT_BY_ID.${id}`, l]),
+  ...TABS.map((t) => [`TABS "${t.label}"`, t.regulation]),
+]) {
+  if (!FORMATS.includes(label)) {
+    console.error(
+      `${where} maps to "${label}", which is not in the app's FORMATS ` +
+        `(app/demo/formats.ts). Add it there first.`,
+    );
+    process.exit(1);
+  }
+}
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -77,6 +122,29 @@ const flag = (name, fallback) => {
 const LIMIT = Number(flag("limit", "0")) || 0;
 const CONCURRENCY = Number(flag("concurrency", "4"));
 const DELAY_MS = Number(flag("delay", "120"));
+
+/**
+ * `--only "Champions M-C"` ingests that tab alone. A scoped run writes to its
+ * own suffixed files rather than overwriting the full-corpus ones, because the
+ * NDJSON beside the seed is the readable record of what a previous ingest
+ * published — silently replacing a 712-team record with a 68-team one would
+ * lose it. The seed upserts on `paste_url`, so applying a scoped seed adds and
+ * refreshes only its own rows and leaves every other regulation untouched.
+ */
+const ONLY = flag("only", "");
+const SELECTED = ONLY
+  ? TABS.filter((t) => t.label.toLowerCase() === ONLY.toLowerCase())
+  : TABS;
+if (ONLY && SELECTED.length === 0) {
+  console.error(
+    `--only "${ONLY}" matches no tab. Known: ${TABS.map((t) => t.label).join(", ")}`,
+  );
+  process.exit(1);
+}
+/** A scoped run gets its own filenames; a full run keeps the canonical ones. */
+const SUFFIX = ONLY
+  ? `.${SELECTED[0].label.toLowerCase().replace(/\s+/g, "-")}`
+  : "";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -174,7 +242,7 @@ function rowRecord(t, row, tab) {
 
 async function readSheet() {
   const byPaste = new Map();
-  for (const tab of TABS) {
+  for (const tab of SELECTED) {
     const t = tableOf(await fetchTab(tab.gid));
     for (const row of t.data) {
       const rec = rowRecord(t, row, tab);
@@ -284,7 +352,7 @@ const COLUMNS = [
  * jsonb and is converted in the select rather than relying on a jsonb→text[]
  * coercion. Upsert on `paste_url`, so re-running is safe and refreshes.
  */
-function toSql(records) {
+function toSql(records, seedName) {
   // Minified: this payload is read by Postgres, never by a person (the NDJSON
   // beside it is the human-readable copy), and pretty-printing it cost ~30%.
   const json = JSON.stringify(records);
@@ -306,7 +374,7 @@ function toSql(records) {
     .join(",\n    ");
   return `-- Generated by scripts/vgcpastes/ingest.mjs — do not hand-edit.
 -- ${records.length} teams from the VGCPastes Repository.
--- Run: psql "$DATABASE_URL" -f scripts/vgcpastes/data/seed-community-teams.sql
+-- Run: node scripts/vgcpastes/seed.mjs --file ${seedName}
 -- Requires supabase/community-teams.sql to have been applied first.
 begin;
 
@@ -362,11 +430,13 @@ async function main() {
     });
   }
 
+  const ndjson = `community-teams${SUFFIX}.ndjson`;
+  const seed = `seed-community-teams${SUFFIX}.sql`;
   await writeFile(
-    join(DATA, "community-teams.ndjson"),
+    join(DATA, ndjson),
     out.map((r) => JSON.stringify(r)).join("\n") + "\n",
   );
-  await writeFile(join(DATA, "seed-community-teams.sql"), toSql(out));
+  await writeFile(join(DATA, seed), toSql(out, seed));
 
   console.log(`\nkept ${out.length} teams`);
   const byReg = {};
@@ -385,9 +455,12 @@ async function main() {
     console.log(`\n${unparseable.length} exports did not parse as a team:`);
     for (const line of unparseable.slice(0, 20)) console.log(`  ${line}`);
   }
-  console.log(
-    `\nwrote data/community-teams.ndjson and data/seed-community-teams.sql`,
-  );
+  console.log(`\nwrote data/${ndjson} and data/${seed}`);
+  if (SUFFIX) {
+    console.log(
+      `apply it with: node scripts/vgcpastes/seed.mjs --file ${seed}`,
+    );
+  }
 }
 
 await main();

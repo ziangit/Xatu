@@ -3,6 +3,8 @@
  *
  *   node scripts/vgcpastes/seed.mjs           # uses SUPABASE_CONNECT_STRING
  *   node scripts/vgcpastes/seed.mjs --check   # report the row counts, change nothing
+ *   node scripts/vgcpastes/seed.mjs --file seed-community-teams.champions-m-c.sql
+ *                                             # apply one regulation's scoped seed
  *
  * WHY THIS EXISTS INSTEAD OF A MIGRATION: the table's DDL is a migration
  * (`supabase/migrations/*_community_teams.sql`) and `supabase db push` applies it
@@ -29,7 +31,16 @@ import pg from "pg";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
-const SEED = join(HERE, "data", "seed-community-teams.sql");
+/**
+ * Which seed to apply. `ingest.mjs --only <tab>` writes a suffixed file so a
+ * regulation rotation publishes just that regulation; the upsert means applying
+ * it adds and refreshes only its own rows and leaves the others alone.
+ */
+const seedArg = (() => {
+  const i = process.argv.indexOf("--file");
+  return i >= 0 ? process.argv[i + 1] : "seed-community-teams.sql";
+})();
+const SEED = join(HERE, "data", seedArg);
 
 function connectionString() {
   if (process.env.SUPABASE_CONNECT_STRING) {
@@ -66,6 +77,7 @@ const client = new pg.Client({
 await client.connect();
 try {
   if (!checkOnly) {
+    console.log(`seed: ${seedArg}`);
     const sql = readFileSync(SEED, "utf8");
     const started = Date.now();
     // Sent as ONE query so the dollar-quoted payload survives intact — the
@@ -81,6 +93,14 @@ try {
            max(fetched_at) as newest
     from public.community_teams`);
   console.log(rows[0]);
+  // Per regulation too: with more than one in the table, a total alone can't
+  // tell "the new regulation landed" from "the old one is still all there is".
+  const byReg = await client.query(`
+    select regulation, count(*)::int as teams
+    from public.community_teams group by 1 order by 1 desc`);
+  for (const r of byReg.rows) {
+    console.log(`  ${String(r.teams).padStart(5)}  ${r.regulation}`);
+  }
 } finally {
   await client.end();
 }
