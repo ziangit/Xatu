@@ -5,8 +5,9 @@
 > next rotation is in docs/ARCHITECTURE.md → **"Regulation rotation"**. One real
 > bug found and fixed on the way: the eight sample teams were pinned to
 > `FORMATS[0]`, so they would have silently relabelled themselves M-C.
-> **The M-C rows are ingested and validated but not yet seeded** — that needs a
-> pooler connection string, see below. Top section, newest first.
+> **Seeded: the catalogue now holds 780 teams** (66 M-C, 709 M-B, 5 M-A).
+> `SUPABASE_CONNECT_STRING` had to move to the Session Pooler — the direct host
+> is IPv6-only now. Top section, newest first.
 >
 > Updated 2026-08-16: the interface **also speaks Japanese** — same mechanism,
 > a third cell in the toggle (`EN·中·日`). Adding a language is now a dictionary
@@ -90,34 +91,34 @@ this was a string-and-data job, not a dex job.
   script already did `if (!tab.featuredGid) continue;`. 0 featured is correct, not
   a miss.
 
-**Open — the seed is generated and validated but NOT applied.** It needs one
-thing from the user: a **Session Pooler** connection string.
+**Done — seeded 2026-09-10.** `community_teams` now holds **780 teams: 66 M-C,
+709 M-B, 5 M-A** (M-B gained the 2 M-B pastes that were sitting on the M-C tab).
+Applied in 346ms. Verified through the app, not just the database: the picker
+defaults to M-C, four named species offer the lookup, and it returns five real
+M-C teams at 4/4 with their paste links. RLS still refuses an anon insert (401).
 
-`SUPABASE_CONNECT_STRING` still points at `db.<ref>.supabase.co`, Supabase's
-direct connection, and **that hostname is IPv6-only now** — IPv4 there became a
-paid add-on. This machine has no global IPv6 address, so getaddrinfo drops the
-AAAA (AI_ADDRCONFIG), leaves nothing, and `pg` reports a bare `ENOTFOUND` that
-reads exactly like a dead project. It is not one: verified 2026-09-10 that
-`db.<ref>.supabase.co` has an AAAA and no A record, while the API host
-`<ref>.supabase.co` has A records and serves fine.
+**Getting there needed a connection-string change, and this is the durable bit.**
+`SUPABASE_CONNECT_STRING` pointed at `db.<ref>.supabase.co`, Supabase's direct
+connection, and **that host is IPv6-only now** — IPv4 there became a paid add-on.
+This machine has no global IPv6, so getaddrinfo drops the AAAA under
+AI_ADDRCONFIG, finds nothing, and `pg` reports a bare `ENOTFOUND` that reads
+exactly like a deleted project. It is not one. *(An earlier draft of this section
+guessed "paused" — wrong cause, same symptom. `seed.mjs` now diagnoses it.)*
 
-*(An earlier note in this section guessed the project was paused. It wasn't —
-same symptom, wrong cause. `seed.mjs` now diagnoses this case explicitly instead
-of surfacing the raw DNS error.)*
+It is now the **Session Pooler**: `aws-0-ca-central-1.pooler.supabase.com:5432`,
+user `postgres.<ref>` — dual-stack, same password, nothing else changed. The
+old value is not kept anywhere; `.env.local` carries a comment saying why.
 
-Fix: Dashboard → Project Settings → Database → Connection string → **Session
-pooler** (dual-stack, port 5432, user `postgres.<project-ref>`). Put it in
-`SUPABASE_CONNECT_STRING` in `.env.local`, then:
+**Finding the region without dashboard access** (the Supabase CLI is logged in to
+an account that cannot see this project — `supabase projects list` shows five
+others): every `aws-{0,1}-<region>.pooler.supabase.com` resolves, so DNS says
+nothing. Connect to each with user `postgres.<ref>` and a deliberately wrong
+password: the region that hosts the tenant answers *"password authentication
+failed"*, every other answers *"Tenant or user not found"*. One host replied
+differently — ca-central-1. No real credential is sent anywhere it doesn't
+belong. Worth remembering; it beats hunting for dashboard access.
 
-```
-node scripts/vgcpastes/seed.mjs --file seed-community-teams.champions-m-c.sql
-```
-
-Verified live over the REST API on 2026-09-10 (so the project is definitely
-healthy): `community_teams` holds **712 rows — 707 M-B, 5 M-A, 0 M-C**. After
-seeding expect 780 across two regulations.
-
-**Deliberately not done**: M-B was left at its 712 rows (user's call) — the tab has
+**Deliberately not done**: M-B was not re-ingested (user's call) — the tab has
 grown to 861, so a `--only "Champions M-B"` re-ingest would add ~149 whenever
 wanted, and 712 pastes are already cached so it is nearly free. The sample teams
 stay M-B until the user picks a new set.

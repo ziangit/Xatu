@@ -817,7 +817,8 @@ Two consequences elsewhere:
 
 Champions teams from the public **VGCPastes Repository** sheet, ingested by
 `scripts/vgcpastes/ingest.mjs` into `public.community_teams`
-(`supabase/community-teams.sql`) — 712 M-B and 68 M-C. These are raw material for
+(`supabase/community-teams.sql`) — 780 rows: 709 M-B, 66 M-C, 5 M-A. These are
+raw material for
 choosing opponents — the user picks sample teams by hand, so nothing here is a
 "sample team".
 
@@ -940,7 +941,11 @@ one-off. Done in this order it is about an hour, most of it waiting on pastes.
    this session a confident wrong diagnosis. `seed.mjs` now detects that case
    and says so. The pooler (`aws-0-<region>.pooler.supabase.com:5432`, user
    `postgres.<ref>`) is dual-stack. The REST/API host is unaffected — it has A
-   records — so the app never meets this and only the scripts do.
+   records — so the app never meets this and only the scripts do. **This project
+   is `aws-0-ca-central-1`.** To find a region without dashboard access: every
+   pooler hostname resolves, so probe them with user `postgres.<ref>` and a
+   deliberately wrong password — the region hosting the tenant answers "password
+   authentication failed", the rest answer "Tenant or user not found".
 7. **Expect the new regulation's catalogue to be thin for a while.** VGCPastes had 68
    M-C teams against 861 M-B on the day M-C shipped, and no Featured tab yet. The
    lookup filters by regulation, so four-of-six hits are sparse at first. That is the
