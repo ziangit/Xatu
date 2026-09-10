@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FORMATS } from "../formats";
-import { SAMPLE_FORMAT } from "../demo-data";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { importTeamText } from "@/lib/team";
+import { SAMPLE_FORMAT, SAMPLE_TEAMS } from "../demo-data";
 
 /**
  * These strings are lookup keys, not labels: `catalogue.ts` filters
@@ -32,20 +35,59 @@ describe("FORMATS", () => {
   });
 });
 
-describe("the sample teams' regulation", () => {
+describe("the sample teams", () => {
   /**
    * The regression this guards. `PRESETS` used to take `FORMATS[0]`, so the
-   * eight built-in teams claimed whichever regulation was current — the moment
-   * M-C shipped, eight real M-B pastes would have relabelled themselves. A
-   * sample's regulation describes the paste, so it moves only when the sample
-   * set is replaced.
+   * built-in teams claimed whichever regulation was current — the moment M-C
+   * shipped, eight real M-B pastes would have relabelled themselves M-C with
+   * nothing to notice.
+   *
+   * The samples happen to be M-C right now, so no comparison of *values* can
+   * tell a stated regulation from an inherited one. The rule is about wiring,
+   * so it is checked as wiring: the page must not reach for `FORMATS[0]`.
    */
-  it("is stated independently of whatever regulation is current", () => {
-    expect(SAMPLE_FORMAT).toBe("[Gen 9 Champions] VGC 2026 Reg M-B");
-    expect(SAMPLE_FORMAT).not.toBe(FORMATS[0]);
+  it("are not wired to whatever regulation is current", () => {
+    const page = readFileSync(
+      join(import.meta.dirname, "..", "page.tsx"),
+      "utf8",
+    );
+    // Comments stripped first: the rule is about what the code does, and the
+    // comment explaining the rule naturally names the thing it forbids.
+    const code = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    expect(code).not.toMatch(/FORMATS\s*\[\s*0\s*\]/);
+    expect(code).toContain("SAMPLE_FORMAT");
   });
 
-  it("is one the format dropdown can still show", () => {
+  it("state a regulation the format dropdown can show", () => {
+    // A sample tagged with a regulation `FORMATS` has dropped would render a
+    // team the picker cannot represent.
     expect(FORMATS).toContain(SAMPLE_FORMAT);
+  });
+
+  /**
+   * The load-bearing rule for a sample: it is a real pasted team, stored as the
+   * verbatim export, so picking one is indistinguishable from pasting the same
+   * link. Hand-trimming EVs or the trailing whitespace Showdown emits breaks
+   * that silently — the team still works, it just stops being the paste.
+   */
+  it("are verbatim pastes: six Pokémon, byte-identical on re-export", () => {
+    expect(SAMPLE_TEAMS.length).toBeGreaterThan(0);
+    for (const sample of SAMPLE_TEAMS) {
+      const parsed = importTeamText(sample.text);
+      expect(parsed, `${sample.label} does not parse`).toBeTruthy();
+      expect(
+        parsed!.parsed.map((m) => m.species),
+        sample.label,
+      ).toHaveLength(6);
+      expect(parsed!.exportText, `${sample.label} re-exports differently`).toBe(
+        sample.text,
+      );
+    }
+  });
+
+  it("have a label short enough for a picker row", () => {
+    for (const sample of SAMPLE_TEAMS) {
+      expect(sample.label.length, sample.label).toBeLessThanOrEqual(28);
+    }
   });
 });

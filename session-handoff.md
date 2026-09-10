@@ -5,7 +5,9 @@
 > next rotation is in docs/ARCHITECTURE.md → **"Regulation rotation"**. One real
 > bug found and fixed on the way: the eight sample teams were pinned to
 > `FORMATS[0]`, so they would have silently relabelled themselves M-C.
-> **Seeded: the catalogue now holds 780 teams** (66 M-C, 709 M-B, 5 M-A).
+> **Seeded: the catalogue now holds 780 teams** (66 M-C, 709 M-B, 5 M-A), and the
+> ten built-in sample teams are now M-C (temporary — first-weekend tournament
+> teams, replace once the format settles).
 > `SUPABASE_CONNECT_STRING` had to move to the Session Pooler — the direct host
 > is IPv6-only now. Top section, newest first.
 >
@@ -117,6 +119,24 @@ password: the region that hosts the tenant answers *"password authentication
 failed"*, every other answers *"Tenant or user not found"*. One host replied
 differently — ca-central-1. No real credential is sent anywhere it doesn't
 belong. Worth remembering; it beats hunting for dashboard access.
+
+**Sample teams swapped to M-C** (user-supplied, 2026-09-10): ten teams from the
+opening weekend of M-C online tournaments, all by LenVGC, fetched verbatim from
+pokepast.es and validated — six Pokémon each, byte-identical on re-export, every
+species drawable by the icon sheet, all declaring `gen9championsvgc2026regmc`.
+`SAMPLE_FORMAT` is M-C accordingly. **Explicitly temporary**; the M-B eight are in
+git history.
+
+Two consequences worth knowing. The samples now share a regulation with
+`FORMATS[0]`, so the old "samples aren't pinned to the current regulation" test
+could no longer say anything by comparing values — it checks the **wiring**
+instead, asserting `page.tsx` never reaches for `FORMATS[0]` (with comments
+stripped, since the comment explaining the rule names the thing it forbids;
+verified it still fails when the bug is reintroduced). And `/demo/lookup`'s "or
+try" row now shows a **weak** match — sample 1 reads "Aerodactyl + Charizard core
+· 6% fit" — because `demoGuide` is an M-B guide. That is `matchOpponent` behaving
+as designed and the percentage is right there; **do not add a score threshold to
+hide it.**
 
 **Deliberately not done**: M-B was not re-ingested (user's call) — the tab has
 grown to 861, so a `--only "Champions M-B"` re-ingest would add ~149 whenever
