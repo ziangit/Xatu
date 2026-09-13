@@ -813,6 +813,25 @@ Two consequences elsewhere:
   Order-sensitivity was a latent bug: the same team imported twice in a different
   order became two teams and split its group.
 
+## The damage-calculator link (2026-09-13)
+
+The board's reference row links out to `calc.pokemonshowdown.com`. This is **not**
+a softening of the no-battle-computation rule: xatu computes nothing, sends
+nothing and reads nothing back. It is a link to someone else's page, opened in a
+new tab, and the `↗` says so before you click.
+
+Placement is the decision. It sits beside "how the board works", not in the
+button row — those buttons act on *this board* (Reset, Import, Copy JSON, Save),
+and a link that navigates away does not belong among them. Both items in that
+row are reference material, which is what makes them neighbours.
+
+An embedded version was built and reverted at the user's request (2026-09-13).
+Worth knowing if it comes up again: the page frames fine (GitHub Pages, no
+`X-Frame-Options`, no CSP `frame-ancestors`, MIT licensed, no frame-busting) but
+its layout needs **1333×1316** — three panels at 449 + 367 + 449 — so a
+corner "widget" shows Pokémon 1 and half the field, and a usable panel covers
+most of a laptop screen. A tab costs nothing and loses nothing.
+
 ## Which copy of a team wins (`rememberTeam`, 2026-09-13)
 
 A team can arrive two ways, and they deserve opposite treatment. The caller says

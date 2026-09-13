@@ -350,6 +350,7 @@ export const JA: Record<string, string> = {
   "Paste a workflow copied with Copy JSON…":
     "「JSON をコピー」でコピーした内容を貼り付け…",
   "how the board works": "ボードの使い方",
+  "damage calculator ↗": "ダメージ計算機 ↗",
   "turn 0 is team preview — pick the four you bring":
     "ターン0は選出画面——連れて行く4匹を選びます",
   "from turn 1, click a front slot to declare its move":
@@ -486,7 +487,7 @@ export const JA: Record<string, string> = {
   "See turn one coming.": "1ターン目を、見通す。",
   "xatu turns the “vs. common archetypes” section of a team report into a turn-by-turn map — which four you bring, who leads, and what the first two turns look like. Named after the bird that sees the future.":
     "xatu は、構築記事の「よくある構築への立ち回り」の部分を、ターンごとの地図に変えます——どの4匹を選出し、誰を先発にして、最初の2ターンがどう進むのか。未来を見通す鳥から名前を取りました。",
-  "Open the matchup builder": "マッチアップビルダーを開く",
+  "Try New Match Ups!": "新しいマッチアップを作る！",
   "guide lookup →": "ガイド検索 →",
   "Branch the turn, not the essay": "分岐させるのはターン、文章ではない",
   "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.":

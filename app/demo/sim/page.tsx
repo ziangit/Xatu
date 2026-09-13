@@ -1325,12 +1325,28 @@ export default function SimPage() {
           {/* The rules of the board are reference material, not a banner —
               collapsed by default, remembered for the session. */}
           <div className="mt-3">
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
-            >
-              {showHelp ? "▾" : "▸"} {t("how the board works")}
-            </button>
+            <span className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => setShowHelp(!showHelp)}
+                className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+              >
+                {showHelp ? "▾" : "▸"} {t("how the board works")}
+              </button>
+              {/* Deliberately here and not in the button row: those act on this
+                  board, and this leaves for someone else's site. It sits with
+                  "how the board works" because both are reference, not action.
+                  xatu computes no damage — see the no-battle-computation rule;
+                  this is a link, and the ↗ says so before you click it. */}
+              <span aria-hidden="true" className="h-3 w-px bg-stone-200" />
+              <a
+                href="https://calc.pokemonshowdown.com/champions.html?mode=champions"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+              >
+                {t("damage calculator ↗")}
+              </a>
+            </span>
             {showHelp && (
               <ul className="grow-in mt-2 grid gap-x-8 gap-y-1 text-[11px] leading-relaxed text-stone-500 sm:grid-cols-2">
                 <li>

@@ -329,6 +329,7 @@ export const ZH: Record<string, string> = {
   "Import a matchup workflow": "导入一份对阵推演",
   "Paste a workflow copied with Copy JSON…": "粘贴用“复制 JSON”复制出来的推演…",
   "how the board works": "战术板怎么用",
+  "damage calculator ↗": "伤害计算器 ↗",
   "turn 0 is team preview — pick the four you bring":
     "第 0 回合是选人——挑出要带的四只",
   "from turn 1, click a front slot to declare its move":
@@ -460,7 +461,7 @@ export const ZH: Record<string, string> = {
   "See turn one coming.": "预见第一回合。",
   "xatu turns the “vs. common archetypes” section of a team report into a turn-by-turn map — which four you bring, who leads, and what the first two turns look like. Named after the bird that sees the future.":
     "xatu 把队伍报告里“对阵常见套路”那一节，变成一张逐回合的地图——你带哪四只、谁首发、前两回合怎么走。名字取自那只能看见未来的鸟。",
-  "Open the matchup builder": "打开对阵构建器",
+  "Try New Match Ups!": "开始新的对阵！",
   "guide lookup →": "指南查询 →",
   "Branch the turn, not the essay": "要分支回合，而不是分段落",
   "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.":

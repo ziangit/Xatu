@@ -48,6 +48,24 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-09-13: landing copy, a fresh-start flow, and a calc link
+
+Three small user-requested changes.
+
+- **Landing CTA is now "Try New Match Ups!"** (was "Open the matchup builder");
+  "My matchups" deliberately unchanged, since the two buttons are exactly the
+  new-vs-existing split that was reading as confusing.
+- **That CTA goes to `/demo?new=1` and lands on the import panel**, skipping the
+  New team / Use existing choice box — from empty, that box only ever leads to
+  import anyway. Note the intent is read in an effect (localStorage is
+  browser-only), so it arrives *after* `MyTeamSlot` has picked its initial mode;
+  a `key` remounts the slot when it resolves. Without that the panel stays shut
+  and the change looks like it did nothing.
+- **The board links out to the Showdown damage calculator**, in the reference
+  row next to "how the board works" rather than among the board's own buttons.
+  Rationale and the measurements from the reverted embed are in
+  docs/ARCHITECTURE.md → **"The damage-calculator link"**.
+
 ## 2026-09-13: edited teams stuck, and naming opponents
 
 Two bugs the user hit on production.

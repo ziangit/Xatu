@@ -200,13 +200,19 @@ function MyTeamSlot({
   team,
   onPick,
   onRename,
+  autoImport = false,
 }: {
   team: StoredTeam | null;
   onPick: (team: StoredTeam) => void;
   onRename: (teamId: string, name: string) => void;
+  /** Arrived to start a new matchup (`?new=1`) — skip the choice box and open
+   * the import panel, which is the only thing that box leads to from empty. */
+  autoImport?: boolean;
 }) {
   const t = useT();
-  const [mode, setMode] = useState<SlotChoice>("closed");
+  const [mode, setMode] = useState<SlotChoice>(
+    autoImport ? "import" : "closed",
+  );
   const [existing, setExisting] = useState<StoredTeam[]>([]);
 
   const openExisting = () => {
@@ -543,6 +549,8 @@ export default function SetupPage() {
   const router = useRouter();
   const { t, n } = useLang();
   const [my, setMy] = useState<StoredTeam | null>(null);
+  /** Came in via `?new=1`: open My Team's import panel rather than the choice box. */
+  const [startFresh, setStartFresh] = useState(false);
   const [library, setLibrary] = useState<SavedMatchup[]>([]);
   const [autoOpen, setAutoOpen] = useState(false);
 
@@ -562,6 +570,7 @@ export default function SetupPage() {
       const groups = groupByMyTeam(saved);
       if (params.get("new")) {
         setMy(null);
+        setStartFresh(true);
         return;
       }
       const wanted = params.get("team");
@@ -664,7 +673,17 @@ export default function SetupPage() {
         </header>
 
         <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-          <MyTeamSlot team={my} onPick={setMy} onRename={renameAndRefresh} />
+          {/* `key` remounts the slot when the query-string intent resolves.
+              The intent is read in an effect (localStorage is browser-only), so
+              it lands *after* the slot has already chosen its initial mode —
+              without this the panel would stay closed on `?new=1`. */}
+          <MyTeamSlot
+            key={startFresh ? "fresh" : "resume"}
+            team={my}
+            onPick={setMy}
+            onRename={renameAndRefresh}
+            autoImport={startFresh}
+          />
           {my ? (
             <OpponentList
               myTeam={my}

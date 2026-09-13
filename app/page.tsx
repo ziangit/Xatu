@@ -262,11 +262,15 @@ export default function LandingPage() {
               className="land-rise mt-7 flex flex-wrap items-center gap-3"
               style={{ animationDelay: "0.3s" }}
             >
+              {/* `?new=1` starts a fresh matchup with the import panel already
+                  open. Landing on the builder's own resume state instead reads
+                  as "here is the matchup you already had", which is the other
+                  button's job. */}
               <Link
-                href="/demo"
+                href="/demo?new=1"
                 className="rounded-md bg-[#e5484d] px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-85"
               >
-                {t("Open the matchup builder")}
+                {t("Try New Match Ups!")}
               </Link>
               <Link
                 href="/matchups"
