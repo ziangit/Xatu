@@ -61,9 +61,12 @@ Three small user-requested changes.
   browser-only), so it arrives *after* `MyTeamSlot` has picked its initial mode;
   a `key` remounts the slot when it resolves. Without that the panel stays shut
   and the change looks like it did nothing.
-- **The board links out to the Showdown damage calculator**, in the reference
-  row next to "how the board works" rather than among the board's own buttons.
-  Rationale and the measurements from the reverted embed are in
+- **The board links out to the Showdown damage calculator**, as a bordered
+  button beside `+ add opponent`. It shipped first as a hairline link on the
+  "how the board works" row and the user could not see it — worth remembering
+  that the reference row is genuinely invisible for anything people need to
+  find. It still stays out of the right-hand button row, which acts on the
+  board. Rationale and the measurements from the reverted embed are in
   docs/ARCHITECTURE.md → **"The damage-calculator link"**.
 
 ## 2026-09-13: edited teams stuck, and naming opponents

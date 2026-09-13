@@ -820,10 +820,15 @@ a softening of the no-battle-computation rule: xatu computes nothing, sends
 nothing and reads nothing back. It is a link to someone else's page, opened in a
 new tab, and the `↗` says so before you click.
 
-Placement is the decision. It sits beside "how the board works", not in the
-button row — those buttons act on *this board* (Reset, Import, Copy JSON, Save),
-and a link that navigates away does not belong among them. Both items in that
-row are reference material, which is what makes them neighbours.
+Placement is the decision, and it took two goes. It began as a hairline link on
+the "how the board works" row, which is where reference material belongs — and
+nobody saw it. It is now a bordered button beside `+ add opponent`.
+
+It still stays out of the **right-hand** row. Those buttons act on *this board*
+(Reset, Import, Copy JSON, Save); a control that navigates away from the site
+does not belong among them, where it would read as doing something to your plan.
+The left cluster is "things you can do from here", which is what this is. The
+`↗` and the lighter fill carry the rest.
 
 An embedded version was built and reverted at the user's request (2026-09-13).
 Worth knowing if it comes up again: the page frames fine (GitHub Pages, no
