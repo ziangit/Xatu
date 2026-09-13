@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { useLang, useT } from "../i18n/provider";
-import { InlineConfirm } from "../ui";
+import { InlineConfirm, InlineRename } from "../ui";
 import { importTeamText } from "@/lib/team";
 import { ImportPanel, ImportedBadge, MonIcon, TeamPanel } from "./components";
 import { deleteCloudMatchup, upsertCloudMatchup } from "./cloud";
@@ -18,6 +18,7 @@ import {
   loadMatchups,
   loadSavedTeams,
   loadSetup,
+  renameTeam,
   rememberTeam,
   saveSetup,
   setActiveMatchupId,
@@ -198,9 +199,11 @@ function TeamSprites({
 function MyTeamSlot({
   team,
   onPick,
+  onRename,
 }: {
   team: StoredTeam | null;
   onPick: (team: StoredTeam) => void;
+  onRename: (teamId: string, name: string) => void;
 }) {
   const t = useT();
   const [mode, setMode] = useState<SlotChoice>("closed");
@@ -260,7 +263,13 @@ function MyTeamSlot({
       </div>
 
       <div className="mt-2 space-y-3">
-        {team && <TeamPanel team={team} collapsed={mode !== "closed"} />}
+        {team && (
+          <TeamPanel
+            team={team}
+            collapsed={mode !== "closed"}
+            onRename={(name) => onRename(team.id, name)}
+          />
+        )}
         {((!team && mode === "closed") || mode === "choice") && (
           <div className="grow-in flex h-32 items-center justify-center gap-3 rounded-lg border border-dashed border-stone-300">
             <button
@@ -283,7 +292,14 @@ function MyTeamSlot({
             label={t("My Team")}
             onImport={([t]) => {
               if (!t) return;
-              pick(rememberTeam({ ...t, id: crypto.randomUUID() }));
+              // A paste the user just typed is the truth about this team —
+              // see `rememberTeam`'s `authoritative`.
+              pick(
+                rememberTeam(
+                  { ...t, id: crypto.randomUUID() },
+                  { authoritative: true },
+                ),
+              );
             }}
             onCancel={() => setMode("closed")}
           />
@@ -310,6 +326,7 @@ function OpponentList({
   onAdd,
   onOpen,
   onRemove,
+  onRename,
 }: {
   myTeam: StoredTeam;
   boards: SavedMatchup[];
@@ -318,12 +335,15 @@ function OpponentList({
   onAdd: (teams: StoredTeam[]) => void;
   onOpen: (board: SavedMatchup) => void;
   onRemove: (board: SavedMatchup) => void;
+  onRename: (teamId: string, name: string) => void;
 }) {
   const { t, n } = useLang();
   const [mode, setMode] = useState<SlotChoice>(autoOpen ? "choice" : "closed");
   const [existing, setExisting] = useState<StoredTeam[]>([]);
   /** Row awaiting its in-place remove confirmation (never window.confirm). */
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  /** Row whose name is being edited in place (never window.prompt either). */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const alreadyIn = new Set(boards.map((b) => b.setup.opp.id));
 
   const openExisting = () => {
@@ -379,16 +399,34 @@ function OpponentList({
           <div className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
             {boards.map((board) => (
               <div key={board.id} className="flex items-center gap-3 px-3 py-2">
-                <button
-                  onClick={() => onOpen(board)}
-                  title={t("plan {team}", { team: board.setup.opp.name })}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-75"
-                >
-                  <TeamSprites team={board.setup.opp} scale={0.5} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
-                    {board.setup.opp.name}
+                {renamingId === board.setup.opp.id ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <TeamSprites team={board.setup.opp} scale={0.5} />
+                    <InlineRename
+                      value={board.setup.opp.name}
+                      label={t("rename {team}", {
+                        team: board.setup.opp.name,
+                      })}
+                      onRename={(next) => {
+                        setRenamingId(null);
+                        onRename(board.setup.opp.id, next);
+                      }}
+                      onCancel={() => setRenamingId(null)}
+                      className="flex-1"
+                    />
                   </span>
-                </button>
+                ) : (
+                  <button
+                    onClick={() => onOpen(board)}
+                    title={t("plan {team}", { team: board.setup.opp.name })}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-75"
+                  >
+                    <TeamSprites team={board.setup.opp} scale={0.5} />
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
+                      {board.setup.opp.name}
+                    </span>
+                  </button>
+                )}
                 {confirmId === board.id ? (
                   <InlineConfirm
                     question={
@@ -416,6 +454,12 @@ function OpponentList({
                         ? n(board.nodes.length, "state", "states")
                         : t("no plan yet")}
                     </span>
+                    <button
+                      onClick={() => setRenamingId(board.setup.opp.id)}
+                      className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+                    >
+                      {t("rename")}
+                    </button>
                     <button
                       onClick={() => onOpen(board)}
                       className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
@@ -470,7 +514,10 @@ function OpponentList({
             onImport={(teams) =>
               add(
                 teams.map((t) =>
-                  rememberTeam({ ...t, id: crypto.randomUUID() }),
+                  rememberTeam(
+                    { ...t, id: crypto.randomUUID() },
+                    { authoritative: true },
+                  ),
                 ),
               )
             }
@@ -583,6 +630,20 @@ export default function SetupPage() {
     void deleteCloudMatchup(board.id);
   };
 
+  /**
+   * Renaming touches the team library, every saved board that references the
+   * team, and the in-progress setup — `renameTeam` does all three — so the page
+   * re-reads both after it. A no-op rename (blank, or unchanged) returns null
+   * and nothing is re-read.
+   */
+  const renameAndRefresh = (teamId: string, name: string) => {
+    const renamed = renameTeam(teamId, name);
+    if (!renamed) return;
+    // Opponent rows come from `library`; My Team is its own state.
+    setLibrary(loadMatchups());
+    if (my?.id === renamed.id) setMy(renamed);
+  };
+
   const nextUnplanned = boards.find((b) => b.nodes.length === 0) ?? boards[0];
 
   return (
@@ -603,7 +664,7 @@ export default function SetupPage() {
         </header>
 
         <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
-          <MyTeamSlot team={my} onPick={setMy} />
+          <MyTeamSlot team={my} onPick={setMy} onRename={renameAndRefresh} />
           {my ? (
             <OpponentList
               myTeam={my}
@@ -612,6 +673,7 @@ export default function SetupPage() {
               onAdd={addOpponents}
               onOpen={openBoard}
               onRemove={removeBoard}
+              onRename={renameAndRefresh}
             />
           ) : (
             <section>

@@ -80,3 +80,53 @@ export function InlineConfirm({
     </span>
   );
 }
+
+/**
+ * Rename in place: the name becomes the input, Enter commits, Escape reverts.
+ *
+ * Same rule as `InlineConfirm` — no native `prompt()`, for exactly the reasons
+ * in this file's header. Blur commits too, because a click elsewhere after
+ * typing a name reads as "done", not "discard"; Escape is the way out and it
+ * restores the original text rather than leaving a half-edit behind.
+ *
+ * The caller owns the value and decides what an empty or unchanged name means
+ * (`renameTeam` treats both as a no-op), so this component only reports what
+ * was typed.
+ */
+export function InlineRename({
+  value,
+  label,
+  onRename,
+  onCancel,
+  className = "",
+}: {
+  value: string;
+  /** Accessible name for the field — the caller knows whose name this is. */
+  label: string;
+  onRename: (next: string) => void;
+  onCancel: () => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  return (
+    <input
+      autoFocus
+      value={draft}
+      aria-label={label}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onRename(draft);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setDraft(value);
+          onCancel();
+        }
+      }}
+      onBlur={() => onRename(draft)}
+      className={`min-w-0 rounded border border-stone-400 bg-white px-1.5 py-0.5 text-xs text-stone-800 focus:border-stone-600 focus:outline-none ${className}`}
+    />
+  );
+}

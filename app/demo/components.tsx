@@ -6,7 +6,7 @@ import { importTeams, teamLabel } from "@/lib/team";
 import { T } from "../i18n/T";
 import { useLang, useT } from "../i18n/provider";
 import { htmlLang } from "../i18n/translate";
-import { useCopy } from "../ui";
+import { InlineRename, useCopy } from "../ui";
 import { CatalogueLookup } from "./catalogue-lookup";
 import { MonIcon } from "./mon-icon";
 import { TYPE_COLORS } from "./type-colors";
@@ -130,13 +130,16 @@ export function ImportPanel({
       return;
     }
     const kept = multi ? teams : teams.slice(0, 1);
+    // The typed name is for *this* team, so it applies whenever the paste
+    // produced exactly one — in either mode. Several teams each keep their own
+    // name from the paste's header, falling back to their species.
+    const typed = name.trim();
+    const single = kept.length === 1;
     onImport(
       kept.map((team, i) => ({
-        // In multi mode every team needs its own name, so the header name or
-        // the species fallback wins; the name field is only a single-team nicety.
         name:
-          (multi ? team.name : name.trim() || team.name) ||
-          (multi || kept.length > 1 ? teamLabel(team.parsed) : label) ||
+          (single && typed ? typed : team.name) ||
+          (single && !multi ? label : teamLabel(team.parsed)) ||
           `${label} ${i + 1}`,
         format,
         exportText: team.exportText,
@@ -195,9 +198,7 @@ export function ImportPanel({
           )
         )}
       </p>
-      <div
-        className={`mt-3 grid gap-3 ${multi ? "grid-cols-1" : "grid-cols-2"}`}
-      >
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="block">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
             {t("Format")}
@@ -212,9 +213,13 @@ export function ImportPanel({
             ))}
           </select>
         </label>
-        <label className={multi ? "hidden" : "block"}>
+        <label className="block">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-            {t("Team name (optional)")}
+            {/* Naming only makes sense for a single team: a paste that yields
+                several gives each its own name from its header or species. */}
+            {multi
+              ? t("Team name (optional — one team only)")
+              : t("Team name (optional)")}
           </span>
           <input
             value={name}
@@ -317,14 +322,18 @@ export function TeamPanel({
   team,
   defaultOpen = false,
   collapsed = false,
+  onRename,
 }: {
   team: StoredTeam;
   defaultOpen?: boolean;
   /** Force the compact one-row view (e.g. while a replace flow is open). */
   collapsed?: boolean;
+  /** Omitted where a team isn't the caller's to rename (sample pickers). */
+  onRename?: (name: string) => void;
 }) {
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
+  const [renaming, setRenaming] = useState(false);
   const { copied, copy } = useCopy();
   const isOpen = open && !collapsed;
 
@@ -364,6 +373,32 @@ export function TeamPanel({
       </button>
       {isOpen && (
         <div className="border-t border-stone-100 px-4 py-3">
+          {onRename && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                {t("Team name (optional)")}
+              </span>
+              {renaming ? (
+                <InlineRename
+                  value={team.name}
+                  label={t("rename {team}", { team: team.name })}
+                  onRename={(next) => {
+                    setRenaming(false);
+                    onRename(next);
+                  }}
+                  onCancel={() => setRenaming(false)}
+                  className="flex-1"
+                />
+              ) : (
+                <button
+                  onClick={() => setRenaming(true)}
+                  className="ml-auto shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+                >
+                  {t("rename")}
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
               {t("Sets")}

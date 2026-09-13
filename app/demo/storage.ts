@@ -205,9 +205,19 @@ export function knownTeams(): StoredTeam[] {
  * 1. identical export text — unambiguously the same team;
  * 2. the same six species in the same order — a pasted matchup carries only
  *    rosters (the compact codec has no sets), so it would otherwise never
- *    match a team imported from a full Showdown export. When they do match,
- *    whichever copy has the longer export text wins, so pasting a roster over
- *    a team that has real sets doesn't throw the sets away.
+ *    match a team imported from a full Showdown export.
+ *
+ * When two copies match, which one's sets survive depends on where this one
+ * came from, and **the caller has to say** — `authoritative`:
+ *
+ * - A paste the user just typed into the import panel is the truth. It wins
+ *   outright, even when it is *shorter* than what is stored. Without this the
+ *   only tie-break is export length, and editing "High Horsepower" down to
+ *   "Superpower" makes the stored copy longer and therefore the winner — the
+ *   edit is silently discarded, and re-importing never fixes it.
+ * - A team arriving inside a shared document is not. The compact codec has no
+ *   sets, so its teams are bare rosters; length is the right guard there,
+ *   because a 72-byte roster must not overwrite a 948-byte set.
  *
  * Both are scoped to one provenance (see TeamOrigin): my teams merge with my
  * teams, and a team from a shared document merges only with the same document.
@@ -216,7 +226,10 @@ export function knownTeams(): StoredTeam[] {
  */
 export function rememberTeam(
   team: StoredTeam,
-  { keepName = false }: { keepName?: boolean } = {},
+  {
+    keepName = false,
+    authoritative = false,
+  }: { keepName?: boolean; authoritative?: boolean } = {},
 ): StoredTeam {
   const teams = loadSavedTeams();
   const pool = knownTeams().filter((t) => originKey(t) === originKey(team));
@@ -224,7 +237,9 @@ export function rememberTeam(
     pool.find((t) => t.exportText === team.exportText) ??
     pool.find((t) => speciesKey(t) === speciesKey(team));
   const fuller =
-    match && match.exportText.length > team.exportText.length ? match : team;
+    !authoritative && match && match.exportText.length > team.exportText.length
+      ? match
+      : team;
   const canonical = match
     ? {
         ...fuller,
@@ -242,7 +257,63 @@ export function rememberTeam(
     KEYS.teams,
     [canonical, ...teams.filter((t) => t.id !== canonical.id)].slice(0, 40),
   );
+  // A board stores its own copy of both teams, so updating the library alone
+  // leaves every existing board showing the sets it was saved with. Only an
+  // authoritative paste may rewrite them — a document must never reach in and
+  // replace real sets with its bare rosters.
+  if (authoritative && match) syncTeamIntoBoards(canonical);
   return canonical;
+}
+
+/**
+ * Replace this team wherever the browser keeps a copy: every saved board's
+ * `setup`, and the in-progress setup. Matched by id, so it only ever touches
+ * boards that already meant this team.
+ *
+ * Plans are untouched. A move recorded on a card is a record of what you
+ * intended that turn — if the set no longer has it, that is for you to change,
+ * not for an import to erase.
+ *
+ * Safe for the dirty-check: `encodeWorkflow` covers species and the plan, and
+ * sets are in neither. Renaming does move the fingerprint, since a team's name
+ * is encoded — the board simply reads as edited, which it is.
+ */
+function syncTeamIntoBoards(team: StoredTeam): void {
+  const matchups = loadMatchups();
+  let touched = false;
+  const next = matchups.map((m) => {
+    const my = m.setup.my.id === team.id ? team : m.setup.my;
+    const opp = m.setup.opp.id === team.id ? team : m.setup.opp;
+    if (my === m.setup.my && opp === m.setup.opp) return m;
+    touched = true;
+    return { ...m, setup: { my, opp } };
+  });
+  if (touched) write(KEYS.matchups, next);
+
+  const setup = loadSetup();
+  if (!setup) return;
+  if (setup.my.id === team.id) saveSetup({ ...setup, my: team });
+  else if (setup.opp.id === team.id) saveSetup({ ...setup, opp: team });
+}
+
+/**
+ * Rename a team everywhere it is known. Names are shown from the team object
+ * (board title, group header, opponent rows), so this is all the UI needs —
+ * `SavedMatchup.name` is data written once at creation and deliberately left
+ * as it was.
+ */
+export function renameTeam(id: string, name: string): StoredTeam | null {
+  const trimmed = name.trim();
+  const current = knownTeams().find((t) => t.id === id);
+  if (!current || !trimmed || trimmed === current.name) return null;
+  const renamed = { ...current, name: trimmed };
+  const teams = loadSavedTeams();
+  write(
+    KEYS.teams,
+    [renamed, ...teams.filter((t) => t.id !== id)].slice(0, 40),
+  );
+  syncTeamIntoBoards(renamed);
+  return renamed;
 }
 
 /** The matchup library, newest first. Migrates the legacy single-slot save

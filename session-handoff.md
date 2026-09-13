@@ -48,6 +48,50 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-09-13: edited teams stuck, and naming opponents
+
+Two bugs the user hit on production.
+
+**1. Re-importing an edited team kept the old sets.** Changing Rillaboom's
+`High Horsepower` to `Superpower` and re-importing left the old move in place;
+deleting the team first didn't help either. Two causes, both now fixed and
+tested (`app/demo/__tests__/storage.test.ts`, the first storage test in the
+suite — it stubs `window.localStorage` with a Map):
+
+- `rememberTeam` decided which copy survived by **export length**, so the
+  shorter edit lost to the longer stored copy. The caller now says whether the
+  team is authoritative — a paste is, a shared document is not (its teams are
+  bare rosters and must never overwrite real sets). Rules in
+  docs/ARCHITECTURE.md → **"Which copy of a team wins"**.
+- Deleting didn't help because `knownTeams()` is the saved teams **plus every
+  team a saved board references** — a board kept handing the old one back. And
+  because a board stores its own copy, fixing the library alone left every
+  existing board stale; `syncTeamIntoBoards` now propagates an authoritative
+  team into boards and the in-progress setup. Plans are deliberately untouched:
+  a recorded move is what you intended that turn.
+
+**2. Opposing teams could not be named.** The import panel hid the name field
+whenever it was in multi mode, and the opponents panel is always multi (you can
+paste several at once) — so a single opponent silently got the paste header or
+`teamLabel()` ("Incineroar + Rillaboom"). The field now always shows; the typed
+name applies when the paste yields exactly one team, and several teams each keep
+their own. Plus **rename after the fact**, via a new `InlineRename` in
+`app/ui.tsx` (Enter commits, blur commits, Escape reverts — no `window.prompt`,
+same rule as `InlineConfirm`): on each opponent row, and inside the expanded My
+Team card. `renameTeam` propagates everywhere the name is shown.
+
+189 tests (8 new). Verified in a browser: re-importing a shorter move sticks and
+does not fork the team; naming an opponent on import works; renaming from the
+row and from the card updates the library, the board and the setup together.
+
+**Still open from the design discussion** (2026-09-11, no code written): whether
+documents should carry verbatim pastes so shared boards keep their sets — with
+sets kept *out* of the `encodeGroup` fingerprint — plus a dex learnset fallback
+for genuinely set-less teams, and fragment-based share links before hosted ones.
+Measured there: pastes cost 3x raw but only 1.8x compressed, and move ids save
+only 4% over move names so an index table is not worth its version-stability
+risk.
+
 ## 2026-09-10: Regulation M-C
 
 User: _"Regulation M-C just updated on Pokemonshowdown. We need to do the update.

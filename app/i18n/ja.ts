@@ -276,6 +276,9 @@ export const JA: Record<string, string> = {
     "パーティを貼り付けてください——pokepast.es のリンク、Showdown／パーティ構築のエクスポート、あるいはカンマ区切りのポケモン名だけでも。",
   Format: "レギュレーション",
   "Team name (optional)": "パーティ名（任意）",
+  "Team name (optional — one team only)": "パーティ名（任意・1パーティのみ）",
+  rename: "名前を変更",
+  "rename {team}": "{team} の名前を変更",
   "Team — six Pokémon": "パーティ——ポケモン6匹",
   "Teams — pokepaste links, exports, or species names":
     "パーティ——pokepaste のリンク、エクスポート、ポケモン名",

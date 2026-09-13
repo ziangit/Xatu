@@ -257,6 +257,9 @@ export const ZH: Record<string, string> = {
     "粘贴一支队伍——pokepast.es 链接、Showdown／队伍编辑器导出文本，或者只用逗号分隔的宝可梦名字。",
   Format: "赛制",
   "Team name (optional)": "队伍名称（可选）",
+  "Team name (optional — one team only)": "队伍名称（可选，仅限单支队伍）",
+  rename: "重命名",
+  "rename {team}": "重命名 {team}",
   "Team — six Pokémon": "队伍——六只宝可梦",
   "Teams — pokepaste links, exports, or species names":
     "队伍——pokepaste 链接、导出文本或宝可梦名字",

@@ -813,6 +813,42 @@ Two consequences elsewhere:
   Order-sensitivity was a latent bug: the same team imported twice in a different
   order became two teams and split its group.
 
+## Which copy of a team wins (`rememberTeam`, 2026-09-13)
+
+A team can arrive two ways, and they deserve opposite treatment. The caller says
+which via `authoritative`; it is not inferable from the data.
+
+- **A paste typed into the import panel is the truth.** It wins outright, even
+  when it is *shorter* than the stored copy.
+- **A team inside a shared document is not.** The compact codec carries no sets,
+  so its teams are bare rosters — export length is the right guard there,
+  because a 72-byte roster must not overwrite a 948-byte set.
+
+Length alone used to decide, and it is wrong in a way nobody would guess:
+editing `High Horsepower` to `Superpower` makes the **stored** copy longer, so it
+won, and the edit was silently discarded. Re-importing never helped, because the
+same comparison ran again. Worse, deleting the team didn't help either —
+`knownTeams()` is the saved teams *plus every team a saved board references*, so
+a board kept handing the old one back. Guarded by `app/demo/__tests__/storage.test.ts`.
+
+**A board keeps its own copy of both teams** (`SavedMatchup.setup`), so writing
+the team library is not enough: every existing board would still show the sets it
+was saved with. `syncTeamIntoBoards` pushes an authoritative team into every
+board that already referenced it, and into the in-progress setup. Two things it
+deliberately does not touch:
+
+- **Plans.** A move recorded on a card is what you intended that turn. If the set
+  no longer has it, that is yours to change, not an import's to erase.
+- **`SavedMatchup.name`.** It is data written once at creation. Nothing displays
+  it — every name on screen comes from the team object — so renaming a team is
+  enough on its own.
+
+`renameTeam(id, name)` uses the same propagation, which is why a rename shows up
+immediately in the board title, the group header and the opponent rows. Note it
+*does* move the `encodeGroup` fingerprint, since a team's name is encoded: the
+board then reads as edited, which it is. Sets are in neither the fingerprint nor
+the dirty-check, so changing them is invisible to both.
+
 ## Community team catalogue (VGCPastes, 2026-08-12; M-C added 2026-09-10)
 
 Champions teams from the public **VGCPastes Repository** sheet, ingested by
