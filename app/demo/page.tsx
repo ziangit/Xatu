@@ -625,6 +625,20 @@ export default function SetupPage() {
     for (const entry of created) void upsertCloudMatchup(entry);
   };
 
+  /**
+   * Picking (or re-importing) My Team can rewrite every board that references
+   * it — `rememberTeam` pushes an authoritative paste's new sets and name into
+   * their stored `setup`. The rows and, crucially, `openBoard` both read from
+   * `library`, so without re-reading it here the page keeps the pre-import
+   * snapshot and `openBoard` writes that stale copy straight back over the
+   * setup the import had just corrected. The board then opens under the old
+   * team's name with the old sets.
+   */
+  const pickMyTeam = (team: StoredTeam) => {
+    setMy(team);
+    setLibrary(loadMatchups());
+  };
+
   const openBoard = (board: SavedMatchup) => {
     saveSetup(board.setup);
     setActiveMatchupId(board.id);
@@ -680,7 +694,7 @@ export default function SetupPage() {
           <MyTeamSlot
             key={startFresh ? "fresh" : "resume"}
             team={my}
-            onPick={setMy}
+            onPick={pickMyTeam}
             onRename={renameAndRefresh}
             autoImport={startFresh}
           />

@@ -867,6 +867,16 @@ deliberately does not touch:
   it — every name on screen comes from the team object — so renaming a team is
   enough on its own.
 
+**Whatever writes storage must re-read it.** `syncTeamIntoBoards` rewrites the
+saved boards, but the builder holds them in React state (`library`) and
+`openBoard` writes `board.setup` straight back out. Pick My Team without
+re-reading and the page saves its pre-import snapshot over the setup the import
+had just corrected — the builder shows the new team while the board opens under
+the old name with the old sets. `addOpponents` and `renameAndRefresh` already
+re-read; `pickMyTeam` did not, and that is exactly how it failed. There is no
+unit test for this: it is React state, not storage, and the suite has no DOM
+environment — it is verified in a browser instead.
+
 `renameTeam(id, name)` uses the same propagation, which is why a rename shows up
 immediately in the board title, the group header and the opponent rows. Note it
 *does* move the `encodeGroup` fingerprint, since a team's name is encoded: the

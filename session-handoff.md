@@ -48,6 +48,26 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-09-15: the board still opened with the old team
+
+Re-importing My Team under a new name showed the new team in the builder, but
+"Open board" opened the board under the **old** name with the **old** sets.
+
+The storage layer was right; the page was stale. `rememberTeam(authoritative)`
+rewrites every saved board via `syncTeamIntoBoards`, but the builder keeps those
+boards in React state (`library`) and `openBoard` does `saveSetup(board.setup)`
+— so it wrote its pre-import snapshot straight back over the setup the import
+had just corrected. `addOpponents` and `renameAndRefresh` already re-read the
+library; the My Team pick path did not. One line.
+
+**The rule, now in docs/ARCHITECTURE.md → "Which copy of a team wins": whatever
+writes storage must re-read it.** Anything that touches `syncTeamIntoBoards` has
+to refresh `library`, because `openBoard` will happily undo it otherwise.
+
+No unit test — this is React state, not storage, and the suite has no DOM
+environment. Verified in a browser by reverting the line: the board goes back to
+"Y Sand" and loses the edited move, then recovers both.
+
 ## 2026-09-13: landing copy, a fresh-start flow, and a calc link
 
 Three small user-requested changes.
