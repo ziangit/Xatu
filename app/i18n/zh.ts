@@ -22,6 +22,21 @@
 
 export const ZH: Record<string, string> = {
   // ── shared chrome ──────────────────────────────────────────────────────────
+  "Published matchups": "已发布的对阵",
+  published: "已发布",
+  Newest: "最新",
+  "Most liked": "最多喜欢",
+  "Nothing published yet.": "还没有发布的内容。",
+  "Publish one from My matchups →": "去“我的对阵”发布一个 →",
+  "Add a comment": "写下评论",
+  "Post comment": "发表评论",
+  "Posting…": "发表中…",
+  "No comments yet.": "还没有评论。",
+  "Delete this comment?": "删除这条评论？",
+  "a deleted account": "已注销的账号",
+  "Sign in to like or comment.": "登录后才能点赞或评论。",
+  "to like or comment.": "后即可点赞或评论。",
+  "💬 {n}": "💬 {n}",
   "back to the home page": "返回首页",
   "back to the previous page": "返回上一页",
   home: "首页",

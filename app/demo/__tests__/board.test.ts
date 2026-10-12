@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cascadePositions, stripMove, switchedInSpecies } from "../board";
+import {
+  cascadePositions,
+  isAlternate,
+  layoutRows,
+  stripMove,
+  switchedInSpecies,
+} from "../board";
 import type { SideState, TurnNode } from "../storage";
 
 const side = (p: Partial<SideState>): SideState => ({
@@ -212,5 +218,59 @@ describe("stripMove", () => {
   it("returns the same object when there's nothing to strip", () => {
     const s = side({ front: ["Torkoal"] });
     expect(stripMove(s, "Torkoal")).toBe(s);
+  });
+});
+
+/**
+ * These two drive both the editor's grid and the read-only reader's. They were
+ * duplicated once and drifted: the reader laid alternates out in a row with
+ * arrows between them, so two versions of the same turn read as a sequence —
+ * the plan appeared to say something its author never wrote.
+ */
+describe("layoutRows / isAlternate", () => {
+  const node = (
+    id: string,
+    turn: number,
+    parentId: string | null,
+  ): TurnNode => ({
+    id,
+    turn,
+    parentId,
+    my: { front: [], back: [], fainted: [] },
+    opp: { front: [], back: [], fainted: [] },
+  });
+
+  it("keeps a straight line of turns on one row", () => {
+    const nodes = [node("a", 1, null), node("b", 2, "a"), node("c", 3, "b")];
+    const rows = layoutRows(nodes);
+    expect([rows.get("a"), rows.get("b"), rows.get("c")]).toEqual([0, 0, 0]);
+  });
+
+  it("steps a branch down to its own row", () => {
+    // a → b, and a → b2 as an alternate of the same turn.
+    const nodes = [node("a", 1, null), node("b", 2, "a"), node("b2", 2, "a")];
+    const rows = layoutRows(nodes);
+    expect(rows.get("b")).toBe(0);
+    expect(rows.get("b2")).toBe(1);
+    expect(rows.get("a")).toBe(0);
+  });
+
+  it("gives a second root its own row", () => {
+    const nodes = [node("a", 1, null), node("z", 1, null)];
+    const rows = layoutRows(nodes);
+    expect(rows.get("a")).not.toBe(rows.get("z"));
+  });
+
+  it("calls the second child, and only the second, an alternate", () => {
+    const nodes = [node("a", 1, null), node("b", 2, "a"), node("b2", 2, "a")];
+    expect(isAlternate(nodes[0], nodes)).toBe(false);
+    expect(isAlternate(nodes[1], nodes)).toBe(false);
+    expect(isAlternate(nodes[2], nodes)).toBe(true);
+  });
+
+  it("calls a second root an alternate", () => {
+    const nodes = [node("a", 1, null), node("z", 1, null)];
+    expect(isAlternate(nodes[0], nodes)).toBe(false);
+    expect(isAlternate(nodes[1], nodes)).toBe(true);
   });
 });

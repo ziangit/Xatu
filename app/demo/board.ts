@@ -133,3 +133,41 @@ export function cascadePositions(
   }
   return out;
 }
+
+/**
+ * Where each node sits vertically when the tree is drawn as turn columns.
+ *
+ * Leaves take sequential rows in depth-first order; a parent sits on its first
+ * child's row, so a straight line of turns stays on one row and only branches
+ * step down. Pure, so both the editor and the read-only reader can lay a board
+ * out the same way — they disagreed once, and a reader that renders two
+ * alternates as a sequence is telling the viewer something untrue.
+ */
+export function layoutRows(nodes: TurnNode[]): Map<string, number> {
+  const children = new Map<string | null, TurnNode[]>();
+  for (const n of nodes) {
+    const list = children.get(n.parentId) ?? [];
+    list.push(n);
+    children.set(n.parentId, list);
+  }
+  const rows = new Map<string, number>();
+  let next = 0;
+  const visit = (n: TurnNode): number => {
+    const kids = children.get(n.id) ?? [];
+    const row = kids.length === 0 ? next++ : visit(kids[0]);
+    for (const k of kids.slice(1)) visit(k);
+    rows.set(n.id, row);
+    return row;
+  };
+  for (const root of children.get(null) ?? []) visit(root);
+  return rows;
+}
+
+/**
+ * True when this node is a *branch* — an alternate version of the same turn
+ * rather than the main line. It is the second or later child of its parent (or
+ * the second or later root), which is exactly what "⑂ branch" creates.
+ */
+export function isAlternate(node: TurnNode, nodes: TurnNode[]): boolean {
+  return nodes.find((n) => n.parentId === node.parentId)?.id !== node.id;
+}

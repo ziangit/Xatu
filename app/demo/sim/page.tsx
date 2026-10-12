@@ -7,7 +7,13 @@ import { T } from "../../i18n/T";
 import { useLang, useT } from "../../i18n/provider";
 import { htmlLang } from "../../i18n/translate";
 import { useCopy } from "../../ui";
-import { cascadePositions, stripMove, switchedInSpecies } from "../board";
+import {
+  cascadePositions,
+  isAlternate,
+  layoutRows,
+  stripMove,
+  switchedInSpecies,
+} from "../board";
 import { MonIcon, TYPE_COLORS } from "../components";
 import { upsertCloudMatchup } from "../cloud";
 import {
@@ -95,28 +101,6 @@ function toggleFaint(side: SideState, species: string): SideState {
     },
     species,
   );
-}
-
-/** Row per node: leaves get sequential rows in DFS order; a parent sits on
- * its first child's row — alternates and forks fall to the rows below. */
-function layoutRows(nodes: TurnNode[]): Map<string, number> {
-  const children = new Map<string | null, TurnNode[]>();
-  for (const n of nodes) {
-    const list = children.get(n.parentId) ?? [];
-    list.push(n);
-    children.set(n.parentId, list);
-  }
-  const rows = new Map<string, number>();
-  let next = 0;
-  const visit = (n: TurnNode): number => {
-    const kids = children.get(n.id) ?? [];
-    const row = kids.length === 0 ? next++ : visit(kids[0]);
-    for (const k of kids.slice(1)) visit(k);
-    rows.set(n.id, row);
-    return row;
-  };
-  for (const root of children.get(null) ?? []) visit(root);
-  return rows;
 }
 
 /**
@@ -870,9 +854,6 @@ export default function SimPage() {
       childCount.set(n.parentId, (childCount.get(n.parentId) ?? 0) + 1);
   }
   const rootCount = nodes.filter((n) => n.parentId === null).length;
-  const firstSiblingId = (node: TurnNode) =>
-    nodes.find((n) => n.parentId === node.parentId)?.id;
-
   const rootOf = (n: TurnNode): TurnNode => {
     let cur = n;
     while (cur.parentId) {
@@ -1519,7 +1500,7 @@ export default function SimPage() {
               {nodes.map((node) => {
                 const row = (rows.get(node.id) ?? 0) + 2;
                 const parent = node.parentId ? byId.get(node.parentId) : null;
-                const isAlternate = firstSiblingId(node) !== node.id;
+                const alternate = isAlternate(node, nodes);
                 const removable = node.parentId !== null || rootCount > 1;
                 return (
                   <div
@@ -1535,7 +1516,7 @@ export default function SimPage() {
                     className={`fade-in step-${Math.min(node.turn, 4)} relative self-start rounded-lg border border-stone-200 bg-white p-3`}
                     style={{ gridColumn: node.turn, gridRow: row }}
                   >
-                    {isAlternate && (
+                    {alternate && (
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
                         {parent
                           ? t("⑂ alternate turn {n} · after turn {p}", {

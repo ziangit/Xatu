@@ -1,6 +1,13 @@
 # Session handoff
 
-> Updated 2026-10-12: the free-tier Supabase project was **deleted** after ~4
+> Updated 2026-10-11: there is a **feed** — `/feed`, the minimal forum. Every
+> published group is a post with the author's description, likes and a flat
+> comment list; sign-in to post, nothing to moderate. Found and fixed on the way:
+> the reader **flattened branch trees**, so two alternates of turn 0 read as if
+> one followed the other. The editor's tree layout now lives in
+> `app/demo/board.ts` and both renderers use it. Top section, newest first.
+>
+> Updated 2026-10-11: the free-tier Supabase project was **deleted** after ~4
 > weeks idle (not paused — an absent project is gone). Rebuilt as
 > `hcbhzgkuzlxcdpbzarkf` in **ziangit's Org (Pro)**, +$10/m, which does not
 > auto-pause. Schema, 1,295 catalogue rows and both Vercel env vars are restored
@@ -33,7 +40,7 @@
 > Top section, newest first.
 >
 > Updated 2026-08-14: importing someone else's shared group **no longer
-> overwrites your own plans**. Team identity is now roster *plus* provenance,
+> overwrites your own plans**. Team identity is now roster _plus_ provenance,
 > documents carry the id of the group they came from, a re-paste that changes
 > nothing says so and writes nothing, and `/matchups` gained per-row matchup
 > ids, `delete set`, and a highlight on whatever the last paste landed in. Top
@@ -46,9 +53,9 @@
 > newest first.
 >
 > Updated 2026-08-12. That session: the **VGCPastes catalogue** (712 Champions
-> M-B teams, ingested *and live in Supabase*), **roster identity/partial-match
+> M-B teams, ingested _and live in Supabase_), **roster identity/partial-match
 > groundwork**, one copy/paste format for
-> one-vs-one *and* one-vs-many, a real `← back` on every page, and `/matchups`
+> one-vs-one _and_ one-vs-many, a real `← back` on every page, and `/matchups`
 > no longer flashing a partial list. Sections below, newest first.
 >
 > Still true from before: one team vs. many opposing teams is built (2026-08-08),
@@ -56,7 +63,66 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
-## 2026-10-12: publish a group, read it at a short link
+## 2026-10-11: the feed — a minimal forum, and branches that read as branches
+
+User: _"here I cannot see the published match ups"_. Publishing worked and the
+short link worked; there was simply **no feed** — the only way to a post was
+its URL. Built the forum, deliberately minimal to the user's spec (_"no media,
+no replies inside replies features, but user can add text description before
+the match ups"_). 208 tests, tsc / eslint / `next build` green.
+
+- **`supabase/forum.sql`** (applied live) — `post_likes` with PK
+  `(slug, user_id)`, so a second like is a **23505, not a duplicate row**, and
+  `post_comments`. `post_comments` has **no UPDATE policy at all**: comments
+  can be written and deleted but never edited, which is a property of the
+  schema rather than a rule the UI remembers to apply.
+- **`feed_posts`** is a view with `security_invoker = on` — it joins
+  `published_groups` to `profiles` for the byline and sub-selects the two
+  counts. `security_invoker` matters: without it the view would run as its
+  owner and quietly bypass the RLS on its base tables. An earlier draft made it
+  `security definer` to stop slug enumeration; **reverted, because a feed's
+  whole job is to enumerate.**
+- **Only a username is ever selected.** `profiles` has no email column to leak
+  (see 2026-10-11 "Public identity"), and the view names `pr.username` alone.
+  Verified by reading the wire: the feed response contains no `@`.
+- `app/demo/forum.ts` (queries), `app/feed/page.tsx` (Newest / Most liked
+  tabs), `app/g/discussion.tsx` (likes + flat comments on the reader).
+- **The feed's loading flag is `loadedSort !== sort`**, not a `setLoading(true)`
+  in an effect — setting state synchronously in an effect is a lint error here
+  and the second time this session I wrote it. Derive the flag from what has
+  actually loaded.
+- Verified writes through **real RLS with two throwaway users**, not as the
+  service role: like ok, duplicate like 23505, liking as the wrong user 42501,
+  cross-user delete refused, comment UPDATE refused, counts correct, own delete
+  ok, then both users deleted and the counts went back to zero.
+
+**The reader was misrepresenting branches, and that is the part worth
+remembering.** A screenshot of the user's own post showed two cards both
+reading "TURN 0 · TEAM PREVIEW". Their boards contain **alternates** — two
+roots with `parentId: null` — and `BoardView` laid every node out in one row
+with carets between them, so siblings read as a _sequence_: do this, then this.
+That is not a cosmetic bug; it says something false about the plan.
+
+- Cause: the tree layout lived **inside `app/demo/sim/page.tsx`**, so the
+  reader could not share it and grew its own flat version. `layoutRows` and
+  `isAlternate` now live in **`app/demo/board.ts`** (pure, with the rest of the
+  board rules) and the editor and the reader both place cards on the same
+  CSS grid — `gridColumn: node.turn`, `gridRow` from `layoutRows`. A branch
+  steps **down**; it cannot be read as the next turn.
+- 5 new tests in `app/demo/__tests__/board.test.ts`. **The rule: anything that
+  decides what the board means belongs in `board.ts`, not in the page** — the
+  reader is a second renderer and will diverge silently otherwise.
+- Verified in a browser against the user's real published document: board 1
+  places cards at `1/2 → 2/2 → 3/2` plus its alternate at `1/3` (y 397 vs 562,
+  a visibly separate row), board 2 at `1/2 → 2/2` plus `1/3`, two
+  `⑂ alternate turn 0` labels, console clean.
+
+**Still the highest-value thing not done: the Open Graph card for
+`/g/<slug>`.** The entire point of the short link is that it gets posted on X,
+and right now it unfurls as bare text. After that, **fork** — the user asked
+for it explicitly and the reader has no way into your own builder yet.
+
+## 2026-10-11: publish a group, read it at a short link
 
 First half of sharing. `supabase/published.sql` + `app/demo/publish.ts` +
 `/g/[slug]`. Sign-in required, per the PRODUCT.md amendment the same day.
@@ -98,7 +164,7 @@ a real document.
 **Not done yet**: the OG card (most of the value of a link on X), fork, likes,
 comments, the feed.
 
-## 2026-10-12: the Supabase project was deleted, and rebuilt
+## 2026-10-11: the Supabase project was deleted, and rebuilt
 
 After ~4 weeks idle the free-tier project **`twvwwxhbqsjplduujfcz` was deleted**,
 not merely paused. Symptom: NXDOMAIN on the API host and an empty project list in
@@ -111,8 +177,8 @@ local cache, so nothing was lost but the auth account and any cloud-only matchup
 Four facts worth keeping, each of which cost time to learn:
 
 - **A paused project still appears in listings** (`Porygon` shows `INACTIVE`).
-  An *absent* project is deleted. Don't read NXDOMAIN as "paused".
-- **The free-tier cap is per person, across every org you own** — 2 *active*
+  An _absent_ project is deleted. Don't read NXDOMAIN as "paused".
+- **The free-tier cap is per person, across every org you own** — 2 _active_
   free projects. Paused ones don't count, so deleting the paused `Porygon`
   would have freed nothing. The two slots were `Champscope` and
   `ziangit's Project`.
@@ -156,7 +222,7 @@ Verified: `/auth/v1/authorize?provider=google` redirects to Google with the new
 client id and the new callback; Google serves its sign-in page with no
 `redirect_uri_mismatch`, no "Access blocked", no verification warning; and the
 "Continue with Google" button reaches `accounts.google.com` from **both**
-localhost and production. *Not* verified — completing a real sign-in and
+localhost and production. _Not_ verified — completing a real sign-in and
 round-tripping a matchup to the account needs the user's own Google credentials.
 
 `CLIENT_ID` / `CLIENT_SECRET` are in `.env.local` for the record; nothing in the
@@ -168,16 +234,16 @@ User wants a share feature: a player posts a tournament result on X with a
 **short link** to their one-team-vs-many plan, and viewers can **read but not
 edit**. That requirement settles several things that had been left open.
 
-- **Fragment links are out.** Measured: one team vs 6 opponents *with* movesets
+- **Fragment links are out.** Measured: one team vs 6 opponents _with_ movesets
   is 2,614 URL chars; vs 10 is 3,847, against a ~2,000 practical ceiling. The
   exact case the feature is for is the case fragments cannot carry. Hosted short
   links are the only fit.
-- **Documents must carry movesets**, kept *out* of the `encodeGroup`
+- **Documents must carry movesets**, kept _out_ of the `encodeGroup`
   fingerprint. Today a shared plan opens with every move picker reading "no
   moves in this import", which makes a shared plan close to useless. Hosting
   removes the size pressure entirely, so this becomes free for shared links.
 - **Read-only should be structural, not a permission check**: publish a
-  *snapshot* (so a posted link cannot change under its readers), open a reader
+  _snapshot_ (so a posted link cannot change under its readers), open a reader
   page rather than the board, block writes with owner-only RLS, and serve reads
   through a `security definer` function taking the slug — otherwise anon can
   enumerate every shared plan through PostgREST. No service-role key needed.
@@ -230,7 +296,7 @@ Three small user-requested changes.
 - **That CTA goes to `/demo?new=1` and lands on the import panel**, skipping the
   New team / Use existing choice box — from empty, that box only ever leads to
   import anyway. Note the intent is read in an effect (localStorage is
-  browser-only), so it arrives *after* `MyTeamSlot` has picked its initial mode;
+  browser-only), so it arrives _after_ `MyTeamSlot` has picked its initial mode;
   a `key` remounts the slot when it resolves. Without that the panel stays shut
   and the change looks like it did nothing.
 - **The board links out to the Showdown damage calculator**, as a bordered
@@ -279,7 +345,7 @@ row and from the card updates the library, the board and the setup together.
 
 **Still open from the design discussion** (2026-09-11, no code written): whether
 documents should carry verbatim pastes so shared boards keep their sets — with
-sets kept *out* of the `encodeGroup` fingerprint — plus a dex learnset fallback
+sets kept _out_ of the `encodeGroup` fingerprint — plus a dex learnset fallback
 for genuinely set-less teams, and fragment-based share links before hosted ones.
 Measured there: pastes cost 3x raw but only 1.8x compressed, and move ids save
 only 4% over move names so an index table is not worth its version-stability
@@ -305,7 +371,7 @@ this was a string-and-data job, not a dex job.
   legacy `championsregmb` mod with `searchShow: false`, which is how you can tell
   a regulation has actually left the ladder and should stop leading `FORMATS`.
 - **The bug**: `PRESETS` built the eight sample teams with `format: FORMATS[0]` —
-  whichever regulation is *current*. Putting M-C first would have relabelled eight
+  whichever regulation is _current_. Putting M-C first would have relabelled eight
   real M-B pastes as M-C, silently. They now take a `SAMPLE_FORMAT` constant that
   states their own regulation. Verified in a browser: the dropdown defaults to M-C
   while a picked preset still reads "VGC 2026 Reg M-B".
@@ -342,8 +408,8 @@ M-C teams at 4/4 with their paste links. RLS still refuses an anon insert (401).
 connection, and **that host is IPv6-only now** — IPv4 there became a paid add-on.
 This machine has no global IPv6, so getaddrinfo drops the AAAA under
 AI_ADDRCONFIG, finds nothing, and `pg` reports a bare `ENOTFOUND` that reads
-exactly like a deleted project. It is not one. *(An earlier draft of this section
-guessed "paused" — wrong cause, same symptom. `seed.mjs` now diagnoses it.)*
+exactly like a deleted project. It is not one. _(An earlier draft of this section
+guessed "paused" — wrong cause, same symptom. `seed.mjs` now diagnoses it.)_
 
 It is now the **Session Pooler**: `aws-0-ca-central-1.pooler.supabase.com:5432`,
 user `postgres.<ref>` — dual-stack, same password, nothing else changed. The
@@ -353,8 +419,8 @@ old value is not kept anywhere; `.env.local` carries a comment saying why.
 an account that cannot see this project — `supabase projects list` shows five
 others): every `aws-{0,1}-<region>.pooler.supabase.com` resolves, so DNS says
 nothing. Connect to each with user `postgres.<ref>` and a deliberately wrong
-password: the region that hosts the tenant answers *"password authentication
-failed"*, every other answers *"Tenant or user not found"*. One host replied
+password: the region that hosts the tenant answers _"password authentication
+failed"_, every other answers _"Tenant or user not found"_. One host replied
 differently — ca-central-1. No real credential is sent anywhere it doesn't
 belong. Worth remembering; it beats hunting for dashboard access.
 
@@ -383,7 +449,7 @@ existing" list grew a `M-C · M-B · all` tab row.
   saved teams stay put through every switch.
 
 **Provenance comments are now tested.** Inserting the Gardevoir team by script
-put it between the *next* entry's comment lines and that entry's object, so one
+put it between the _next_ entry's comment lines and that entry's object, so one
 team carried two titles and `Mega Aerodactyl + Zard Y` carried none — silently,
 because a comment type-checks as nothing. Fixed, and `formats.test.ts` asserts
 every sample has exactly one title line and one pokepaste URL above it (verified
@@ -429,7 +495,7 @@ all routes still `ƒ (Dynamic)`.
   core change — everything else was the dictionary.
 - **`htmlLang()` is now the only place a language is branched on.** Three
   `toLocaleDateString` / `toLocaleTimeString` call sites had `lang === "zh" ?
-  "zh-Hans" : "en"` inlined, which would have silently given Japanese users US
+"zh-Hans" : "en"` inlined, which would have silently given Japanese users US
   dates; they call `htmlLang(lang)` instead. **A fourth was found doing it
   wrong** — `/matchups` row dates called `toLocaleDateString()` with no argument
   at all, so they read `8/16/2026` in every language. Now `2026/8/16` under both
@@ -468,10 +534,10 @@ all routes still `ƒ (Dynamic)`.
   one toggle and exactly one back link each, the choice surviving navigation;
   the toggle's own box **74×18 in all three languages** while the nav around it
   re-lays out; the species type-ahead still finds Pikachu from "pika"; a real
-  2-board paste (*"Sand に 2 件のマッチアップを読み込みました。"*), the re-paste
-  no-op (*"読み込むものはありません——Sand のこの 2 件のマッチアップは、まったく
-  同じ内容ですでにあります。"*) and the delete confirm (*"このブラウザからこの
-  グループ（2 件のマッチアップ）を削除しますか？"*). Console clean.
+  2-board paste (_"Sand に 2 件のマッチアップを読み込みました。"_), the re-paste
+  no-op (_"読み込むものはありません——Sand のこの 2 件のマッチアップは、まったく
+  同じ内容ですでにあります。"_) and the delete confirm (_"このブラウザからこの
+  グループ（2 件のマッチアップ）を削除しますか？"_). Console clean.
 - **Not done, deliberately**: same as last time — `lib/schema/warnings.ts` and
   `lib/schema/io.ts` still have no UI callers, so `lib/` stays innocent of
   locales. The sample guide's author prose on `/demo/lookup` stays English.
@@ -509,7 +575,7 @@ English, and an `EN·中` pill in the nav. Rules in docs/ARCHITECTURE.md →
   **fork a parallel group**. Guarded by `workflow-io.test.ts` → "language never
   reaches stored data".
 - **A latent bug fixed on the way**: `importSummary` chose singular vs plural by
-  comparing its *own rendered text* (`count === "1 matchup"`). That is false in
+  comparing its _own rendered text_ (`count === "1 matchup"`). That is false in
   every language once a translation exists — including a reworded English. It now
   branches on the number. All 13 existing English assertions passed unchanged
   afterwards, which is the proof the `lang = "en"` default worked.
@@ -535,9 +601,9 @@ English, and an `EN·中` pill in the nav. Rules in docs/ARCHITECTURE.md →
   both languages (50×18 either way) while the page around it re-lays out; all six
   pages Chinese with `lang="zh-Hans"`; the choice survives navigation; one toggle
   and still exactly one back link per page; the import panel, species type-ahead
-  ("pika" still finds Pikachu), a real 2-board paste (*"已为 Sand 导入 2 个对阵。"*),
-  the re-paste no-op (*"没有要导入的内容——Sand 的这 2 个对阵你已经有了，且完全相同。"*)
-  and the delete confirm (*"从此浏览器删除这一组（2 个对阵）？"*). Console clean,
+  ("pika" still finds Pikachu), a real 2-board paste (_"已为 Sand 导入 2 个对阵。"_),
+  the re-paste no-op (_"没有要导入的内容——Sand 的这 2 个对阵你已经有了，且完全相同。"_)
+  and the delete confirm (_"从此浏览器删除这一组（2 个对阵）？"_). Console clean,
   production build green.
 - **Not done, deliberately**: `lib/schema/warnings.ts` and `lib/schema/io.ts` have
   no UI callers at all, so they were left alone; when a UI does consume them they
@@ -546,19 +612,19 @@ English, and an `EN·中` pill in the nav. Rules in docs/ARCHITECTURE.md →
 
 ## 2026-08-14: importing a shared group keeps both sets
 
-User: *"imagine a scenario where I import the json from another user who
+User: _"imagine a scenario where I import the json from another user who
 publish a team vs many teams matchup, it will mostly like have some overlap
-with my existing teams… I want to keep both."* It was worse than overlap — the
+with my existing teams… I want to keep both."_ It was worse than overlap — the
 import **destroyed** work, because a team's identity was its roster alone:
 
 - their team canonicalised onto my id, and `rememberTeam`'s `name: team.name`
   **renamed my team to theirs**;
 - `findPairMatchup` then hit my board, so their nodes overwrote my plan —
-  locally *and* in the account, since the mirror followed;
+  locally _and_ in the account, since the mirror followed;
 - the board's import had the mirror-image bug: it left the first board unsaved,
   so Save minted a **second** entry for a pair that already had one.
 
-Fixed by making identity *roster + provenance*. Rules and the reasoning are in
+Fixed by making identity _roster + provenance_. Rules and the reasoning are in
 docs/ARCHITECTURE.md → **"Two authors, one archetype: keep both"**; read that
 before changing any of it. Decided with the user: an imported group is a normal,
 editable group (badged, not read-only), and there is **no merge path at all** —
@@ -568,7 +634,7 @@ editable group (badged, not read-only), and there is **no merge path at all** �
   `rememberTeam` matches only within one provenance, and takes `keepName` so a
   document can't rename a team already here.
 - **A same-day bug worth not repeating** (user found it in minutes): the first
-  cut recorded `origin` *only* on a collision, so an uncollided import kept no
+  cut recorded `origin` _only_ on a collision, so an uncollided import kept no
   document id — and pasting the very same document again found nothing to
   update, saw its own first import as a rival team, and forked a second group.
   `docId` is now recorded on **every** import; `keptApart` is the only field
@@ -587,14 +653,14 @@ editable group (badged, not read-only), and there is **no merge path at all** �
   off the pair), and `keepName` keeps their local names.
 - `/matchups`: `IMPORTED` badge on the group, and **each row shows its matchup
   id** (`#` + 8 hex, selectable) — the user asked for these, and they're what a
-  delete actually removes (localStorage key *and* `matchups` row id; the team id
+  delete actually removes (localStorage key _and_ `matchups` row id; the team id
   is in the group header's tooltip). `/demo`'s "use existing" lists your own
   teams before pasted ones so its dedupe never hides yours.
 
 Then, in order, three follow-ups the user asked for:
 
-- **A no-op import says so** (*"if after paste, there is no change, can it show
-  the message saying the same match up already exists?"*). A board whose
+- **A no-op import says so** (_"if after paste, there is no change, can it show
+  the message saying the same match up already exists?"_). A board whose
   `encodeGroup` print matches the stored one is skipped entirely — no rewrite,
   no new `savedAt` (so the list doesn't reorder), no cloud upload — and the line
   reads "Nothing to import — you already have these exact N matchups for X".
@@ -609,7 +675,7 @@ Then, in order, three follow-ups the user asked for:
   used, but only those no remaining board and no in-progress `setup` still names
   (so a shared opponent survives, and a team imported but not yet paired isn't
   swept up). Removing one opponent on `/demo` deliberately still forgets nothing.
-- **Highlight ≠ badge** (*"only the newly imported team is highlighted"*). The
+- **Highlight ≠ badge** (_"only the newly imported team is highlighted"_). The
   `violet-50` wash marks only the set the last paste landed in (`justImported`,
   cleared by dismissing its import notes, gone on revisit); the `IMPORTED` badge
   is permanent provenance. Tinting every kept-apart set instead lit two of three
@@ -631,8 +697,8 @@ Then, in order, three follow-ups the user asked for:
 
 ## 2026-08-13: "does this look like a known team?" — partial match, built
 
-User: *"if user enters >= 4 pokemons, we provide the match function… the match
-should only show when user click it."* Built on the groundwork from 2026-08-12;
+User: _"if user enters >= 4 pokemons, we provide the match function… the match
+should only show when user click it."_ Built on the groundwork from 2026-08-12;
 the decided design in docs/ARCHITECTURE.md → "Partial match over the catalogue"
 was implemented unchanged, and that section is now marked BUILT with the
 measurements. Answer to the open question there (user's call): **read-only** —
@@ -669,7 +735,7 @@ docs/ARCHITECTURE.md → "Species type-ahead".
   (1,317 species; `--check` fails if stale), `search.ts` is pure and ranked
   (exact → prefix → forme word → substring; base forme first), 14 new tests.
   Reading `@pkmn/dex` at runtime was the alternative: 1.8MB / 346KB gzipped.
-- The list is *every species the icon sheet can draw* — the same test the board's
+- The list is _every species the icon sheet can draw_ — the same test the board's
   paste import already applies, so the picker can't offer a name the board would
   reject. Not a legality list.
 - `app/demo/species-picker.tsx` — six slots with Showdown-style suggestion rows,
@@ -683,32 +749,32 @@ docs/ARCHITECTURE.md → "Species type-ahead".
   "-ite Z" stones). No catalogue row names one, so stored roster codes are
   unchanged — but the picker can now offer them, which is how it surfaced.
 - **Follow-up pass, same day (user feedback on the first cut):**
-  - *"remove the pikachu variant just keep the origin pikachu"* — the list now
+  - _"remove the pikachu variant just keep the origin pikachu"_ — the list now
     drops everything the dex calls `cosmeticFormes` **plus** Pikachu's fifteen
     costumes, which are `otherFormes` and so needed one hand-written exclusion.
     1,368 → 1,317 names (~6.3KB gzipped); "pika" returns exactly one row.
     Do NOT generalise this by comparing base stats — Maushold-Four,
     Squawkabilly-Blue and Vivillon-Fancy are stat-identical to their bases and
     appear in real teams. Catalogue coverage re-checked: 186/186, no misses.
-  - *"make the pokemons 6 slots instead of 0/6"*, then *"select slot can enter
-    the pokemon name"* — six slots always render, and **the slot is the input**:
+  - _"make the pokemons 6 slots instead of 0/6"_, then _"select slot can enter
+    the pokemon name"_ — six slots always render, and **the slot is the input**:
     each empty slot holds its own `<input>`, clicking one focuses it, Tab walks
     the row, Enter advances to the next gap, ✕ or backspace empties a slot.
     Positions are load bearing — `slots` is length 6 with `""` blanks and only
     `ImportPanel` drops them, so filling slot 4 first stays slot 4.
-  - *"change import teams to 'New Team'"* — that button plus its three siblings
+  - _"change import teams to 'New Team'"_ — that button plus its three siblings
     (`＋ import` ×2, `Import a team`) now read **New team** / **＋ new team**,
     since the panel behind them also builds a team by typing.
-  - *"can you make it pokemon showdown style? Just don't show all pokemon when
-    not entering, and the max type ahead give it a limit"* — suggestion rows are
+  - _"can you make it pokemon showdown style? Just don't show all pokemon when
+    not entering, and the max type ahead give it a limit"_ — suggestion rows are
     now sprite + **bold base**/grey forme + coloured type badges, which meant
     putting types in the generated data (`base|forme|types`, ~6.3KB → ~9KB
     gzipped). The two things NOT copied from Showdown are the ones the user
     named: nothing is listed until you type, and the list is capped at six with
     "more matches — keep typing". `TYPE_COLORS` moved to `app/demo/type-colors.ts`
     (re-exported from `components.tsx`) to avoid a picker↔components cycle.
-  - *"improve the ui, it is currently ugly when there is '1 type …' and the slot
-    same color as background"* — the slot number became a corner label (it was
+  - _"improve the ui, it is currently ugly when there is '1 type …' and the slot
+    same color as background"_ — the slot number became a corner label (it was
     stacking above the input), empty slots got a drawn grey "?" disc and a
     `bg-white/60` fill so they read against the cream panel, and the active slot
     gets a ring. Three visually distinct states: empty / active / filled.
@@ -717,7 +783,7 @@ docs/ARCHITECTURE.md → "Species type-ahead".
     box dead and the next keystroke went to the body — caught in the browser,
     not in review. Same reason the single bottom box is gone entirely.
 - Verified over CDP by clicking and typing: six slots each with their own input,
-  slot 1 focused on open, clicking slot 3 puts the letters *in slot 3*, "pika"
+  slot 1 focused on open, clicking slot 3 puts the letters _in slot 3_, "pika"
   offers Pikachu alone, Enter fills that slot and moves to slot 4, ↓+Enter takes
   the second match, backspace empties the slot you're in, ✕ clears just that one,
   and submitting drops the blanks while keeping slot order. Console clean.
@@ -775,7 +841,7 @@ docs/ARCHITECTURE.md → "Roster identity vs. partial match".
   through Node and the DB can't disagree with the app.
 - Normalisation was decided from the corpus: 34 rows name a Mega in their paste
   but preview shows the base forme, so `-mega`/`-mega-x/y` collapse; everything
-  else stays distinct because the same corpus has `Floette-Eternal` *and*
+  else stays distinct because the same corpus has `Floette-Eternal` _and_
   `Floette-Mega`. Sorting matters too — 108 teams differ from another only in
   paste order (571 → 567 distinct rosters once Megas merge).
 - `community_teams` gained `match_species text[]` + `roster_code text` with a
@@ -826,7 +892,7 @@ rationale in docs/ARCHITECTURE.md → "Community team catalogue". Status:
   `scripts/vgcpastes/seed.mjs`, `pg` devDependency, ~1.3s), deleting the seed
   migration, and `supabase migration repair --status applied 20260812000001`.
   **Schema through the CLI, data through the script.**
-- The Supabase CLI was already installed and logged in — but to a *different*
+- The Supabase CLI was already installed and logged in — but to a _different_
   account that can't see this project. Neither `login` nor `link` was needed in
   the end: `supabase db push --db-url "$SUPABASE_CONNECT_STRING"` skips both.
 - RLS verified live with the real anon key: SELECT 200 (and the `match_species`
@@ -888,10 +954,11 @@ or many opponents". Highlights:
   with note, declared move and recorded Mega intact, the unplanned one still
   unplanned, re-import replaces instead of duplicating; and on the board, Copy
   JSON is v3 and a 3-opponent paste keeps the extras.
+
 ## 2026-08-12: `← back` on every page
 
 User report on the board: "there is no back button." `home` was there; back was
-not, and home can't stand in for it — the board is reached from `/matchups` *and*
+not, and home can't stand in for it — the board is reached from `/matchups` _and_
 from `/demo`. New `BackLink` in `app/nav.tsx` uses real history, with a
 `fallback` for direct entry / an off-site previous page. `HeaderNav` takes
 `back` and `onBeforeLeave`. **Placement rule (user-directed): back goes with the
@@ -901,7 +968,7 @@ Team's `＋ import` on `/demo`, in the nav on `/demo/lookup` and `/login`. Movin
 it into `/demo`'s My Team row collided with that section's existing `← back`
 (which closed its import panel), so **a panel now closes with `cancel`** and
 `← back` only ever means "leave this page". `BackLink` takes a `className` so it can look like
-the buttons it stands with; pass `back` to `HeaderNav` *or* place a `BackLink`,
+the buttons it stands with; pass `back` to `HeaderNav` _or_ place a `BackLink`,
 never both (exactly one back per page — verified `backCount: 1`). On the board
 it's wrapped in its own capture handler so Reset never triggers a save. The board
 passes `saveIfDirty`,
@@ -991,10 +1058,10 @@ teams"** — read that before changing any of it. Summary of the mechanism:
   geometry (origin dot, bezier, 1.75 stroke, amber dashed branch, triangular
   markers); what was missing: cards now `self-start` so they hug their content
   (which also gives the edges a real curve instead of a flat arrow), a hairline
-  + "vs" between the two sides, the alternate label in amber caps with wide
-  tracking ("⑂ ALTERNATE TURN 1 · AFTER TURN 0"), and move chips as `rounded-md`
-  10px pills. Fixed chip-row height went 19px → 22px (still fixed — the edge
-  measurement depends on deterministic heights).
+  - "vs" between the two sides, the alternate label in amber caps with wide
+    tracking ("⑂ ALTERNATE TURN 1 · AFTER TURN 0"), and move chips as `rounded-md`
+    10px pills. Fixed chip-row height went 19px → 22px (still fixed — the edge
+    measurement depends on deterministic heights).
 - **Board rules: switch-in, carry-forward, Mega (user feedback: "when tyranitar
   switch in, it should not make a move… the next turn should have the previous
   turn front and back as default… for any mon that have a mega stone, it should
@@ -1020,7 +1087,7 @@ teams"** — read that before changing any of it. Summary of the mechanism:
   popping" + "the top bar is crowded as heck")** — `window.confirm` is gone:
   `InlineConfirm` in `app/ui.tsx` turns the row itself into the question
   (`/matchups` delete, builder opponent ✕). The bar is now `home · builder ·
-  matchups │ (avatar)` — plain-noun labels, and the account collapsed into an
+matchups │ (avatar)` — plain-noun labels, and the account collapsed into an
   initial-avatar popover holding the email / My matchups / Sign out. Both rules
   are in docs/ARCHITECTURE.md under the navigation section.
 - **Entry points (user feedback: "where is the button for New Match Up and add
@@ -1029,7 +1096,7 @@ teams"** — read that before changing any of it. Summary of the mechanism:
   opponent**; `/demo` gained **＋ new matchup with a different team**. They all
   route through `/demo`'s new query-string intents (`?new=1`, `?team=<id>`,
   `?team=<id>&add=1`) — table in docs/ARCHITECTURE.md. Rule of thumb recorded
-  there: a list view must be able to *start* work, not only display it.
+  there: a list view must be able to _start_ work, not only display it.
 - **Navigation (user feedback: "no back to home page button, don't let me
   remind you all these stuff")** — shared chrome now lives in `app/nav.tsx`
   (`Wordmark`, `HeaderNav`, `NavLink`). Every page shows a visible `⌂ home`
@@ -1134,8 +1201,8 @@ teams"** — read that before changing any of it. Summary of the mechanism:
 **Current state:** A working two-page tool, evolved through many rounds of
 user feedback (all in the 2026-08-06 session):
 
-- **`/demo` (Page 1)** — *(single-pair flow, superseded 2026-08-08 by one team
-  vs. many — see the top section; the import/reuse mechanics below still hold)*
+- **`/demo` (Page 1)** — _(single-pair flow, superseded 2026-08-08 by one team
+  vs. many — see the top section; the import/reuse mechanics below still hold)_
   pick My Team + Opposing Team: champscope-style import
   panel (pokepast.es link via `/api/pokepaste` proxy, Showdown export, or bare
   species list), or reuse saved/preset teams (localStorage). Champscope-style
@@ -1148,7 +1215,7 @@ user feedback (all in the 2026-08-06 session):
   right-click = faint; per-card collapsible note with save button; front-slot
   picker = moves (Showdown type colors via lazy `@pkmn/dex`, spread/self moves
   skip the target step) + target (on-field four) + switch-out (swap with back)
-  + bench; chips stack one per line: attacker icon + move + → target icon.
+  - bench; chips stack one per line: attacker icon + move + → target icon.
 - **Workflow JSON codec** (`app/demo/workflow-io.ts`): compact v2 format —
   teams as name+species, nodes as `[parentIdx, myState, oppState, note?]`,
   side state as `"front|back|fainted|moves"` digit groups, moves as
@@ -1164,6 +1231,7 @@ required-tag multiplier, forme candidates, top-3) and `lib/team/importTeamText`
 (lenient, lossless exportText) with real tests. 46 tests green total.
 
 ## Known divergences from the original docs (deliberate, user-directed)
+
 - Sim workflow JSON is its own format, NOT the `lib/schema/` guide schema.
   Reconciliation (compile board → plans/rules, or new document type) is an
   open decision the user was told about.
@@ -1176,6 +1244,7 @@ required-tag multiplier, forme candidates, top-3) and `lib/team/importTeamText`
   sim-tool concepts the schema doesn't model yet.
 
 ## Next candidates (none committed to)
+
 - Reconcile workflow format with lib/schema, or promote it to a first-class
   document type.
 - Compressed share codes (deflate + base64url → ~150–250 chars, URL fragment).
@@ -1184,6 +1253,7 @@ required-tag multiplier, forme candidates, top-3) and `lib/team/importTeamText`
 - Hosting phase (Supabase, short links) per original plan.
 
 ## Stack additions this session
+
 `@pkmn/img` (minisprite icon sheet + species-existence check), `@pkmn/dex`
 (move type colors + targeting shapes, lazy-loaded client-side). Dev server:
 port 7317. `xatu.png` (repo root) = the user's reference sketch for the tool.

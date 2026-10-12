@@ -306,6 +306,7 @@ export default function MatchupsPage() {
           </div>
           <HeaderNav>
             <NavLink href="/demo">{t("builder")}</NavLink>
+            <NavLink href="/feed">{t("published")}</NavLink>
           </HeaderNav>
         </header>
 

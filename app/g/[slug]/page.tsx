@@ -9,6 +9,7 @@ import { decodeWorkflowGroup } from "../../demo/workflow-io";
 import { loadPublished, type PublishedGroup } from "../../demo/publish";
 import { htmlLang } from "../../i18n/translate";
 import { BoardView } from "../board-view";
+import { Discussion } from "../discussion";
 
 /**
  * A published group, read-only, at a short slug fit to post on X.
@@ -53,6 +54,7 @@ export default function PublishedPage({
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <Wordmark />
           <HeaderNav back="/">
+            <NavLink href="/feed">{t("published")}</NavLink>
             <NavLink href="/demo">{t("builder")}</NavLink>
           </HeaderNav>
         </header>
@@ -151,6 +153,8 @@ export default function PublishedPage({
                 )}
               </section>
             ))}
+
+            <Discussion slug={post.slug} />
           </>
         )}
 

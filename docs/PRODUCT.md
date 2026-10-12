@@ -62,7 +62,7 @@ finished product** — there is no phase after it.
   the schema doesn't have and quietly pressures the author to "fill in the graph," the
   opposite of the sparse-by-design intent.
 - ~~Accounts, login, or user profiles~~ — amended 2026-08-07, and again
-  2026-10-12, both at the user's request. Accounts exist (Google +
+  2026-10-11, both at the user's request. Accounts exist (Google +
   email/password via Supabase Auth) to sync private teams and matchup boards,
   and the tool stays fully usable signed out (local-first).
   **Publishing and commenting now require signing in**, which replaces the

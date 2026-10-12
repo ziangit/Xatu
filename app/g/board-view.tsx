@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
-import { switchedInSpecies } from "../demo/board";
+import { isAlternate, layoutRows, switchedInSpecies } from "../demo/board";
 import { parseTargetRef } from "../demo/workflow-io";
 import { useT } from "../i18n/provider";
 import type { SideState, TurnNode } from "../demo/storage";
@@ -149,54 +149,79 @@ export function BoardView({
   }, [nodes]);
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const ordered = [...nodes].sort((a, b) => a.turn - b.turn);
+  const rows = layoutRows(nodes);
   const parentOf = (n: TurnNode, side: "my" | "opp") =>
     n.parentId ? (byId.get(n.parentId)?.[side] ?? null) : null;
+  // Stored turns start at 1; the board shows them one lower, so the first card
+  // reads "turn 0 · team preview". The reader must agree with the editor.
+  const maxTurn = Math.max(...nodes.map((n) => n.turn), 1);
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
-      {ordered.map((node, i) => (
-        <div key={node.id} className="flex shrink-0 items-center gap-3">
-          {i > 0 && (
-            <span aria-hidden="true" className="text-stone-300">
-              →
-            </span>
-          )}
-          <div className="w-[520px] shrink-0 rounded-lg border border-stone-200 bg-white p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-              {/* Stored turns start at 1; the board displays them one lower, so
-                  the first card reads "turn 0 · team preview". Matching that
-                  here is the difference between the reader agreeing with the
-                  editor and quietly disagreeing with it. */}
-              {node.turn - 1 === 0
-                ? t("Turn 0 · team preview")
-                : t("Turn {n}", { n: node.turn - 1 })}
-            </p>
-            <div className="mt-2 flex gap-3">
-              <Side
-                title={t("My Team")}
-                roster={myRoster}
-                state={node.my}
-                parent={parentOf(node, "my")}
-                moveColor={(m) => colors[m]}
-              />
-              <span aria-hidden="true" className="w-px bg-stone-100" />
-              <Side
-                title={t("Opposing Team")}
-                roster={oppRoster}
-                state={node.opp}
-                parent={parentOf(node, "opp")}
-                moveColor={(m) => colors[m]}
-              />
+    <div className="overflow-x-auto pb-2">
+      <div
+        className="inline-grid items-start gap-x-6 gap-y-3"
+        style={{ gridTemplateColumns: `repeat(${maxTurn}, max-content)` }}
+      >
+        {Array.from({ length: maxTurn }, (_, i) => (
+          <p
+            key={`h${i}`}
+            className="text-[10px] font-semibold uppercase tracking-widest text-stone-400"
+            style={{ gridColumn: i + 1, gridRow: 1 }}
+          >
+            {i === 0 ? t("Turn 0 · team preview") : t("Turn {n}", { n: i })}
+          </p>
+        ))}
+        {nodes.map((node) => {
+          const parent = node.parentId ? byId.get(node.parentId) : null;
+          const alt = isAlternate(node, nodes);
+          return (
+            <div
+              key={node.id}
+              // Same grid placement as the editor: column by turn, row from
+              // `layoutRows`. A branch steps down instead of reading as the
+              // next turn, which is what a flat row got wrong.
+              style={{
+                gridColumn: node.turn,
+                gridRow: (rows.get(node.id) ?? 0) + 2,
+              }}
+              className="w-[520px] self-start rounded-lg border border-stone-200 bg-white p-3"
+            >
+              {alt && (
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
+                  {parent
+                    ? t("⑂ alternate turn {n} · after turn {p}", {
+                        n: node.turn - 1,
+                        p: parent.turn - 1,
+                      })
+                    : t("⑂ alternate turn {n}", { n: node.turn - 1 })}
+                </p>
+              )}
+              <div className="flex gap-3">
+                <Side
+                  title={t("My Team")}
+                  roster={myRoster}
+                  state={node.my}
+                  parent={parentOf(node, "my")}
+                  moveColor={(m) => colors[m]}
+                />
+                <span aria-hidden="true" className="w-px bg-stone-100" />
+                <Side
+                  title={t("Opposing Team")}
+                  roster={oppRoster}
+                  state={node.opp}
+                  parent={parentOf(node, "opp")}
+                  moveColor={(m) => colors[m]}
+                />
+              </div>
+              {node.note && (
+                <p className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
+                  {node.note}
+                </p>
+              )}
             </div>
-            {node.note && (
-              <p className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
-                {node.note}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }

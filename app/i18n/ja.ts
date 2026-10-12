@@ -30,6 +30,22 @@
 
 export const JA: Record<string, string> = {
   // ── shared chrome ──────────────────────────────────────────────────────────
+  "Published matchups": "公開されたマッチアップ",
+  published: "公開",
+  Newest: "新着",
+  "Most liked": "人気順",
+  "Nothing published yet.": "まだ公開されたものはありません。",
+  "Publish one from My matchups →": "「マイマッチアップ」から公開する →",
+  "Add a comment": "コメントを書く",
+  "Post comment": "コメントする",
+  "Posting…": "投稿中…",
+  "No comments yet.": "まだコメントはありません。",
+  "Delete this comment?": "このコメントを削除しますか？",
+  "a deleted account": "削除されたアカウント",
+  "Sign in to like or comment.":
+    "ログインすると「いいね」やコメントができます。",
+  "to like or comment.": "すると「いいね」やコメントができます。",
+  "💬 {n}": "💬 {n}",
   "back to the home page": "ホームに戻る",
   "back to the previous page": "前のページに戻る",
   home: "ホーム",

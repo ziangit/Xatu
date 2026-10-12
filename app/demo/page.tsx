@@ -683,6 +683,7 @@ export default function SetupPage() {
           </div>
           <HeaderNav>
             <NavLink href="/matchups">{t("matchups")}</NavLink>
+            <NavLink href="/feed">{t("published")}</NavLink>
           </HeaderNav>
         </header>
 

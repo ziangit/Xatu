@@ -279,6 +279,12 @@ export default function LandingPage() {
                 {t("My matchups")}
               </Link>
               <Link
+                href="/feed"
+                className="rounded-md border border-stone-300 bg-white px-4 py-2.5 text-xs text-stone-600 hover:border-stone-500"
+              >
+                {t("Published matchups")}
+              </Link>
+              <Link
                 href="/demo/lookup"
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
               >
