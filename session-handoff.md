@@ -4,9 +4,9 @@
 > weeks idle (not paused — an absent project is gone). Rebuilt as
 > `hcbhzgkuzlxcdpbzarkf` in **ziangit's Org (Pro)**, +$10/m, which does not
 > auto-pause. Schema, 1,295 catalogue rows and both Vercel env vars are restored
-> and verified. **Outstanding: re-enable the Google auth provider and redirect
-> URLs in the dashboard** — sign-in is broken until then. Top section, newest
-> first.
+> and verified. Google auth is rebuilt too, on a new GCP project
+> (`xatu-511402`, client `61459340118-…`) and configured via the Management API.
+> Top section, newest first.
 >
 > Updated 2026-09-10: **Regulation M-C** is live on Showdown and xatu knows it —
 > `FORMATS` leads with it, and the catalogue has its 68 teams. A runbook for the
@@ -93,11 +93,32 @@ live: anon read returns 1,295, the picker's containment query returns real M-C
 teams, anon insert into `matchups` is refused with `42501`, and the lookup works
 end to end in a browser with a clean console.
 
-**Still outstanding — dashboard only, nobody else can do it:** re-enable the
-Google provider, set Site URL `https://xatu-six.vercel.app`, and keep
-`localhost:7317` in the redirect allow list. Until then sign-in is broken, which
-also means cloud matchup sync is unavailable. The app itself is unaffected —
-local-first by design.
+**Auth is back too** (same day). The old Google Cloud project could not be
+found, so a new one was made: GCP project **`xatu-511402`**, new OAuth web
+client **`61459340118-…apps.googleusercontent.com`** — the `5038415161-…` id in
+the older note below belongs to the lost project and is dead.
+
+Configured through the **Management API**, not `supabase config push`:
+`config.toml` here is the untouched local-dev scaffold with
+`site_url = "http://127.0.0.1:3000"`, so pushing it would have pointed
+production auth at localhost. A `PATCH /v1/projects/<ref>/config/auth` with just
+`site_url`, `uri_allow_list`, `external_google_enabled|client_id|secret` is
+surgical and leaves everything else alone. The CLI's personal access token lives
+in the macOS keychain under service **`Supabase CLI`**
+(`security find-generic-password -s "Supabase CLI" -w`).
+
+Live settings now: site URL `https://xatu-six.vercel.app`, allow list
+`https://xatu-six.vercel.app/**,http://localhost:7317/**`, Google enabled.
+
+Verified: `/auth/v1/authorize?provider=google` redirects to Google with the new
+client id and the new callback; Google serves its sign-in page with no
+`redirect_uri_mismatch`, no "Access blocked", no verification warning; and the
+"Continue with Google" button reaches `accounts.google.com` from **both**
+localhost and production. *Not* verified — completing a real sign-in and
+round-tripping a matchup to the account needs the user's own Google credentials.
+
+`CLIENT_ID` / `CLIENT_SECRET` are in `.env.local` for the record; nothing in the
+app reads them, they were only needed for that one PATCH.
 
 ## 2026-10-11: sharing design, discussed not built
 
