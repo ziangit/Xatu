@@ -3,6 +3,7 @@
 import { getSupabase } from "../auth/client";
 import { loadMyUsername } from "../auth/profile";
 import { encodeGroup } from "./workflow-io";
+import { newSlug, SLUG_RE } from "./slug";
 import type { SavedMatchup, StoredTeam } from "./storage";
 
 /**
@@ -18,20 +19,9 @@ import type { SavedMatchup, StoredTeam } from "./storage";
  * just `user_id` under RLS — no edit tokens, and no anonymous write endpoint.
  */
 
-/** Slug alphabet: no vowels, so a random slug cannot spell something. */
-const ALPHABET = "23456789bcdfghjkmnpqrstvwxyz";
-const SLUG_LENGTH = 8;
-
-/** Mirrors `published_slug_shape` in supabase/published.sql. */
-export const SLUG_RE = /^[a-z0-9]{6,12}$/;
-
-export function newSlug(random: () => number = Math.random): string {
-  let out = "";
-  for (let i = 0; i < SLUG_LENGTH; i++) {
-    out += ALPHABET[Math.floor(random() * ALPHABET.length)];
-  }
-  return out;
-}
+// The slug helpers live in `./slug`, which is server-safe; re-exported
+// here so existing importers are unaffected.
+export { newSlug, SLUG_RE } from "./slug";
 
 export type PublishInput = {
   my: StoredTeam;

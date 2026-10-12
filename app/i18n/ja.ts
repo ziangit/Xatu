@@ -484,6 +484,12 @@ export const JA: Record<string, string> = {
     "このマッチアップを読み取れません——新しいバージョンで公開された可能性があります。",
   "by {author}": "作成者 {author}",
   "by a deleted account": "削除されたアカウント",
+  // フォーク is understood but reads as a git word; 複製 ("duplicate") says
+  // what actually happens — an editable copy of your own.
+  "⑂ Fork into my builder": "⑂ 自分のエディタに複製",
+  "Copying…": "複製中…",
+  "Makes your own editable copy. This page doesn’t change.":
+    "自分用の編集できるコピーを作ります。このページは変わりません。",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
   "by {author} · {regulation}": "作成者 {author} · {regulation}",

@@ -162,6 +162,65 @@ describe("fallbackDocId", () => {
   });
 });
 
+describe("forking a published page", () => {
+  // A fork goes through `applyGroupImport` like any paste, but stamps the
+  // document `pub:<slug>` instead of leaving it to the roster-and-name
+  // fallback. These are the two things that stamp buys.
+
+  it("recognises a page already forked, so forking twice updates one set", () => {
+    const forked = team("forked", "Aero + Zard team", ZARD, {
+      docId: "pub:h8tpybyd",
+      label: "Aero + Zard team",
+      importedAt: NOW,
+      keptApart: false,
+    });
+    const plan = planImport(
+      team("fresh", "Aero + Zard team", ZARD),
+      "pub:h8tpybyd",
+      [forked],
+      NOW,
+    );
+    expect(plan.existing?.id).toBe("forked");
+    expect(plan.origin?.keptApart).toBe(false);
+  });
+
+  it("keeps two authors' pages apart even when roster and name agree", () => {
+    // The fallback id is roster + name, so without the slug these two would
+    // be the same document and the second fork would overwrite the first.
+    const same = team("fresh", "Aero + Zard team", ZARD);
+    expect(fallbackDocId(same)).toBe(
+      fallbackDocId(team("other", "Aero + Zard team", ZARD)),
+    );
+
+    const mine = team("mine", "Aero + Zard team", ZARD, {
+      docId: "pub:aaaaaaaa",
+      label: "Aero + Zard team",
+      importedAt: NOW,
+      keptApart: false,
+    });
+    const plan = planImport(same, "pub:bbbbbbbb", [mine], NOW);
+    expect(plan.existing).toBeNull();
+    expect(plan.origin?.keptApart).toBe(true);
+  });
+
+  it("keeps a forked page apart from my own team with the same six", () => {
+    const mine = team("mine", "My zard", ZARD);
+    const plan = planImport(
+      team("fresh", "Aero + Zard team", ZARD),
+      "pub:h8tpybyd",
+      [mine],
+      NOW,
+    );
+    expect(plan.existing).toBeNull();
+    expect(plan.origin).toEqual({
+      docId: "pub:h8tpybyd",
+      label: "Aero + Zard team",
+      importedAt: NOW,
+      keptApart: true,
+    });
+  });
+});
+
 describe("importSummary", () => {
   const base = {
     my: team("mine", "Aero + Zard", ZARD),

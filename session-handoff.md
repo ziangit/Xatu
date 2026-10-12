@@ -1,11 +1,12 @@
 # Session handoff
 
-> Updated 2026-10-11: there is a **feed** — `/feed`, the minimal forum. Every
-> published group is a post with the author's description, likes and a flat
-> comment list; sign-in to post, nothing to moderate. Found and fixed on the way:
-> the reader **flattened branch trees**, so two alternates of turn 0 read as if
-> one followed the other. The editor's tree layout now lives in
-> `app/demo/board.ts` and both renderers use it. Top section, newest first.
+> Updated 2026-10-11: sharing is **finished** — a feed (`/feed`), an **Open
+> Graph card** so a `/g/<slug>` link unfurls on X with its title, byline and six
+> sprites, and **fork**, which copies a published guide into your own builder
+> without touching your existing plans. Found and fixed on the way: the reader
+> **flattened branch trees**, so two alternates of turn 0 read as if one
+> followed the other. Rules in docs/ARCHITECTURE.md → **"Sharing: publish, read,
+> fork"**. Top section, newest first.
 >
 > Updated 2026-10-11: the free-tier Supabase project was **deleted** after ~4
 > weeks idle (not paused — an absent project is gone). Rebuilt as
@@ -63,6 +64,56 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-10-11: the share card, and fork
+
+The two pieces of the sharing spec that were still missing. 211 tests, tsc /
+eslint / `next build` green.
+
+**The Open Graph card.** A `/g/<slug>` link is meant to be posted on X, and X
+runs no JavaScript — so none of what the client component rendered was visible
+to it. `app/g/[slug]/page.tsx` is now a **server** component with
+`generateMetadata`, rendering the old body as `view.tsx`. Three things that
+followed, all written up in docs/ARCHITECTURE.md → **"Sharing: publish, read,
+fork"**:
+
+- `publish.ts` is `"use client"`, so the slug helpers moved to
+  `app/demo/slug.ts` (re-exported, no importer changed — the `formats.ts`
+  precedent) and the server reads via `app/g/published-meta.ts`, a plain
+  PostgREST fetch against `feed_posts`. It selects **no `document`** — a card
+  never needs the plan, and that column is the big one.
+- **`SITE_URL` is stated, not inferred** (`app/site.ts`). Next falls back to
+  `VERCEL_URL`, which on Vercel is the _deployment-specific_ host — a new
+  hostname on every push, while X caches the card and re-fetches it later.
+- **Sprites are the individual PNGs, fetched and inlined as data URLs.** The
+  icon sheet is positioned by `background-position`, which the renderer behind
+  `ImageResponse` doesn't do; and `ImageResponse` streams, so a remote image
+  that 404s fails _after_ the response has started — which is no card at all,
+  not a card without sprites. My first cut wrapped `new ImageResponse(...)` in
+  a try/catch, which cannot work for exactly that reason.
+
+**Fork is a paste whose clipboard happens to be a published row.** `ForkButton`
+calls `applyGroupImport` — the one write path a document may land through — so
+it inherits the "an import adds, it never overwrites work that isn't the
+document's own" rule for free. The only addition is the document id: a
+published document has no `g` stamp, so the fork stamps **`pub:<slug>`** rather
+than falling back to roster-plus-name. That makes re-forking a page update one
+set instead of forking two, and stops two authors who publish the same
+archetype under the same name from colliding. 3 new tests.
+
+Verified in a browser, twice. From an empty browser: fork writes 2 matchups and
+3 teams stamped `pub:h8tpybyd`, lands on `/demo?team=<id>` with the team and
+both opponents loaded, and forking the same page again writes nothing. Then
+with my own plan already present for the same six species: **my plan survives,
+my team keeps its name**, the fork is a separate team with `keptApart: true`,
+and `/matchups` shows both groups with one `IMPORTED` badge. Card checked by
+rendering it — 1200×630, title, `by testaccount · 2 opposing teams · VGC 2026
+Reg M-B`, six sprites.
+
+**Phase 3 is the finished product and this was the last of it.** Nothing is
+queued. Older parked items, if they ever come up: a static catalogue (78KB
+gzipped), carrying movesets in documents (3x raw / 1.8x compressed), and
+re-ingesting M-B (the tab has grown 712 → 861).
+
 ## 2026-10-11: the feed — a minimal forum, and branches that read as branches
 
 User: _"here I cannot see the published match ups"_. Publishing worked and the
@@ -116,11 +167,6 @@ That is not a cosmetic bug; it says something false about the plan.
   places cards at `1/2 → 2/2 → 3/2` plus its alternate at `1/3` (y 397 vs 562,
   a visibly separate row), board 2 at `1/2 → 2/2` plus `1/3`, two
   `⑂ alternate turn 0` labels, console clean.
-
-**Still the highest-value thing not done: the Open Graph card for
-`/g/<slug>`.** The entire point of the short link is that it gets posted on X,
-and right now it unfurls as bare text. After that, **fork** — the user asked
-for it explicitly and the reader has no way into your own builder yet.
 
 ## 2026-10-11: publish a group, read it at a short link
 

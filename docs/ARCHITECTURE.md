@@ -31,7 +31,7 @@ breaking for pasted documents in the wild — migrate, don't mutate.
   is derived and never computed with.
 - **Matchup**: `name` (author's label, e.g. `"Big Six"`); `opponentSpecies` — a list of
   species each tagged `required | common | optional` with an optional free-text note
-  (`"usually Choice Scarf"`), deliberately *not* a full team paste (the author doesn't
+  (`"usually Choice Scarf"`), deliberately _not_ a full team paste (the author doesn't
   have the opponent's EVs and doesn't think in them); `plans: Plan[]`.
 - **Plan**: `when?` (preview-tier guard), `lead` (exactly 2 own species), `back` (0–2),
   `gameplan` (free text), and `rules: Rule[]`. Two structural decisions live here:
@@ -40,7 +40,7 @@ breaking for pasted documents in the wild — migrate, don't mutate.
     a different board under each. In the common single-plan case the layer is invisible
     (everything lives in the sole plan's `rules`).
   - **`lead` + `back`, with `bring` derived** (`bringOf()` in `lib/schema/plan.ts` —
-    a getter would not survive JSON). This makes lead ⊆ bring *unrepresentable* rather
+    a getter would not survive JSON). This makes lead ⊆ bring _unrepresentable_ rather
     than validated, and matches how authors write ("Bring: Milotic + Gholdengo,
     Tyranitar, Staraptor" — lead pair first, then the back). `back` may be short.
 - **Plan guards**: `when` is an AND array of `{kind: "hasSpecies", species}` predicates —
@@ -87,14 +87,14 @@ grow the vocabulary to chase expressiveness.
 
 ### Two condition tiers — a real timing constraint, not style
 
-Team preview reveals the opponent's six Pokémon; their *lead* is revealed simultaneously
+Team preview reveals the opponent's six Pokémon; their _lead_ is revealed simultaneously
 with yours on turn 1, when your lead is already locked. Therefore:
 
 - **Preview-tier** conditions (opponent's six species only) may determine lead/back.
   Modeled as: a Matchup carries alternate `plan`s guarded by `hasSpecies` predicates
   (e.g. "if they have Swampert, lead Sinistcha + Gholdengo").
 - **Turn-tier** conditions may only determine `actions`. A rule conditioned on
-  `opponentLeads(...)` can never change your lead — it changes what you *do* on turn 1.
+  `opponentLeads(...)` can never change your lead — it changes what you _do_ on turn 1.
 
 The schema encodes this structurally (plan guards are species-presence only; rules live
 inside a Plan and have no lead/back fields to affect), and the editor must never offer
@@ -137,7 +137,7 @@ pure, well-tested function in a shared module; the extension's core dependency.
 - **Lenient validation**: Champions-era data (Megas, new regulation sets) may lag in any
   dex package. Unknown species/moves produce a non-blocking warning, never a rejected
   import. The author is the authority; xatu is not a legality checker. zod validates
-  document *structure*; species/move strings are free strings. Advisory consistency
+  document _structure_; species/move strings are free strings. Advisory consistency
   warnings (action species not on team, unlisted move) live in
   `lib/schema/warnings.ts` and are display-only — never enforced at parse, publish, or
   import time.
@@ -148,7 +148,7 @@ Three rules the author shouldn't have to maintain by hand. They live in a pure,
 unit-tested module (`app/demo/__tests__/board.test.ts`) — the sim page only wires
 them up.
 
-- **A Pokémon that switches in can't also move.** Switching *is* the turn's
+- **A Pokémon that switches in can't also move.** Switching _is_ the turn's
   action. `switchedInSpecies(side, parentSide)` derives it — front members that
   weren't in front on the parent card — so nothing extra is stored. The picker
   refuses moves and Mega for them and the chip reads "switched in"; a switch also
@@ -165,8 +165,8 @@ them up.
   since a Mega-Evolved Pokémon stays Mega on the field or the bench. On the board
   it renders as the Mega forme's sprite plus a ⟡ on the chip.
 
-Still no battle computation: the dex is consulted only for *whether an item is
-the Mega Stone for its holder* (`Dex.items.get(item).megaStone`, same class of
+Still no battle computation: the dex is consulted only for _whether an item is
+the Mega Stone for its holder_ (`Dex.items.get(item).megaStone`, same class of
 metadata as move type colors) so the option can be offered. No forme stats, no
 legality check, no once-per-battle enforcement — that's the author's business.
 
@@ -179,7 +179,7 @@ warning, like every other sanitized field.
 ## Navigation rule — no page is a dead end (2026-08-08, after user feedback)
 
 Every page must be exitable without the browser back button, and the way out has
-to be *visible* — a wordmark that happens to be a link does not count, because it
+to be _visible_ — a wordmark that happens to be a link does not count, because it
 doesn't look like one. The chrome lives in **`app/nav.tsx`**:
 
 - `<Wordmark tag?>` — the "xatu" wordmark, always a link to `/`, underlined on
@@ -187,7 +187,7 @@ doesn't look like one. The chrome lives in **`app/nav.tsx`**:
 - `<HeaderNav back? onBeforeLeave?>` — renders `← back` and `⌂ home` first, then
   the page-specific links passed as children, then `<AccountLink />` (account
   state everywhere, not just the landing page). Links are `whitespace-nowrap
-  shrink-0` so a long page title can't wrap the nav onto two lines.
+shrink-0` so a long page title can't wrap the nav onto two lines.
 - `<NavLink href>` — a page-specific header link at the nav's weight.
 - `<BackLink fallback>` — added 2026-08-12 after "there is no back button" on the
   board. **`home` is not a back button**: the board is reached from two different
@@ -204,13 +204,13 @@ doesn't look like one. The chrome lives in **`app/nav.tsx`**:
   it left of `Reset`; `/matchups` puts it left of `paste JSON` — one place to look for
   "leave here" and "do something here", styled like its neighbours via `className`.
   `/demo` puts it left of My Team's `＋ import`. `/demo/lookup` has no action row, so
-  it passes `back` to `HeaderNav` and it renders at nav weight. `/` is exempt — it *is*
+  it passes `back` to `HeaderNav` and it renders at nav weight. `/` is exempt — it _is_
   home. A page must render exactly **one** back affordance: pass `back` to `HeaderNav`
   **or** place a `BackLink` yourself, never both.
 - **A section's own way out of an open panel is "cancel", not "← back".** `/demo`'s My
   Team header used `← back` to close its import/choice panel; with the page-level back
   now in that same row, two identical labels would have sat side by side meaning
-  different things. "← back" always means *leave this page*; a panel closes with
+  different things. "← back" always means _leave this page_; a panel closes with
   `cancel`. (Verified: `backCount: 1` with the panel both open and closed.) On the board the standalone link is wrapped in its
   own capture handler so `saveIfDirty` runs for back without Reset ever triggering a
   save.
@@ -225,7 +225,7 @@ Top bar composition, after "the top bar is crowded as heck" (2026-08-08):
 - Labels are plain nouns — `home` / `builder` / `matchups`. No arrows, no
   possessives; four decorated links read as a wall of text.
 - The account is an **initial-avatar menu** (`AccountLink`), not `email + sign
-  out` spelled out inline. A 24px circle is fixed-width no matter how long the
+out` spelled out inline. A 24px circle is fixed-width no matter how long the
   address is; the email, "My matchups" and "Sign out" live in the popover
   (Escape and click-outside close it). It renders its own leading hairline, so
   local-only builds (`getSupabase()` → null) show no dangling divider.
@@ -234,13 +234,13 @@ Motion vocabulary (`app/globals.css`, added 2026-08-08 at the user's request) �
 small and fast, so it reads as responsiveness, not decoration. All four are
 disabled wholesale under `prefers-reduced-motion`:
 
-| class | for |
-| --- | --- |
-| `.rise-in` | content arriving (cards, grouped rows, panels) — fade + 6px rise |
-| `.fade-in` | arriving content **whose position is measured** — opacity only |
-| `.pop-in` | menus/popovers, anchored at their trigger |
-| `.grow-in` | something revealed in place (import panel, choice box, help) |
-| `.step-1…4` | stagger delay for a short sequence |
+| class           | for                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.rise-in`      | content arriving (cards, grouped rows, panels) — fade + 6px rise                                                                                                  |
+| `.fade-in`      | arriving content **whose position is measured** — opacity only                                                                                                    |
+| `.pop-in`       | menus/popovers, anchored at their trigger                                                                                                                         |
+| `.grow-in`      | something revealed in place (import panel, choice box, help)                                                                                                      |
+| `.step-1…4`     | stagger delay for a short sequence                                                                                                                                |
 | `.late-fade-in` | a loading placeholder — invisible for 300ms, so a fast response replaces it before it was ever seen (the delay survives reduced-motion; only the fade is dropped) |
 
 `.fade-in` exists because the board's cards feed the SVG edge layout: the edges
@@ -261,11 +261,11 @@ Two more rules that came out of the same pass:
 - **One list, one paint** (2026-08-12, after "initially there is only one team,
   and there is a flash and many teams appeared"). `/matchups` used to render the
   browser rows immediately and then re-render with the account rows merged in.
-  Two paints of the *same list*: the page flashed, tripled in height, and — with
+  Two paints of the _same list_: the page flashed, tripled in height, and — with
   nothing saved locally — said "No saved matchups yet" first. A list assembled
   from more than one source waits for all of them and renders once, behind a
   `.late-fade-in` placeholder. Corollaries: gate the empty state on the load
-  being *finished*, never on "nothing has arrived yet"; and after a mutation,
+  being _finished_, never on "nothing has arrived yet"; and after a mutation,
   update the rows optimistically (`markInCloud`, filtering the deleted row) so
   the reconciling refetch is invisible rather than a second visible jump.
   Local-only builds skip the wait entirely — `supabaseConfigured()` is
@@ -275,7 +275,7 @@ Two more rules that came out of the same pass:
   header's links run `saveIfDirty` first — the same `hasUnsavedWork() && save()`
   the opponent switcher already used, passed in as `HeaderNav`'s `onBeforeLeave`
   (plus a capture handler on the wordmark, which is also a link). It deliberately
-  does *not* fire for the account menu, which doesn't navigate. This is why there
+  does _not_ fire for the account menu, which doesn't navigate. This is why there
   is no "you have unsaved changes" prompt: the honest fix for a footgun is to
   remove the footgun, not to add a dialog — and dialogs are banned anyway.
 - **A copy always says it copied** (2026-08-12, after "copy json here and everywhere
@@ -303,7 +303,7 @@ hint full width. Cramming them into one row put the site nav, the switcher and
 Reset/Import/Copy/Save in a single ambiguous strip; keep them separated.
 
 Use these in every new page's header; do not hand-roll one. The only exceptions are
-`/` (it *is* home) and `/login` (its own account page, so it hand-rolls the nav
+`/` (it _is_ home) and `/login` (its own account page, so it hand-rolls the nav
 without `AccountLink` — it still shows the wordmark and `⌂ home`). The same rule
 applies inside flows: every multi-step panel needs a cancel/back affordance
 (ImportPanel's cancel, TeamSlot's "← back").
@@ -380,7 +380,7 @@ and forgotten in the other, which no per-dictionary check can see.
   or clause spliced in produces garbage.
 - **Split sentences use `<T>`** (`app/i18n/T.tsx`) with numbered slots:
   `<T k="… {0} to also see …" parts={[<Link/>]} />`. The point is that the
-  *spacing around the element becomes translatable* — English wants a space
+  _spacing around the element becomes translatable_ — English wants a space
   either side of an inline link, Chinese wants none. If you're about to write
   `{t("…")}{" "}<Link/>{" "}{t("…")}`, you've split a sentence; use `T`.
 - **Punctuation joining two clauses is part of the key, not the builder.**
@@ -402,7 +402,7 @@ instead of a concatenated ASCII one.
 | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | species, moves, items, abilities, natures, types                    | lookup keys for the icon sheet, `Dex.*`, and the `match_species` column |
 | `FORMATS` / regulation strings                                      | `.eq("regulation", …)` filters on them                                  |
-| `` `${my.name} vs ${opp.name}` ``, `"Imported team"`, `teamLabel()` | **persisted** to localStorage *and* Supabase                            |
+| `` `${my.name} vs ${opp.name}` ``, `"Imported team"`, `teamLabel()` | **persisted** to localStorage _and_ Supabase                            |
 | anything reaching `encodeGroup` / `boardPrint` / `fallbackDocId`    | identity and the board's dirty-check fingerprint                        |
 
 If a stored name became locale-dependent, toggling the language would mark every
@@ -428,7 +428,7 @@ leftover with no CJK fallback — is now `var(--font-sans)`.
 
 **Japanese gets its own stack, and this is not optional.** Han unification puts
 Chinese and Japanese drawings of hundreds of characters on the same code point,
-font selection is per-glyph and stops at the first family that *has* the
+font selection is per-glyph and stops at the first family that _has_ the
 character, and the shared chain names Chinese faces first — so without an
 override the entire Japanese UI renders in Chinese letterforms. Legible, and
 wrong in the way a Japanese reader notices instantly. `:lang(ja)` therefore
@@ -440,7 +440,7 @@ change here by reading `getComputedStyle(document.body).fontFamily` in a browser
 with `<html lang="ja">`, not by reading the CSS.
 
 Under `:lang(zh)` and `:lang(ja)` alike, `tracking-widest` is relaxed to `0.02em`
-(0.1em inserts a gap between *every* glyph, which at 10px reads as broken) and
+(0.1em inserts a gap between _every_ glyph, which at 10px reads as broken) and
 `text-[10px]` becomes 11px. That bump deliberately stops short of `text-[9px]`:
 those are the board's move chips, which sit in a fixed-height row the SVG edge
 measurement assumes is deterministic — and they hold move names, which stay
@@ -457,7 +457,7 @@ dictionary pass, and body text is small enough that nobody notices the break.
 with its own leading hairline, outside the `onBeforeLeave` capture (it doesn't
 navigate). The two headers that bypass `HeaderNav` — `app/page.tsx` and
 `app/login/page.tsx` — mount it themselves; **check both when touching it**. Its
-height is pinned (`h-[18px]`) because `中` has a taller line box than `EN` *and*
+height is pinned (`h-[18px]`) because `中` has a taller line box than `EN` _and_
 the `:lang(zh)` rule bumps its font size — either would grow the control by a
 pixel the moment you used it. Its own box is identical in both languages;
 its absolute position may move, because the nav labels beside it are translated
@@ -480,8 +480,9 @@ would catch it; and the cross-dictionary key-set check described above.
 
 - Regulations rotate every few months and invalidate guides — `regulation` is a
   first-class field, and fork-to-new-regulation is the primary survival path.
-- Edit access is a bearer token issued once at publish (localStorage + author URL).
-  Losing it means losing edit access — the UI must say so plainly. (Phase 3.)
+- ~~Edit access is a bearer token issued once at publish.~~ Superseded 2026-10-11:
+  publishing requires signing in, so ownership is `user_id` under the same RLS the
+  private tables use. There are no edit tokens and no anonymous write endpoint.
 - Paste-first: import/export as JSON text must work with zero backend — it's the
   fallback when the service is down and the extension's ingestion path.
 - Reader view branches render in two layers (terse action line + expandable reason)
@@ -493,7 +494,7 @@ would catch it; and the cross-dictionary key-set check described above.
 - **Cloud calls check the session locally, not over the network.** `userClient()`
   in `app/demo/cloud.ts` uses `auth.getSession()` (a local read) rather than
   `auth.getUser()` (a round trip to `/auth/v1/user`). It only decides whether to
-  *attempt* a query — owner-only RLS is what authorizes it, so a stale session
+  _attempt_ a query — owner-only RLS is what authorizes it, so a stale session
   gets an error from Postgres, never someone else's rows. This halves the latency
   before the matchup list can render. Don't "harden" it back to `getUser()`; the
   security boundary is RLS, and this is a browser client anyway.
@@ -540,8 +541,8 @@ Decisions and why:
   open. This keeps the matchup library the single record of "my team vs. these teams"
   instead of introducing a parallel roster key.
 - **Visiting an opponent must not fake a plan.** The sim page's opponent switcher
-  auto-saves before moving, but only when the board differs *both* from what's stored
-  *and* from a fresh board. The comparison uses `encodeWorkflow` (the compact codec is
+  auto-saves before moving, but only when the board differs _both_ from what's stored
+  _and_ from a fresh board. The comparison uses `encodeWorkflow` (the compact codec is
   id-free, so it is a stable structural fingerprint) — not deep equality on nodes.
 - **Multi-team paste lives in `lib/team/import-many.ts`**, pure and framework-free like
   the rest of `lib/`, with unit tests. Recognised: `=== [format] name ===` delimited
@@ -549,7 +550,7 @@ Decisions and why:
   line, and several pokepaste links (the links are resolved by the caller — CORS forces
   the `/api/pokepaste` proxy). A format tag inside a `===` header is deliberately
   **ignored**: `FORMATS` in the UI stays the closed authority.
-- Ambiguity is not guessed: blank-line-separated blocks are *not* treated as multiple
+- Ambiguity is not guessed: blank-line-separated blocks are _not_ treated as multiple
   teams, because that is exactly how one team separates its six sets.
 - Fallback team name is the first two species ("Aerodactyl + Charizard") — how people
   refer to opposing archetypes anyway.
@@ -559,7 +560,7 @@ Decisions and why:
 
 ### Copy/paste is one format for one or many opponents (v3, 2026-08-12)
 
-The paste artifact (`app/demo/workflow-io.ts`) used to be a team *pair*, so a group
+The paste artifact (`app/demo/workflow-io.ts`) used to be a team _pair_, so a group
 of six matchups could only be shared as six strings. It is now one document:
 
 ```
@@ -583,7 +584,7 @@ of six matchups could only be shared as six strings. It is now one document:
   that names what's wrong. Sanitization warnings, by contrast, are per board and get
   prefixed `vs <opponent> — ` when there's more than one.
 - **Import never overwrites work the document doesn't own** — see the next section.
-  Within the document's *own* group, a pairing is replaced rather than duplicated: the
+  Within the document's _own_ group, a pairing is replaced rather than duplicated: the
   opponent keeps its library entry (and therefore its cloud row) and has its plan
   updated; the result line says how many, so it is never silent.
 - Surfaces: `copy JSON (N)` on each `/matchups` group header (left of `＋ add teams`),
@@ -594,7 +595,7 @@ of six matchups could only be shared as six strings. It is now one document:
 ### Two authors, one archetype: keep both (2026-08-14)
 
 Importing a shared group used to destroy work. A team's identity was its roster
-(`rosterCode`), so a guide someone else wrote for the same six Pokémon *was* my team as
+(`rosterCode`), so a guide someone else wrote for the same six Pokémon _was_ my team as
 far as `rememberTeam` was concerned: their boards landed on my ids, `upsertMatchup`
 wrote their nodes over my plans, `upsertCloudMatchup` pushed that over my account rows,
 and `rememberTeam`'s `name: team.name` renamed my team to theirs. The board's import had
@@ -606,12 +607,12 @@ performs.** (User's call: "keep both … if the user wants to dedup, he needs to
 delete himself.") There is deliberately **no merge path** — no "adopt their plan"
 button, no prompt at import time.
 
-Identity is therefore *roster + provenance*:
+Identity is therefore _roster + provenance_:
 
 - `StoredTeam.origin?: {docId, label, importedAt, keptApart}` — absent means "mine".
   **`docId` is recorded on every import**, collision or not; `keptApart` is the only
   field that changes behaviour (badge + merge scoping). Splitting the two is not
-  optional: the first cut recorded provenance *only* on a collision, so an uncollided
+  optional: the first cut recorded provenance _only_ on a collision, so an uncollided
   import kept no id, and pasting the very same document a second time found nothing to
   update, read its own first import as a rival team, and **forked a second group**
   (user hit this immediately). Read `docId` through `groupDocId`, `keptApart` through
@@ -627,24 +628,24 @@ Identity is therefore *roster + provenance*:
   the same board have to encode identically even when their `StoredTeam` objects don't
   share an id.
 - `planImport` (pure, tested) decides: a team here already heads this `docId` → update it
-  in place, keeping its id *and* its provenance (a team of mine whose id the document
+  in place, keeping its id _and_ its provenance (a team of mine whose id the document
   carries has none, and must not acquire one); otherwise record the `docId` and set
   `keptApart` to whether the roster collides with any team here. **`keptApart` false is
   what makes an uncollided paste behave like a team of mine** — no badge, and it still
   merges with the full Showdown export pasted in next, which is what a restored backup
   needs.
 - **Opposing teams stay shared across groups.** They carry no plan (the plan hangs off
-  the *pair*), so reuse keeps the library tidy and is safe once `my.id` is what separates
+  the _pair_), so reuse keeps the library tidy and is safe once `my.id` is what separates
   two authors. `rememberTeam(opp, {keepName: true})` stops a document renaming an
   opponent already here.
 - **A pasted group is deletable as a unit and tinted as one.** `delete set` on the group
   header removes every board in it (browser and account), confirmed in place by turning
   the header into the question — undoing one paste took one confirmation per row before.
-  `forgetTeams` then drops the teams that set used, but *only* the ones no remaining
+  `forgetTeams` then drops the teams that set used, but _only_ the ones no remaining
   board and no in-progress `setup` still names, so a shared opponent survives and a team
   you imported but haven't paired with anyone isn't swept up.
 - **Badge and highlight say different things.** The `IMPORTED` badge is provenance and is
-  permanent. The `violet-50` wash marks only the set the *last paste* landed in
+  permanent. The `violet-50` wash marks only the set the _last paste_ landed in
   (`justImported`, cleared when its import notes are dismissed and absent on the next
   visit) — it answers "where did that go?", which stops being a question once you've
   looked. Tinting every kept-apart set instead lit two of three same-roster groups up
@@ -652,26 +653,26 @@ Identity is therefore *roster + provenance*:
   (`#` + 8 hex, `select-all`) — two rows can now be identical on sight, and the id is
   the thing a delete removes, in localStorage and in the account alike.
 - `/demo`'s "use existing" lists teams built here before pasted ones, so its
-  species-level dedupe drops the *imported* row and never hides your own team.
+  species-level dedupe drops the _imported_ row and never hides your own team.
 - `applyGroupImport` is the single write path for both import buttons, which is what
   stops the two pages disagreeing again.
 - **A board identical to the stored one is not rewritten.** Comparison is `encodeGroup`
   on the pair — the same id-free fingerprint the board's dirty check uses, so
   "identical" means one thing in both places. Re-pasting a document you already have
   writes nothing, keeps every `savedAt` (so the list doesn't reorder), re-uploads
-  nothing, and says *"Nothing to import — you already have these exact N matchups"*.
+  nothing, and says _"Nothing to import — you already have these exact N matchups"_.
   `importSummary` otherwise breaks the result down as `N new, N updated, N already
-  identical`, and only `applied.written` is mirrored to the account.
+identical`, and only `applied.written` is mirrored to the account.
 
-Entry points (a list view must be able to *start* work, not only show it) —
+Entry points (a list view must be able to _start_ work, not only show it) —
 `/demo` reads intent from the query string, via `window.location.search` rather than
 `useSearchParams` so the page needs no Suspense boundary:
 
-| link | meaning |
-| --- | --- |
-| `/demo?new=1` | new matchup — clear the team and show the picker |
-| `/demo?team=<teamId>` | plan with this team of mine |
-| `/demo?team=<teamId>&add=1` | …and open the add-opponents box immediately |
+| link                        | meaning                                          |
+| --------------------------- | ------------------------------------------------ |
+| `/demo?new=1`               | new matchup — clear the team and show the picker |
+| `/demo?team=<teamId>`       | plan with this team of mine                      |
+| `/demo?team=<teamId>&add=1` | …and open the add-opponents box immediately      |
 
 Reached from: **＋ New matchup** (`/matchups` header), **＋ add teams** (per group
 header on `/matchups` — a button, not a link, because it first pulls the group's
@@ -693,7 +694,7 @@ that shapes it, because it's easy to get backwards:
   team to a catalogue row, to notice that one roster appears 30 times.
 - **A single code can never answer "4 of 6."** Two sets differing by one element
   hash to unrelated strings; there is no "off by one" query on a hash. Partial
-  search is an *array* operation: `where match_species && $1`, ranked by
+  search is an _array_ operation: `where match_species && $1`, ranked by
   `cardinality(intersect)`. The code is the prerequisite for that (it's what
   makes both sides comparable), not the mechanism.
 - If the ≥4 test ever needs to be an equality join instead of a scan, the
@@ -709,13 +710,13 @@ Normalisation, decided from the corpus rather than in the abstract:
   shows the base forme, so a key that keeps the suffix can never match what a
   reader observes.
 - **Preview-visible formes stay distinct** — this is why it isn't blanket
-  hyphen-stripping. The same corpus holds `Floette-Eternal` *and* `Floette-Mega`;
+  hyphen-stripping. The same corpus holds `Floette-Eternal` _and_ `Floette-Mega`;
   collapsing the first to "floette" would erase a real difference.
   `Ninetales-Alola`, `Tauros-Paldea-Aqua`, `Rotom-Wash` likewise survive.
 - Sorting is not cosmetic: 108 of the 712 teams differ from another team only in
   paste order, and Mega collapsing merges 4 more rosters (571 → 567 distinct).
 - `formeCandidates` stays broader on purpose — it generates possibilities for the
-  *observed* side, where over-matching is cheap. `matchKey` is a stored canonical
+  _observed_ side, where over-matching is cheap. `matchKey` is a stored canonical
   form, where over-collapsing loses information. Don't unify them.
 
 The module is **self-contained (no relative imports)** so the ingest script can
@@ -729,7 +730,7 @@ Shipped as `lib/match/catalogue.ts` (ranking, pure) + `app/demo/catalogue.ts`
 (the query) + `app/demo/catalogue-lookup.tsx` (a read-only panel in the species
 picker). The design below was decided a day earlier and implemented unchanged;
 what the implementation added is recorded after it. The user's intent:
-*"gives matching teams with 4+ matching"*, refined to **read-only, on click**.
+_"gives matching teams with 4+ matching"_, refined to **read-only, on click**.
 
 The reference SQL, run and timed against the real 712-row corpus (3ms, no tuning) —
 the app expresses the same thing through PostgREST rather than a stored function,
@@ -790,7 +791,7 @@ Settled when it was built (2026-08-13), with the measurements behind each:
   rewrite what an author wrote, and "show me what this looks like" is the whole
   need. If that changes, the row has `paste_url` and the table has `export_text`.
 - **`contains` when the count equals the threshold, `overlaps` above it.** Four
-  named with a threshold of four *is* "contains all four" — exact, not an
+  named with a threshold of four _is_ "contains all four" — exact, not an
   approximation, and measured live at **13 rows / 5.4KB** against 481 rows /
   ~30KB gzipped for the overlap form. Six named uses overlap (569 rows, ~36KB
   gzipped) because expressing "at least 4 of 6" in PostgREST would need the
@@ -824,7 +825,7 @@ Placement is the decision, and it took two goes. It began as a hairline link on
 the "how the board works" row, which is where reference material belongs — and
 nobody saw it. It is now a bordered button beside `+ add opponent`.
 
-It still stays out of the **right-hand** row. Those buttons act on *this board*
+It still stays out of the **right-hand** row. Those buttons act on _this board_
 (Reset, Import, Copy JSON, Save); a control that navigates away from the site
 does not belong among them, where it would read as doing something to your plan.
 The left cluster is "things you can do from here", which is what this is. The
@@ -843,7 +844,7 @@ A team can arrive two ways, and they deserve opposite treatment. The caller says
 which via `authoritative`; it is not inferable from the data.
 
 - **A paste typed into the import panel is the truth.** It wins outright, even
-  when it is *shorter* than the stored copy.
+  when it is _shorter_ than the stored copy.
 - **A team inside a shared document is not.** The compact codec carries no sets,
   so its teams are bare rosters — export length is the right guard there,
   because a 72-byte roster must not overwrite a 948-byte set.
@@ -852,7 +853,7 @@ Length alone used to decide, and it is wrong in a way nobody would guess:
 editing `High Horsepower` to `Superpower` makes the **stored** copy longer, so it
 won, and the edit was silently discarded. Re-importing never helped, because the
 same comparison ran again. Worse, deleting the team didn't help either —
-`knownTeams()` is the saved teams *plus every team a saved board references*, so
+`knownTeams()` is the saved teams _plus every team a saved board references_, so
 a board kept handing the old one back. Guarded by `app/demo/__tests__/storage.test.ts`.
 
 **A board keeps its own copy of both teams** (`SavedMatchup.setup`), so writing
@@ -879,7 +880,7 @@ environment — it is verified in a browser instead.
 
 `renameTeam(id, name)` uses the same propagation, which is why a rename shows up
 immediately in the board title, the group header and the opponent rows. Note it
-*does* move the `encodeGroup` fingerprint, since a team's name is encoded: the
+_does_ move the `encodeGroup` fingerprint, since a team's name is encoded: the
 board then reads as edited, which it is. Sets are in neither the fingerprint nor
 the dirty-check, so changing them is invisible to both.
 
@@ -944,7 +945,7 @@ Rules the ingest holds to:
   `supabase/migrations/20260812000001_community_teams.sql` and `supabase db push`
   applies it fine. The seed was tried the same way and **the CLI could not apply
   it**: one ~1.3MB statement carrying a dollar-quoted payload, which errored and
-  left *nothing* in `supabase_migrations.schema_migrations` even though the DDL
+  left _nothing_ in `supabase_migrations.schema_migrations` even though the DDL
   migration before it had already taken effect — so the next push then failed with
   "relation already exists". Sent as a single query over a normal Postgres
   connection (`node scripts/vgcpastes/seed.mjs`, `pg` as a devDependency) the same
@@ -1000,10 +1001,10 @@ one-off. Done in this order it is about an hour, most of it waiting on pastes.
    **both** `FORMAT_BY_ID` ids, plain and `…bo3`. The startup check against `FORMATS`
    will refuse to run if these disagree with step 3.
 6. **Ingest just the new regulation**: `node scripts/vgcpastes/ingest.mjs --only
-   "Champions M-C"`. It writes suffixed files, so the previous regulation's NDJSON
+"Champions M-C"`. It writes suffixed files, so the previous regulation's NDJSON
    record survives, and the seed upserts on `paste_url`, so applying it adds and
    refreshes only its own rows. Then `node scripts/vgcpastes/seed.mjs --file
-   seed-community-teams.champions-m-c.sql`, which now prints a per-regulation count.
+seed-community-teams.champions-m-c.sql`, which now prints a per-regulation count.
    **`SUPABASE_CONNECT_STRING` must be the Session Pooler**, not the direct
    `db.<ref>.supabase.co` host: direct is IPv6-only now (IPv4 there is a paid
    add-on), so on a machine without IPv6 getaddrinfo returns nothing and `pg`
@@ -1077,7 +1078,7 @@ as the comma-separated species list that path has always accepted.
   places, and an empty slot says "two still to go" where "4/6" only says a number. Each
   empty slot holds its own `<input>`, so clicking one focuses it, Tab walks the row, and a
   pick lands where you were looking; a filled slot shows the sprite with a ✕, and
-  backspace empties the slot you are standing in. Enter advances to the next *gap*, so six
+  backspace empties the slot you are standing in. Enter advances to the next _gap_, so six
   picks are six uninterrupted words.
 - **Slot states are three, and they must look different from the panel** (user,
   2026-08-13: "it is currently ugly when there is '1 type …' and the slot same color as
@@ -1109,7 +1110,7 @@ them and still plan against them — so the list offers both and lets you choose
 Rules, in order of how easy they are to break:
 
 - **Each entry states its own regulation**, in a `format` field. Never derive it from
-  `FORMATS[0]`: that is whichever regulation is *current*, so the samples would relabel
+  `FORMATS[0]`: that is whichever regulation is _current_, so the samples would relabel
   themselves the moment the ladder rotated. That bug shipped once — `PRESETS` took
   `FORMATS[0]`, and M-C going first would have turned eight real M-B pastes into M-C
   with nothing to notice.
@@ -1120,7 +1121,7 @@ Rules, in order of how easy they are to break:
 - **The regulation tabs scope only the samples.** `ExistingTeamList` renders your saved
   teams first, then a `SAMPLES` divider carrying `M-C · M-B · all`, then the filtered
   samples. Two reasons the filter stops at the divider: your own teams are few and
-  they are *yours*, so hiding them behind a tab is how someone concludes their work is
+  they are _yours_, so hiding them behind a tab is how someone concludes their work is
   gone; and putting the tabs on the samples header makes the scope self-evident without
   a sentence explaining it. It defaults to the newest regulation that actually has
   samples — not to `FORMATS[0]` (which may have none) and not to "all" (nineteen rows
@@ -1154,6 +1155,74 @@ Rules, in order of how easy they are to break:
   `matchOpponent` working as designed (top-3 with scores, never a confident single
   answer) and the percentage is right there to read. Do not add a score threshold to
   hide it — the honest number is the feature.
+
+## Sharing: publish, read, fork (2026-10-11)
+
+A **published group** is one of your teams against many opponents, stored under a
+short slug and read at `/g/<slug>`. The rules, in the order they matter:
+
+**A published page is a snapshot.** `published_groups.document` is the verbatim
+`encodeGroup` string at the moment you published — not a pointer to your live
+boards. Your builder keeps changing; the page does not, until you publish again.
+A link posted on X that silently rewrote itself under its readers would be worse
+than no link at all. It is stored as `text`, not `jsonb`: the codec's own string
+is the artifact, and round-tripping it through Postgres' JSON normaliser would
+risk changing bytes that the dirty-check fingerprint compares.
+
+**Read-only is structural, not a permission check.** `app/g/[slug]/view.tsx` and
+`app/g/board-view.tsx` are a different component tree from the editor, with no
+handlers in them at all. The editor's `SideBoard` takes eleven callbacks;
+threading "none of these" through every one would make the editor worse to serve
+the reader. There is nothing to disable, so nothing can be forgotten.
+
+**But the two renderers must agree about what the board means.** They did not,
+and it shipped: the tree layout lived inside `app/demo/sim/page.tsx`, so the
+reader grew its own flat version and drew two _alternates_ of the same turn in
+one row with arrows between them — siblings reading as a sequence. `layoutRows`
+and `isAlternate` now live in `app/demo/board.ts` with the rest of the board
+rules, and both renderers place cards on the same grid (`gridColumn: node.turn`,
+`gridRow` from `layoutRows`). **Anything that decides what the board means
+belongs in `board.ts`, never in a page.**
+
+**The share card needs a server component.** X and Discord run no JavaScript, so
+the client body cannot be the whole route. `app/g/[slug]/page.tsx` is a server
+component exporting `generateMetadata`, rendering `PublishedView`. Two
+consequences worth knowing:
+
+- `app/demo/publish.ts` is `"use client"` (it holds the browser Supabase
+  client), so the slug helpers moved to `app/demo/slug.ts` and the server reads
+  through `app/g/published-meta.ts` — a plain PostgREST fetch with the anon key,
+  against `feed_posts`, which is `security_invoker` and therefore shows a
+  crawler exactly what an anonymous visitor may see. It selects no `document`:
+  a card never needs the plan.
+- `SITE_URL` (`app/site.ts`) is stated, not inferred. Next falls back to
+  `VERCEL_URL`, which on Vercel is the **deployment-specific** host — a new
+  hostname every push, while X caches a card and re-fetches it later.
+
+**The card's sprites are the individual PNGs, not the icon sheet.** The app draws
+with one sheet positioned by `background-position`; the renderer behind
+`ImageResponse` has no reliable sprite-sheet support. They are also fetched and
+inlined as data URLs rather than passed as remote `src`es, because
+`ImageResponse` renders into a stream — an image that 404s or hangs fails _after_
+the response has begun, which means no card at all. Fetching first makes each
+sprite independently droppable. Both forms are hotlinked from Showdown, so
+nothing is committed either way.
+
+**A fork is a paste whose clipboard happens to be a published row.** `ForkButton`
+calls `applyGroupImport`, the one write path a document is allowed to land
+through, so it inherits every rule that path enforces — above all that an import
+**adds and never overwrites work that isn't the document's own**. Your plans for
+the same six Pokémon are left alone and the copy sits beside them, badged
+`IMPORTED`. The original is untouched by construction: nothing in the fork path
+writes to `published_groups`.
+
+The one addition is the document id. A published document carries no `g` stamp
+(only the copy buttons write that, because `encodeGroup` doubles as the board's
+dirty-check fingerprint and must stay id-free), so it would fall back to
+`paste:<rosterCode>:<name>`. The fork stamps `pub:<slug>` instead. That buys two
+things, both tested: forking the same page twice updates one set instead of
+forking two, and two authors who publish the same archetype under the same name
+cannot collide.
 
 ## Key decisions
 

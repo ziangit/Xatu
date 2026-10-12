@@ -454,6 +454,13 @@ export const ZH: Record<string, string> = {
     "无法读取这个对阵——它可能是用更新的版本发布的。",
   "by {author}": "作者 {author}",
   "by a deleted account": "作者账号已注销",
+  // 选出 is the VGC term for picking your four; a fork is a copy you may edit,
+  // so 复制 ("copy") carries it better than 分叉 ("fork"), which in Chinese
+  // reads as a git term and nothing else.
+  "⑂ Fork into my builder": "⑂ 复制到我的编辑器",
+  "Copying…": "复制中…",
+  "Makes your own editable copy. This page doesn’t change.":
+    "生成一份你自己的可编辑副本，本页面不会改变。",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
   "by {author} · {regulation}": "作者 {author} · {regulation}",
