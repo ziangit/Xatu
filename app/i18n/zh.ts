@@ -172,6 +172,23 @@ export const ZH: Record<string, string> = {
   "The workflow's turn list is malformed.": "文档中的回合列表格式有误。",
 
   // ── /matchups ──────────────────────────────────────────────────────────────
+  publish: "发布",
+  "publish {team} so anyone can read it": "发布 {team}，让任何人都能查看",
+  "Publish this set": "发布这一组",
+  Publish: "发布",
+  "Publishing…": "发布中…",
+  Published: "已发布",
+  Title: "标题",
+  "Say something about it — optional": "写点说明——可不填",
+  "copy link": "复制链接",
+  "open it ↗": "打开 ↗",
+  "Anyone with the link can read it. Publish again to update it.":
+    "任何拿到链接的人都能查看。再次发布即可更新。",
+  "Pick a username first — it’s your byline. Open the account menu.":
+    "请先设置用户名——它会作为署名。在账号菜单里设置。",
+  "Sign in to publish.": "登录后才能发布。",
+  "A title is required.": "标题不能为空。",
+  "Couldn’t publish — try again.": "发布失败——请重试。",
   "paste JSON": "粘贴 JSON",
   "copy JSON": "复制 JSON",
   "copy JSON ({n})": "复制 JSON（{n}）",
@@ -415,6 +432,13 @@ export const ZH: Record<string, string> = {
     "为什么这样走、要注意什么——可不填",
 
   // ── /demo/lookup ───────────────────────────────────────────────────────────
+  "Loading…": "加载中…",
+  "This matchup isn’t here — the link may be wrong, or its author removed it.":
+    "找不到这个对阵——链接可能有误，或者作者已将其删除。",
+  "This matchup couldn’t be read — it may have been published by a newer version.":
+    "无法读取这个对阵——它可能是用更新的版本发布的。",
+  "by {author}": "作者 {author}",
+  "by a deleted account": "作者账号已注销",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
   "by {author} · {regulation}": "作者 {author} · {regulation}",

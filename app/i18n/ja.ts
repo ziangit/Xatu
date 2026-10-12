@@ -192,6 +192,25 @@ export const JA: Record<string, string> = {
     "ドキュメント内のターン一覧の形式が不正です。",
 
   // ── /matchups ──────────────────────────────────────────────────────────────
+  publish: "公開",
+  "publish {team} so anyone can read it":
+    "{team} を公開して誰でも読めるようにする",
+  "Publish this set": "このグループを公開",
+  Publish: "公開する",
+  "Publishing…": "公開中…",
+  Published: "公開しました",
+  Title: "タイトル",
+  "Say something about it — optional": "説明を書く——任意",
+  "copy link": "リンクをコピー",
+  "open it ↗": "開く ↗",
+  "Anyone with the link can read it. Publish again to update it.":
+    "リンクを知っている人は誰でも読めます。更新するには再度公開してください。",
+  "Pick a username first — it’s your byline. Open the account menu.":
+    "先にユーザー名を設定してください——署名になります。アカウントメニューから設定できます。",
+  "Sign in to publish.": "公開するにはログインしてください。",
+  "A title is required.": "タイトルは必須です。",
+  "Couldn’t publish — try again.":
+    "公開できませんでした——もう一度お試しください。",
   "paste JSON": "JSON を貼り付け",
   "copy JSON": "JSON をコピー",
   "copy JSON ({n})": "JSON をコピー（{n}）",
@@ -442,6 +461,13 @@ export const JA: Record<string, string> = {
     "なぜこの展開か、何に注意するか——任意",
 
   // ── /demo/lookup ───────────────────────────────────────────────────────────
+  "Loading…": "読み込み中…",
+  "This matchup isn’t here — the link may be wrong, or its author removed it.":
+    "このマッチアップは見つかりません——リンクが違うか、作成者が削除した可能性があります。",
+  "This matchup couldn’t be read — it may have been published by a newer version.":
+    "このマッチアップを読み取れません——新しいバージョンで公開された可能性があります。",
+  "by {author}": "作成者 {author}",
+  "by a deleted account": "削除されたアカウント",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
   "by {author} · {regulation}": "作成者 {author} · {regulation}",

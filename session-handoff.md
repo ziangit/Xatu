@@ -56,6 +56,48 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-10-12: publish a group, read it at a short link
+
+First half of sharing. `supabase/published.sql` + `app/demo/publish.ts` +
+`/g/[slug]`. Sign-in required, per the PRODUCT.md amendment the same day.
+
+- **A published row is a snapshot.** `document` is the exact `encodeGroup`
+  string at publish time, stored as **text not jsonb** so no key reordering or
+  number normalisation can touch it. Re-publishing overwrites the same slug; a
+  link already posted never changes under its readers until the author says so.
+- **SELECT is public, and that is a reversal.** The earlier design called for
+  reads through a `security definer` function taking the slug, to stop anyone
+  enumerating shared plans. The forum inverts that requirement — a feed exists
+  to enumerate — so the policy is simply `using (true)`. Insert/update/delete
+  stay author-only. Verified: a signed-out visitor reads it, and a PATCH as anon
+  touches 0 rows.
+- **Slugs** are 8 characters from a 28-letter alphabet **with no vowels**, so a
+  random slug cannot spell something unfortunate in someone's tournament post.
+  Generated client-side and retried on `23505`, because the primary key is the
+  only arbiter. Shape is duplicated as a CHECK constraint and a test asserts the
+  two regexes are identical.
+- **The reader is a separate renderer** (`app/g/board-view.tsx`), not a
+  `readOnly` flag on the sim page's `SideBoard` — that component takes eleven
+  callbacks, and threading "none of these" through all of them would make the
+  editor worse to serve the reader. Nothing in the reader has a handler, which
+  is what makes read-only structural: there is nothing to forget to disable.
+  Confirmed in a browser: 0 inputs on the page.
+- **It does not draw the SVG edges.** Those are measured from laid-out cards at
+  runtime; a public page that must survive a phone is the wrong place for it.
+  Turns read left to right with a caret.
+
+**Two traps worth knowing before touching the wire format.** Hand-authoring a
+`v3` document for a test is a waste of time — the side-state string is
+`front|back|fainted|moves`, so a three-group form silently puts moves in the
+`fainted` slot, and `parentIdx` did not behave as guessed. Generate test
+documents with `encodeGroup` instead. And **stored turns start at 1 while the
+board displays them one lower** — the first card is `turn === 1` shown as
+"turn 0 · team preview". The reader had this wrong until it was checked against
+a real document.
+
+**Not done yet**: the OG card (most of the value of a link on X), fork, likes,
+comments, the feed.
+
 ## 2026-10-12: the Supabase project was deleted, and rebuilt
 
 After ~4 weeks idle the free-tier project **`twvwwxhbqsjplduujfcz` was deleted**,

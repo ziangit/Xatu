@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
 import { useLang } from "../i18n/provider";
+import { PublishPanel } from "./publish-panel";
 import { htmlLang } from "../i18n/translate";
 import { InlineConfirm, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
@@ -103,6 +104,8 @@ export default function MatchupsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   /** Row awaiting its in-place delete confirmation (never window.confirm). */
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  /** Group whose publish panel is open, if any. */
+  const [publishing, setPublishing] = useState<string | null>(null);
   /** Which group was copied — the shared hook says *whether*, this says *which*. */
   const { copied, copy } = useCopy();
   const [copiedTeamId, setCopiedTeamId] = useState<string | null>(null);
@@ -559,6 +562,19 @@ export default function MatchupsPage() {
                           {t("＋ add teams")}
                         </button>
                         <button
+                          onClick={() =>
+                            setPublishing(
+                              publishing === group.teamId ? null : group.teamId,
+                            )
+                          }
+                          title={t("publish {team} so anyone can read it", {
+                            team: group.team.name,
+                          })}
+                          className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                        >
+                          {t("publish")}
+                        </button>
+                        <button
                           onClick={() => setConfirmId(`group:${group.teamId}`)}
                           title={t("delete {team} and all {count} it has", {
                             team: group.team.name,
@@ -571,6 +587,15 @@ export default function MatchupsPage() {
                       </>
                     )}
                   </header>
+                  {publishing === group.teamId && (
+                    <div className="px-3 pb-1">
+                      <PublishPanel
+                        my={group.team}
+                        boards={group.rows.map((r) => r.entry)}
+                        onClose={() => setPublishing(null)}
+                      />
+                    </div>
+                  )}
                   <div className="divide-y divide-stone-100">
                     {group.rows.map((row) => (
                       <div
