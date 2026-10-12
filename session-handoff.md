@@ -1,5 +1,13 @@
 # Session handoff
 
+> Updated 2026-10-12: the free-tier Supabase project was **deleted** after ~4
+> weeks idle (not paused — an absent project is gone). Rebuilt as
+> `hcbhzgkuzlxcdpbzarkf` in **ziangit's Org (Pro)**, +$10/m, which does not
+> auto-pause. Schema, 1,295 catalogue rows and both Vercel env vars are restored
+> and verified. **Outstanding: re-enable the Google auth provider and redirect
+> URLs in the dashboard** — sign-in is broken until then. Top section, newest
+> first.
+>
 > Updated 2026-09-10: **Regulation M-C** is live on Showdown and xatu knows it —
 > `FORMATS` leads with it, and the catalogue has its 68 teams. A runbook for the
 > next rotation is in docs/ARCHITECTURE.md → **"Regulation rotation"**. One real
@@ -47,6 +55,87 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-10-12: the Supabase project was deleted, and rebuilt
+
+After ~4 weeks idle the free-tier project **`twvwwxhbqsjplduujfcz` was deleted**,
+not merely paused. Symptom: NXDOMAIN on the API host and an empty project list in
+the `xatu` org. Rebuilt from scratch; everything needed was in the repo or the
+local cache, so nothing was lost but the auth account and any cloud-only matchup.
+
+**New project**: ref `hcbhzgkuzlxcdpbzarkf`, name `xatu`, in **ziangit's Org
+(Pro)** `qhmynvilacqntnfrlbrr`, region `ca-central-1`.
+
+Four facts worth keeping, each of which cost time to learn:
+
+- **A paused project still appears in listings** (`Porygon` shows `INACTIVE`).
+  An *absent* project is deleted. Don't read NXDOMAIN as "paused".
+- **The free-tier cap is per person, across every org you own** — 2 *active*
+  free projects. Paused ones don't count, so deleting the paused `Porygon`
+  would have freed nothing. The two slots were `Champscope` and
+  `ziangit's Project`.
+- **The CLI could see every org all along.** An earlier note here claimed it was
+  logged into a different account; that was wrong. `supabase orgs list` returns
+  all five. `projects list` just never showed `xatu` because that org was empty.
+- **Pro bills compute per project** — a third Micro is +$10/m on top of the
+  existing $10. That is what this rebuild costs, and it buys a backend that does
+  not auto-pause.
+
+**Pooler host is `aws-1-ca-central-1`, not `aws-0`** as the old project was. The
+prefix does not follow from the region — probe it (connect with the real
+credentials; the wrong prefix answers "Tenant or user not found").
+
+Done, all verified: schema applied (3 tables, 9 indexes, RLS on all three, 3
+policies); catalogue reseeded to **1,295 teams — 564 M-C, 726 M-B, 5 M-A** (M-C
+refreshed 68 → 564 from VGCPastes, every row round-trip-validated); `.env.local`
+rewritten; **both Vercel env vars replaced for Production and Preview**. Checked
+live: anon read returns 1,295, the picker's containment query returns real M-C
+teams, anon insert into `matchups` is refused with `42501`, and the lookup works
+end to end in a browser with a clean console.
+
+**Still outstanding — dashboard only, nobody else can do it:** re-enable the
+Google provider, set Site URL `https://xatu-six.vercel.app`, and keep
+`localhost:7317` in the redirect allow list. Until then sign-in is broken, which
+also means cloud matchup sync is unavailable. The app itself is unaffected —
+local-first by design.
+
+## 2026-10-11: sharing design, discussed not built
+
+User wants a share feature: a player posts a tournament result on X with a
+**short link** to their one-team-vs-many plan, and viewers can **read but not
+edit**. That requirement settles several things that had been left open.
+
+- **Fragment links are out.** Measured: one team vs 6 opponents *with* movesets
+  is 2,614 URL chars; vs 10 is 3,847, against a ~2,000 practical ceiling. The
+  exact case the feature is for is the case fragments cannot carry. Hosted short
+  links are the only fit.
+- **Documents must carry movesets**, kept *out* of the `encodeGroup`
+  fingerprint. Today a shared plan opens with every move picker reading "no
+  moves in this import", which makes a shared plan close to useless. Hosting
+  removes the size pressure entirely, so this becomes free for shared links.
+- **Read-only should be structural, not a permission check**: publish a
+  *snapshot* (so a posted link cannot change under its readers), open a reader
+  page rather than the board, block writes with owner-only RLS, and serve reads
+  through a `security definer` function taking the slug — otherwise anon can
+  enumerate every shared plan through PostgREST. No service-role key needed.
+- **The OG card is most of the value on X** — team name, author, six sprites.
+  Already specified in PRODUCT.md. Shipping without it will look like the
+  feature failed when the problem is presentation.
+- **This is the real argument for a paid tier.** A public link must not 404; a
+  free project that auto-pauses after a week is disqualifying for a link someone
+  posted next to a tournament result.
+
+Three decisions still open: sign-in-to-publish vs PRODUCT.md's anonymous +
+edit-token (accounts now exist, which would delete both the token machinery and
+the abuse surface); whether a viewer can fork into their own matchups; and
+whether the reader renders the board tree read-only or compiles to the guide
+schema's accordion — the two formats are still unreconciled.
+
+**Also considered, not done**: moving the catalogue out of the database into a
+static file. It is read-only reference data; the lean payload the lookup
+actually selects is **78 KB gzipped for all 1,295 teams**. Cheaper, faster, and
+cannot evaporate. Deferred only because the rebuild restores what already works;
+still worth doing.
 
 ## 2026-09-15: the board still opened with the old team
 

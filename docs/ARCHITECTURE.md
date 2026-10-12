@@ -1012,7 +1012,9 @@ one-off. Done in this order it is about an hour, most of it waiting on pastes.
    and says so. The pooler (`aws-0-<region>.pooler.supabase.com:5432`, user
    `postgres.<ref>`) is dual-stack. The REST/API host is unaffected — it has A
    records — so the app never meets this and only the scripts do. **This project
-   is `aws-0-ca-central-1`.** To find a region without dashboard access: every
+   was `aws-0-ca-central-1`; the project rebuilt on 2026-10-12 is
+   **`aws-1-ca-central-1`** — the prefix is not derivable from the region, so
+   probe rather than assume.** To find a region without dashboard access: every
    pooler hostname resolves, so probe them with user `postgres.<ref>` and a
    deliberately wrong password — the region hosting the tenant answers "password
    authentication failed", the rest answer "Tenant or user not found".
