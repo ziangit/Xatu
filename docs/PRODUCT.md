@@ -33,9 +33,15 @@ Reference for the shape of the content this replaces:
   disclosure), prominent copyable team export.
 - **Paste-first sharing** — the guide as JSON text is the canonical artifact; copy to
   clipboard, paste to import. Built before the hosted path.
-- **Hosted publishing** — anonymous publish → short URL; edit token returned once (kept
-  in localStorage, appended to author URL); one-click fork with `forkedFrom` and a new
-  regulation; Open Graph cards with title, author, six team sprites.
+- **Hosted publishing** — sign in, publish a group (one of your teams vs many
+  opponents) → a short URL fit to post on X; one-click fork with `forkedFrom` and a
+  new regulation; Open Graph cards with title, author, six team sprites. A published
+  page is a **snapshot**: it changes only when its author re-publishes, so a posted
+  link cannot shift under its readers. Viewers can fork it into their own builder
+  and edit their copy; the original is immutable to everyone but its author.
+- **A minimal forum** — a feed of published matchups (newest, most liked), each with
+  the author's text description, likes, and a flat comment list. Signed in to post.
+  Deliberately not: images, nested replies, following, or trending ranked by views.
 - **Matching** — `matchOpponent(observedSpecies, matchups)`: fuzzy, IDF-weighted,
   returns top 3 with scores. The future extension's core dependency; barely used in v1
   but implemented and tested now.
@@ -55,11 +61,24 @@ finished product** — there is no phase after it.
 - **A node-graph / Blockly-style canvas.** The wrong affordance — it buys expressiveness
   the schema doesn't have and quietly pressures the author to "fill in the graph," the
   opposite of the sparse-by-design intent.
-- ~~Accounts, login, or user profiles~~ — amended 2026-08-07 at the user's request:
-  accounts exist (Google + email/password via Supabase Auth) to sync private teams
-  and matchup boards. Still no public profiles, and the tool stays fully usable
-  signed out (local-first). Anonymous publish + edit token remains the plan for
-  public guide sharing.
+- ~~Accounts, login, or user profiles~~ — amended 2026-08-07, and again
+  2026-10-12, both at the user's request. Accounts exist (Google +
+  email/password via Supabase Auth) to sync private teams and matchup boards,
+  and the tool stays fully usable signed out (local-first).
+  **Publishing and commenting now require signing in**, which replaces the
+  earlier "anonymous publish + edit token" plan — ownership is just `user_id`
+  under the same RLS the private tables use, so there are no edit tokens and no
+  anonymous write endpoint to abuse.
+  Public identity is **a username and nothing else**: no avatar, no bio, no
+  join date, no followers. `public.profiles` holds only a username and
+  timestamps, so a byline has nothing else to leak — and a username is never
+  derived from the email address. Changing it lives in the account menu,
+  deliberately the same menu people already open.
+- **Moderation tooling.** No report button, no flags, no queue — matching
+  teamsheet.gg, which is the reference for this surface. Sign-in is required to
+  post, authors can delete their own posts and comments, and the site owner can
+  delete anything. If that stops being enough it is a decision to revisit, not
+  a gap to quietly fill.
 - **Quiz mode.** Dropped from the plan entirely. The reader's clickable walkthrough is
   a plain progressive-disclosure component — no `quiz` prop, no hidden-answer
   abstraction, nothing reserved for a mode we aren't building.

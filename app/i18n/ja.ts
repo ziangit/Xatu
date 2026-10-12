@@ -61,6 +61,17 @@ export const JA: Record<string, string> = {
   "Switch to Japanese": "日本語に切り替える",
 
   // ── account ────────────────────────────────────────────────────────────────
+  Username: "ユーザー名",
+  "Pick a username": "ユーザー名を設定",
+  edit: "変更",
+  set: "設定",
+  "That username is taken.": "そのユーザー名は使われています。",
+  "That username is reserved.": "そのユーザー名は予約されています。",
+  "Usernames are 3–20 characters.": "ユーザー名は3〜20文字です。",
+  "Letters, digits, - and _ only.": "英数字と - _ のみ使えます。",
+  "Couldn’t save that — try again.":
+    "保存できませんでした——もう一度お試しください。",
+  "Needed before you can publish or comment.": "投稿やコメントの前に必要です。",
   "sign in": "ログイン",
   "Sign in": "ログイン",
   "My matchups": "マイマッチアップ",

@@ -53,6 +53,16 @@ export const ZH: Record<string, string> = {
   "Switch to Japanese": "切换到日文",
 
   // ── account ────────────────────────────────────────────────────────────────
+  Username: "用户名",
+  "Pick a username": "设置用户名",
+  edit: "修改",
+  set: "设置",
+  "That username is taken.": "该用户名已被占用。",
+  "That username is reserved.": "该用户名为保留名称。",
+  "Usernames are 3–20 characters.": "用户名需为 3–20 个字符。",
+  "Letters, digits, - and _ only.": "只能使用字母、数字、- 和 _。",
+  "Couldn’t save that — try again.": "保存失败——请重试。",
+  "Needed before you can publish or comment.": "发布或评论前需要先设置。",
   "sign in": "登录",
   "Sign in": "登录",
   "My matchups": "我的对阵",

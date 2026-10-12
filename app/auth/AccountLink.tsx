@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { getSupabase, supabaseConfigured } from "./client";
+import { checkUsername, loadMyUsername, saveMyUsername } from "./profile";
+import { InlineRename } from "../ui";
 import { useT } from "../i18n/provider";
 
 /**
@@ -12,6 +14,15 @@ import { useT } from "../i18n/provider";
  *
  * The email and sign-out live inside the menu on purpose — spelled out in the
  * bar they were the widest thing in it, and every page carries this widget.
+ *
+ * The username lives here too, and this is the only place to set it. That is
+ * the whole discoverability plan: it sits in the menu you already open to find
+ * your matchups or sign out, it is the first line, and until you pick one it
+ * says so in amber rather than hiding. A username is required before you can
+ * publish or comment, so it must not be somewhere people have to hunt for.
+ *
+ * The email shown here is your own, in your own menu — it is how you tell which
+ * account you are in. It is never rendered anywhere public; see `profile.ts`.
  */
 export function AccountLink() {
   const t = useT();
@@ -20,6 +31,9 @@ export function AccountLink() {
   const [email, setEmail] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [open, setOpen] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -30,8 +44,15 @@ export function AccountLink() {
       setChecked(true);
       setEmail(data.user?.email ?? null);
     });
+    void loadMyUsername().then((u) => {
+      if (alive) setUsername(u);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) setEmail(session?.user?.email ?? null);
+      if (!alive) return;
+      setEmail(session?.user?.email ?? null);
+      void loadMyUsername().then((u) => {
+        if (alive) setUsername(u);
+      });
     });
     return () => {
       alive = false;
@@ -106,12 +127,77 @@ export function AccountLink() {
             role="menu"
             className="pop-in absolute right-0 z-50 mt-1.5 w-52 rounded-md border border-stone-200 bg-white p-1 shadow-lg"
           >
-            <p
-              className="truncate px-2 py-1.5 text-[11px] text-stone-400"
-              title={email}
-            >
-              {email}
-            </p>
+            {/* Username first: it is the public one, and the only identity
+                anyone else ever sees. */}
+            <div className="px-2 py-1.5">
+              {editing ? (
+                <InlineRename
+                  value={username ?? ""}
+                  label={t("Username")}
+                  onRename={(next) => {
+                    const bad = checkUsername(next);
+                    if (bad) {
+                      setProblem(bad);
+                      return;
+                    }
+                    setProblem(null);
+                    setEditing(false);
+                    void saveMyUsername(next).then((r) => {
+                      if (r.ok) setUsername(r.username);
+                      else {
+                        setProblem(r.reason);
+                        setEditing(true);
+                      }
+                    });
+                  }}
+                  onCancel={() => {
+                    setProblem(null);
+                    setEditing(false);
+                  }}
+                  className="w-full"
+                />
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="flex w-full items-center gap-2 text-left"
+                >
+                  <span
+                    className={`min-w-0 flex-1 truncate text-xs font-semibold ${
+                      username ? "text-stone-800" : "text-amber-700"
+                    }`}
+                  >
+                    {username ?? t("Pick a username")}
+                  </span>
+                  <span className="shrink-0 text-[10px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline">
+                    {username ? t("edit") : t("set")}
+                  </span>
+                </button>
+              )}
+              {problem && (
+                <p className="mt-1 text-[10px] leading-relaxed text-amber-700">
+                  {problem === "taken"
+                    ? t("That username is taken.")
+                    : problem === "reserved"
+                      ? t("That username is reserved.")
+                      : problem === "too-short" || problem === "too-long"
+                        ? t("Usernames are 3–20 characters.")
+                        : problem === "charset"
+                          ? t("Letters, digits, - and _ only.")
+                          : t("Couldn’t save that — try again.")}
+                </p>
+              )}
+              {!username && !editing && !problem && (
+                <p className="mt-1 text-[10px] leading-relaxed text-stone-400">
+                  {t("Needed before you can publish or comment.")}
+                </p>
+              )}
+              <p
+                className="mt-1.5 truncate text-[10px] text-stone-400"
+                title={email}
+              >
+                {email}
+              </p>
+            </div>
             <Link
               href="/matchups"
               role="menuitem"
