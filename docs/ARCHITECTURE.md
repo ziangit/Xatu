@@ -313,6 +313,43 @@ require at least one visible `a[href="/"]`.
 
 ## Interface language — English ⇄ 中文 ⇄ 日本語 (2026-08-15, Japanese 2026-08-16)
 
+### Reserving height so the toggle doesn't move the page (2026-10-12)
+
+The cookie removes the _flash_ on load; it does nothing about the fact that the
+same page is simply **shorter in Chinese**. On the landing page the hero was
+364px tall in 日 and 228px in 中 — the headline fits on one line, the paragraph
+on two, and the CTA row doesn't wrap — so toggling the language moved the hero
+tree, the divider and every section below it by up to 56px.
+
+The rule, applied where a language difference moves something _other than
+itself_:
+
+- **Reserve the tallest language, in `em` so it survives a type-scale change.**
+  The three landing blurbs are `min-h-[6.5em]` (four lines at
+  `leading-relaxed`); the hero paragraph is `min-h-[4.875em]` (three).
+- **Pin the width of a flex child whose width is content-driven.** The hero text
+  column measured 500px in en/ja and 448px in zh, which slid the tree sideways
+  by 50px. It is now `lg:w-[31.25rem]` — 500px, what English already was, so
+  English is unchanged and the others come to it.
+- **Put the leftover slack where it is invisible.** `lg:min-h-[22.75rem]` on the
+  column absorbs the rest, and because the content is top-aligned the slack
+  lands _below the buttons_, reading as section padding. Reserving two lines on
+  the `h1` instead was tried first and looked broken: 中 fits on one line, and a
+  63px hole under a 60px headline reads as a bug, not as space.
+- **Only above `lg`.** On a phone the layout is one stacked column, nothing sits
+  beside the text, and reserved height would just be dead scroll.
+
+Verified by toggling in a real browser at 1440px and 1100px: the tree, both
+section dividers and the total document height are byte-identical across all
+three languages. Re-measure if the hero copy changes — the constant is the
+natural height of the tallest language, today Japanese.
+
+The other pages drift 0–38px (`/feed` 0, `/demo` 17, `/matchups` 18,
+`/demo/lookup` 18, `/login` 38) and are **deliberately left alone**: they flow
+top to bottom with nothing beside the text, so a paragraph one line taller
+moves only what follows it. Sprinkling magic min-heights through list UIs costs
+more than it buys.
+
 `app/i18n/` holds the whole thing. It is **not** in `lib/`: a React context is
 disqualified by the framework-free rule, and a UI dictionary isn't
 extension-bound either. `app/auth/` is the precedent — cross-page chrome that

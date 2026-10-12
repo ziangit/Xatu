@@ -1,5 +1,11 @@
 # Session handoff
 
+> Updated 2026-10-12: **switching language no longer moves the page.** The
+> landing hero was 364px tall in 日 and 228px in 中, so the toggle shifted the
+> tree and every section under it. Fixed by reserving the tallest language's
+> height — rules in docs/ARCHITECTURE.md → **"Reserving height so the toggle
+> doesn't move the page"**. Top section, newest first.
+>
 > Updated 2026-10-11: sharing is **finished** — a feed (`/feed`), an **Open
 > Graph card** so a `/g/<slug>` link unfurls on X with its title, byline and six
 > sprites, and **fork**, which copies a published guide into your own builder
@@ -63,6 +69,38 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-10-12: the language toggle moved the page
+
+User, with two screenshots of the landing page in EN and 中: _"one thing is when
+you change language, the layout changed. Anyway to fix it?"_
+
+Measured at 1440px before touching anything — the hero section was **484px in
+en, 452 in 中, 508 in 日**, from three independent causes: the headline is two
+lines in en/ja and one in 中 (63px), the paragraph three lines vs two (22px),
+and the CTA row wraps differently in all three (40 / 68 / 90). The tree also
+slid sideways 924 → 953 → 929, because the text column is a content-sized flex
+child and 中 sets narrower.
+
+Fixed by reserving the tallest language; the rules and the numbers are in
+docs/ARCHITECTURE.md → **"Reserving height so the toggle doesn't move the
+page"**. The part worth remembering:
+
+- **Where the slack goes decides whether it looks fixed or broken.** The first
+  cut reserved two lines on the `h1` as well, which measured perfectly and
+  looked wrong — 中 fits on one line, and a 63px hole under a 60px headline
+  reads as a bug. Dropping that reserve and letting the column's `min-h` absorb
+  it puts the slack _below the buttons_, where it is just section padding.
+  Judge this kind of change from a screenshot, not from the numbers.
+- English is deliberately unchanged: the pinned width (`lg:w-[31.25rem]`) is
+  what English already measured, so the other two come to it.
+- `lg:` only — on a phone nothing sits beside the text and reserved height
+  would be dead scroll.
+
+Verified by toggling in a real browser at 1440px and 1100px: tree, both section
+dividers and total document height byte-identical across all three. Other pages
+drift 0–38px and were left alone on purpose — they flow top to bottom, so a
+longer paragraph moves only what follows it.
 
 ## 2026-10-11: the share card, and fork
 

@@ -237,7 +237,20 @@ export default function LandingPage() {
         </header>
 
         <section className="flex flex-col items-start gap-12 pb-20 pt-12 lg:flex-row lg:items-center lg:gap-16 lg:pt-16">
-          <div className="max-w-xl">
+          {/* The hero is sized for its *tallest* language, not for English.
+              Chinese sets ~40% narrower and the headline fits on one line, so
+              left to itself this column is 228px tall in 中 and 364px in 日 —
+              a 136px jump, which moves the tree, the CTA and every section
+              below it the moment someone touches the language toggle.
+
+              The width is pinned for the same reason: a content-sized flex
+              child is 500px in en/ja and 448px in zh, which slid the tree
+              sideways by 50px. 500px is what English already measured, so
+              English is unchanged and the other two come to it.
+
+              If you edit this copy, re-measure: the number is the natural
+              height of the tallest language, and today that is Japanese. */}
+          <div className="w-full lg:min-h-[22.75rem] lg:w-[31.25rem]">
             <p
               className="land-rise text-[10px] font-semibold uppercase tracking-widest text-stone-400"
               style={{ animationDelay: "0.05s" }}
@@ -245,13 +258,20 @@ export default function LandingPage() {
               {t("Matchup planning for Pokémon doubles · bring 6 · pick 4")}
             </p>
             <h1
+              // Deliberately NOT height-reserved, unlike the paragraph below.
+              // Two lines were reserved here first and it looked broken: 中
+              // fits on one line, and a 63px hole under a 60px headline reads
+              // as a bug. The column's min-height absorbs it instead, where
+              // the slack lands below the buttons and is just whitespace.
               className="land-rise mt-4 font-display text-5xl font-bold leading-[1.04] tracking-tight md:text-6xl"
               style={{ animationDelay: "0.1s" }}
             >
               {t("See turn one coming.")}
             </h1>
             <p
-              className="land-rise mt-5 max-w-md text-sm leading-relaxed text-stone-500"
+              // Three lines reserved (3 x leading-relaxed = 4.875em), same
+              // reason as the headline: 中 uses two.
+              className="land-rise mt-5 min-h-[4.875em] max-w-md text-sm leading-relaxed text-stone-500"
               style={{ animationDelay: "0.2s" }}
             >
               {t(
@@ -298,13 +318,16 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Each blurb reserves four lines (4 x leading-relaxed), so this row
+            is the same height in every language — 中 uses three. Same rule as
+            the hero above; see docs/ARCHITECTURE.md -> "Interface language". */}
         <section className="grid grid-cols-1 gap-10 border-t border-stone-200 py-14 md:grid-cols-3">
           <div>
             <h2 className="text-sm font-semibold">
               <span className="mr-1 text-amber-600">⑂</span>{" "}
               {t("Branch the turn, not the essay")}
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-stone-500">
+            <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
                 "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.",
               )}
@@ -314,7 +337,7 @@ export default function LandingPage() {
             <h2 className="text-sm font-semibold">
               {t("Paste in, paste out")}
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-stone-500">
+            <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
                 "Import a pokepast.es link, a Showdown export, or a bare list of species. Moves come with their real type colors, and spread moves already know they aim themselves.",
               )}
@@ -324,7 +347,7 @@ export default function LandingPage() {
             <h2 className="text-sm font-semibold">
               {t("Yours, in your browser")}
             </h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-stone-500">
+            <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
                 "Teams and matchup boards save to a local library — no account, no upload. Reopen any pairing right where you left it.",
               )}
