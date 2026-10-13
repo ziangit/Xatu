@@ -289,13 +289,17 @@ export const ZH: Record<string, string> = {
   sample: "示例",
   samples: "示例队伍",
   all: "全部",
-  "VGCPastes code or name — MB712, MC20…": "VGCPastes 编号或名称——MB712、MC20…",
   "Searching…": "搜索中…",
   "No team with that code or name.": "没有找到对应编号或名称的队伍。",
   "Forget this team?": "从库中移除这支队伍？",
   Forget: "移除",
   "forget {team}": "移除 {team}",
   "panel|← back to options": "← 返回选项",
+  "Search VGCPastes — MB712, MC20, or a team name":
+    "搜索 VGCPastes——MB712、MC20，或队伍名称",
+  "Every team on the VGCPastes sheet — search it, or pick from your own and the samples below.":
+    "VGCPastes 表格里的全部队伍——可以搜索，也可以直接从下面你自己的队伍和示例里选。",
+  "clear the search": "清除搜索",
   "samples from every regulation": "所有赛制的示例队伍",
   imported: "导入",
   saved: "已保存",

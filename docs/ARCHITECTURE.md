@@ -1430,6 +1430,12 @@ Codes are `MB1`–`MB861` and `MC1`–`MC583`; the prefix is the regulation's
 shorthand, and **no code is ambiguous** (checked: zero duplicates across 1,443
 rows).
 
+- **It sits at the top of the list, not the bottom.** It shipped as a hairline
+  input under fifteen rows and the user could not find it — the same failure as
+  the damage-calculator link, which was invisible until it became a button. It
+  is now a tinted band above everything: bordered field, magnifier, a line
+  saying what it searches, and a ✕ to clear (which matters, because searching
+  hides your own teams and the samples).
 - **Search, never a list.** 1,443 teams is not something anyone scrolls, and
   the samples stay the default — empty box, exactly the old behaviour. A code
   matches exactly and case-insensitively; anything else is matched against the

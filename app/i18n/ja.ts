@@ -315,8 +315,6 @@ export const JA: Record<string, string> = {
   sample: "サンプル",
   samples: "サンプル",
   all: "すべて",
-  "VGCPastes code or name — MB712, MC20…":
-    "VGCPastes の番号または名前——MB712、MC20…",
   "Searching…": "検索中…",
   "No team with that code or name.":
     "その番号・名前のパーティは見つかりません。",
@@ -324,6 +322,11 @@ export const JA: Record<string, string> = {
   Forget: "削除",
   "forget {team}": "{team} を削除",
   "panel|← back to options": "← 選択に戻る",
+  "Search VGCPastes — MB712, MC20, or a team name":
+    "VGCPastes を検索——MB712、MC20、またはパーティ名",
+  "Every team on the VGCPastes sheet — search it, or pick from your own and the samples below.":
+    "VGCPastes シートの全パーティ——検索するか、下の自分のパーティとサンプルから選べます。",
+  "clear the search": "検索をクリア",
   "samples from every regulation": "すべてのレギュレーションのサンプル",
   imported: "読み込み",
   saved: "保存済み",

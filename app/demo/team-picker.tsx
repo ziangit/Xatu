@@ -259,6 +259,58 @@ function ExistingTeamList({
           {t("panel|← back to options")}
         </button>
       )}
+
+      {/* VGCPastes, by the id the sheet prints: MB712, MC20. Above the list,
+          not below it: as a hairline input under fifteen rows nobody found it,
+          the same way the damage-calculator link stayed invisible until it
+          became a button. The catalogue is 1,400+ teams, so it is reachable by
+          search and never listed — the samples stay the default. */}
+      <div className="border-b border-stone-200 bg-[#f6f5ef] px-3 py-2.5">
+        <label className="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-2.5 py-1.5 transition-colors focus-within:border-stone-500">
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            className="h-3.5 w-3.5 shrink-0 text-stone-400"
+          >
+            <circle
+              cx="7"
+              cy="7"
+              r="4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+            <path
+              d="M10.5 10.5 L14 14"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("Search VGCPastes — MB712, MC20, or a team name")}
+            spellCheck={false}
+            className="min-w-0 flex-1 bg-transparent text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              title={t("clear the search")}
+              className="shrink-0 rounded px-1 text-[11px] text-stone-400 hover:text-stone-800"
+            >
+              ✕
+            </button>
+          )}
+        </label>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-stone-400">
+          {t(
+            "Every team on the VGCPastes sheet — search it, or pick from your own and the samples below.",
+          )}
+        </p>
+      </div>
       {teams.length === 0 && emptyNote && (
         <p className="px-3 py-2 text-xs text-stone-400">{emptyNote}</p>
       )}
@@ -292,18 +344,6 @@ function ExistingTeamList({
       )}
       {!search && samples.map(row)}
 
-      {/* VGCPastes, by the id the sheet prints: MB712, MC20. The catalogue is
-          1,295 teams, so it is reachable by search and never listed — the
-          samples stay the default, which is what the picker is for. */}
-      <div className="mt-1 border-t border-stone-100 px-3 pb-1 pt-2">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("VGCPastes code or name — MB712, MC20…")}
-          spellCheck={false}
-          className="w-full rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
-        />
-      </div>
       {query && (
         <>
           {searching && (

@@ -167,6 +167,12 @@ User: delete _"Hard Trick Room team"_, and _"I want user able to search like
 'MB860', 'MC20' for teams from vgcpastes … but to prevent too many teams,
 default only show the sample teams. Is this hard to achieve?"_
 
+**The search box moved to the top of the list the same day** (user: _"make the
+search bar more obvious"_). It shipped as a hairline input _below_ fifteen rows
+and was unfindable — exactly the damage-calculator-link mistake from 2026-09-13,
+which the docs already warned about. It is now a tinted band at the top with a
+magnifier, a caption and a clear ✕, 44px into the list instead of 400.
+
 **Not hard — the id was already in the table.** `community_teams.source_team_id`
 has carried the sheet's code since the first ingest and had never been queried,
 so this was an index, a query and a search box. Rules in docs/ARCHITECTURE.md →
