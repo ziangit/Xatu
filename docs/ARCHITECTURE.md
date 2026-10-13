@@ -1613,6 +1613,42 @@ message stays in the `title`. A user cannot act on "violates row-level security
 policy (USING expression)", and the part that matters — the board is safe
 locally — was buried behind it.
 
+## The team report (2026-10-13)
+
+Prose between the matchups, which is what the reference article
+(`docs/PRODUCT.md` → the note.com guide) actually looks like and what the
+reader never had.
+
+**It is not a block list.** The ask was one thing — text between two matchups —
+so the shape is a text slot keyed by the matchup below it, plus one at the end:
+`{ before: { <key>: string }, outro?: string }`. Nothing reorders, so there is
+no drag, no ordering logic, and nothing to reconcile when a matchup is added or
+removed.
+
+**It lives in its own `report jsonb` column, never inside `document`.** That
+string is simultaneously the storage format, the paste format, the board's
+dirty-check fingerprint and the extension's input; page furniture in it would
+mark every board dirty on a wording change. `null` means the page reads exactly
+as it did before reports existed, so nothing needed migrating.
+
+**The key is the opponent's roster code, not its team id — and this is the
+trap.** Publishing round-trips the set through `encodeGroup`, and
+`teamFromCompact` mints a **fresh `crypto.randomUUID()` for every team it
+decodes**. A report keyed by team id therefore publishes fine and renders
+nowhere. The roster code is derived from the six species, which _are_ stored,
+so it survives. Cost me two full round trips to find; `reportKey()` is the only
+place that decision lives.
+
+**No markdown, no HTML.** The only markup is `:Species:`, and a token that is
+not a real species stays literal text — so `Note: see below:` is never mangled
+and there is no escape syntax. Rendering author-supplied markup on a public
+page is an XSS surface, and `docs/PRODUCT.md` rules out the moderation tooling
+that would watch it.
+
+`description` stays separate and is labelled in the composer by where it shows
+up — it is the Open Graph description and the feed card's subtitle, so prose
+moving into the report must not take the link preview with it.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

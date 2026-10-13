@@ -3,6 +3,7 @@
 import { getSupabase } from "../auth/client";
 import { loadMyUsername } from "../auth/profile";
 import { encodeGroup } from "./workflow-io";
+import { pruneReport, reportKey, type Report } from "./report";
 import { newSlug, SLUG_RE } from "./slug";
 import type { SavedMatchup, StoredTeam } from "./storage";
 
@@ -28,6 +29,8 @@ export type PublishInput = {
   boards: SavedMatchup[];
   title: string;
   description: string;
+  /** The prose between matchups. Pruned to what can actually render. */
+  report?: Report | null;
 };
 
 export type PublishResult =
@@ -47,6 +50,7 @@ export type PublishedGroup = {
   regulation: string;
   species: string[];
   opponentCount: number;
+  report: Report | null;
   createdAt: string;
   updatedAt: string;
   author: string | null;
@@ -55,7 +59,13 @@ export type PublishedGroup = {
 };
 
 /** Where one of my sets is published, keyed by the set's team id. */
-export type MyPublished = { slug: string; title: string; updatedAt: string };
+export type MyPublished = {
+  slug: string;
+  title: string;
+  description: string;
+  report: Report | null;
+  updatedAt: string;
+};
 
 /**
  * Publish, or re-publish to the same slug when one is supplied.
@@ -96,6 +106,12 @@ export async function publishGroup(
     regulation: input.my.format,
     species: input.my.parsed.map((m) => m.species),
     opponent_count: input.boards.length,
+    // Null rather than `{}` when nothing was written, so the reader's "no
+    // report" path is a plain null check.
+    report: pruneReport(
+      input.report,
+      input.boards.map((b) => reportKey(b.setup.opp)),
+    ),
     updated_at: new Date().toISOString(),
   };
 
@@ -211,13 +227,15 @@ export async function loadMyPublished(): Promise<Map<string, MyPublished>> {
   if (!uid) return out;
   const { data } = await supabase
     .from("published_groups")
-    .select("slug,title,team_id,updated_at")
+    .select("slug,title,description,team_id,report,updated_at")
     .eq("user_id", uid);
   for (const row of data ?? []) {
     if (row.team_id)
       out.set(row.team_id, {
         slug: row.slug,
         title: row.title,
+        description: row.description ?? "",
+        report: (row.report as Report | null) ?? null,
         updatedAt: row.updated_at,
       });
   }
@@ -250,7 +268,7 @@ export async function loadPublished(
   const { data } = await supabase
     .from("published_groups")
     .select(
-      "slug,title,description,document,team_name,regulation,species,opponent_count,created_at,updated_at,user_id",
+      "slug,title,description,document,team_name,regulation,species,opponent_count,report,created_at,updated_at,user_id",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -273,6 +291,7 @@ export async function loadPublished(
     regulation: data.regulation,
     species: data.species,
     opponentCount: data.opponent_count,
+    report: (data.report as Report | null) ?? null,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     author: profile?.username ?? null,

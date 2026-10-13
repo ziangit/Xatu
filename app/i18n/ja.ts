@@ -225,6 +225,27 @@ export const JA: Record<string, string> = {
 
   // ── /matchups ──────────────────────────────────────────────────────────────
   publish: "公開",
+  "Team report": "パーティ報告",
+  "That set isn’t in this browser.": "このブラウザにそのグループはありません。",
+  Title: "タイトル",
+  Summary: "概要",
+  "Shown when you post the link, and on the feed.":
+    "リンクを共有したときとフィードに表示されます。",
+  "The report": "本文",
+  "Write between the matchups. Type a Pokémon’s name in colons — :Incineroar: — to drop its sprite into the line.":
+    "マッチアップの間に書けます。ポケモン名をコロンで挟む——:Incineroar:——とアイコンが入ります。",
+  "+ add text here": "+ ここに文章を追加",
+  "Why this matchup goes the way it does…": "この対面がこう進む理由……",
+  "+ sprite": "+ アイコン",
+  "Pokémon name…": "ポケモン名…",
+  Preview: "プレビュー",
+  "Publishing…": "公開中…",
+  "Update the published page": "公開ページを更新",
+  "see the page ↗": "ページを見る ↗",
+  "Pick a username first — it’s your byline.":
+    "先にユーザー名を決めてください——署名になります。",
+  report: "報告",
+  "write the report that goes with {team}": "{team} のパーティ報告を書く",
   "publish set →": "このグループを公開 →",
   "publish {team} and everything you've planned against":
     "{team} と、それに対して立てたプランをすべて公開します",
@@ -232,9 +253,7 @@ export const JA: Record<string, string> = {
     "{team} を公開して誰でも読めるようにする",
   "Publish this set": "このグループを公開",
   Publish: "公開する",
-  "Publishing…": "公開中…",
   Published: "公開しました",
-  Title: "タイトル",
   "Say something about it — optional": "説明を書く——任意",
   "copy link": "リンクをコピー",
   "open it ↗": "開く ↗",

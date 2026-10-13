@@ -40,6 +40,12 @@ Reference for the shape of the content this replaces:
   page is a **snapshot**: it changes only when its author re-publishes, so a posted
   link cannot shift under its readers. Viewers can fork it into their own builder
   and edit their copy; the original is immutable to everyone but its author.
+- **Team report** — a composer (`/matchups/<team>/report`) that puts the
+  author's prose _between_ the matchups, which is the shape the reference
+  article has. Plain text and `:Species:` tokens that render as sprites —
+  **no markdown and no HTML**, because this is a public page on a site with no
+  moderation tooling. Nothing is uploaded; sprites are hotlinked from Showdown
+  as everywhere else. Matchups keep their own order; there is nothing to drag.
 - **A minimal forum** — a feed of published matchups (newest, most liked), each with
   the author's text description, likes, and a flat comment list. Signed in to post.
   Deliberately not: images, nested replies, following, or trending ranked by views.

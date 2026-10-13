@@ -803,6 +803,15 @@ export default function MatchupsPage() {
                             {t("public ↗")}
                           </a>
                         )}
+                        <Link
+                          href={`/matchups/${encodeURIComponent(group.teamId)}/report`}
+                          title={t("write the report that goes with {team}", {
+                            team: group.team.name,
+                          })}
+                          className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
+                        >
+                          {t("report")}
+                        </Link>
                         <button
                           onClick={() =>
                             setPublishing(

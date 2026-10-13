@@ -157,6 +157,37 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-13: the team report
+
+User: make publishing "really a minimal team report" — a page before publish,
+text between matchups, Pokémon sprites in the prose, no image uploads. Then,
+narrowing it: _"no markdown. keep it simple, so no drag is acceptable, just
+allow me to add text between two match ups."_
+
+Built to that narrower ask. Rules in docs/ARCHITECTURE.md → **"The team
+report"**. What matters later:
+
+- **`report jsonb` on `published_groups`, never inside `document`.** That
+  string is storage, paste format, dirty-check fingerprint and extension input
+  all at once. `null` = the old rendering, so nothing migrated.
+- **Keyed by the opponent's roster code, not its team id.** Publishing
+  round-trips through `encodeGroup` and `teamFromCompact` mints a fresh uuid
+  per decoded team — so an id-keyed report publishes fine and renders
+  _nowhere_. Two round trips to find; `reportKey()` is the single place that
+  decision lives, and a test says why.
+- **`:Species:` tokens, no markdown, no HTML.** A token that is not a real
+  species stays literal, so ordinary colons in prose are safe and there is no
+  escape syntax. Markup on a public page is an XSS surface and PRODUCT.md rules
+  out the moderation that would watch it.
+- **`description` stayed separate**, labelled in the composer as "shown when
+  you post the link" — it feeds the OG card and the feed subtitle, and prose
+  moving into the report must not empty the link preview.
+
+**A debugging note worth keeping**: `cdp.mjs` collects `Log.entryAdded` only,
+so a page's `console.log` is **invisible** to it. Instrumenting through
+`window.__x` is what finally showed that state was updating but under a uuid
+key. Don't trust "no logs" from that helper as "no render".
+
 ## 2026-10-13: publishing, from the board
 
 User, on a board: _"and how to publish this team?"_ It was only on `/matchups`,

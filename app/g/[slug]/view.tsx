@@ -12,6 +12,8 @@ import { BoardView } from "../board-view";
 import { Discussion } from "../discussion";
 import { ForkButton } from "../fork";
 import { AuthorControls } from "../author-controls";
+import { ReportProse } from "../report-prose";
+import { reportKey } from "../../demo/report";
 
 /**
  * A published group, read-only, at a short slug fit to post on X.
@@ -135,6 +137,12 @@ export function PublishedView({ slug }: { slug: string }) {
 
             {group?.boards.map((board) => (
               <section key={board.opp.id} className="mt-10">
+                {/* The author's words above the matchup they are about. A post
+                    with no report renders nothing here and reads exactly as it
+                    did before reports existed. */}
+                <ReportProse
+                  text={post.report?.before?.[reportKey(board.opp)]}
+                />
                 <h2 className="flex items-center gap-2 text-sm font-bold text-stone-800">
                   <span className="flex">
                     {board.opp.parsed.map((m, i) => (
@@ -162,6 +170,8 @@ export function PublishedView({ slug }: { slug: string }) {
                 )}
               </section>
             ))}
+
+            <ReportProse text={post.report?.outro} className="mt-10" />
 
             <Discussion slug={post.slug} />
           </>
