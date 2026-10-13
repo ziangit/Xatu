@@ -62,12 +62,17 @@ export function ImportPanel({
   label,
   onImport,
   onCancel,
+  cancelLabel,
   multi = false,
 }: {
   label: string;
   onImport: (teams: Omit<StoredTeam, "id">[]) => void;
   /** Renders a cancel button that backs out of the panel. */
   onCancel?: () => void;
+  /** What backing out *means* here. When the panel was opened from a choice
+   * box, it goes back to that box, and saying "cancel" would read as
+   * "abandon everything" — which is a different control. */
+  cancelLabel?: string;
   /** Accept several teams from one paste (opposing-team lists). */
   multi?: boolean;
 }) {
@@ -286,7 +291,7 @@ export function ImportPanel({
             onClick={onCancel}
             className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
           >
-            {t("cancel")}
+            {cancelLabel ?? t("cancel")}
           </button>
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}

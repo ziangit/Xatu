@@ -1,5 +1,9 @@
 # Session handoff
 
+> Updated 2026-10-12: the team chooser's panels have a **step back** to the
+> New team / Use existing choice — `cancel` threw the draft away instead.
+> Fourth missing-back report; the rule is now in docs/ARCHITECTURE.md.
+>
 > Updated 2026-10-12: the picker can **search VGCPastes by code** (`MB860`,
 > `MC20`) — the id was already a column and had simply never been queried.
 > Samples stay the default. Saved teams can now be **deleted** (there was no
@@ -133,6 +137,29 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: a panel needs a step back, not just an exit
+
+User, on the import panel inside a new set: _"here should be a back button to
+choose from new or existing"_. Right — `cancel` there ran the chooser's
+`onCancel`, which throws the whole draft away, so opening the import panel was a
+one-way door. **Fourth** time a missing way back has been reported.
+
+- Both non-initial modes (import, existing list) now carry a control back to the
+  choice box. Where nothing is behind it (`startOn: "import"`), backing out is
+  still cancelling and says so.
+- **It names its destination — `← back to options`, not `← back`.** My first cut
+  used `← back` and the browser check caught it hitting the _page's_ BackLink
+  instead: `/matchups` already renders `← back` in its action row. That is the
+  collision docs/ARCHITECTURE.md's navigation rule exists to prevent, and I had
+  reintroduced it. Verified after: one `← back` on the page, panels say
+  something else.
+- `ImportPanel` took a `cancelLabel` prop rather than growing a second button —
+  the control was already there, only its meaning changed.
+
+Verified in a browser, including the screenshot's exact spot: from a draft set's
+opponents import, back returns to New team / Use existing, stays on `/matchups`,
+and the draft set survives.
 
 ## 2026-10-12: VGCPastes search, and deleting a saved team
 

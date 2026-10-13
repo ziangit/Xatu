@@ -104,6 +104,7 @@ function ExistingTeamList({
   teams,
   onPick,
   onImport,
+  onBack,
   onForget,
   importLabel,
   emptyNote,
@@ -111,6 +112,9 @@ function ExistingTeamList({
   teams: StoredTeam[];
   onPick: (team: StoredTeam) => void;
   onImport: () => void;
+  /** Step back to the New team / Use existing choice. Absent = no choice box
+   * behind this list, so there is nowhere to go back to. */
+  onBack?: () => void;
   /** Drop a saved team from the library. Absent = not offered. */
   onForget?: (team: StoredTeam) => void;
   importLabel: string;
@@ -247,6 +251,14 @@ function ExistingTeamList({
 
   return (
     <div className="grow-in rounded-lg border border-stone-200 bg-white py-1">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="w-full border-b border-stone-100 px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50 hover:text-stone-700"
+        >
+          {t("panel|← back to options")}
+        </button>
+      )}
       {teams.length === 0 && emptyNote && (
         <p className="px-3 py-2 text-xs text-stone-400">{emptyNote}</p>
       )}
@@ -359,6 +371,22 @@ export function TeamChooser({
   };
 
   /**
+   * One step back, not all the way out. Opening the import panel or the
+   * existing list used to be a one-way door: its `cancel` ran the chooser's
+   * `onCancel`, which throws the whole draft away. The way back to "New team
+   * or Use existing" simply did not exist (user, three times now).
+   *
+   * When the chooser was opened straight into import (`startOn: "import"`)
+   * there is no choice box behind it, so backing out *is* cancelling.
+   *
+   * It names its destination rather than saying "← back": the page's own
+   * BackLink says exactly that, and two identical labels on one screen is the
+   * collision docs/ARCHITECTURE.md's navigation rule exists to prevent.
+   */
+  const hasChoice = startOn === "choice";
+  const back = hasChoice ? () => setMode("choice") : onCancel;
+
+  /**
    * Drop a team from the library. `forgetTeams` refuses while any board or the
    * in-progress setup still names it, so this cannot orphan a plan — and when
    * it refuses, the row simply stays, which is the honest outcome.
@@ -403,6 +431,8 @@ export function TeamChooser({
         <ImportPanel
           label={label}
           multi={multi}
+          onCancel={back}
+          cancelLabel={hasChoice ? t("panel|← back to options") : undefined}
           onImport={(teams) =>
             onPick(
               teams.map((team) =>
@@ -413,7 +443,6 @@ export function TeamChooser({
               ),
             )
           }
-          onCancel={onCancel}
         />
       )}
 
@@ -422,6 +451,7 @@ export function TeamChooser({
           teams={existing}
           onPick={(team) => onPick([team])}
           onImport={() => setMode("import")}
+          onBack={hasChoice ? () => setMode("choice") : undefined}
           onForget={forget}
           importLabel={importLabel}
           emptyNote={emptyNote}

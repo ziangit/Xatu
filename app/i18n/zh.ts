@@ -295,6 +295,7 @@ export const ZH: Record<string, string> = {
   "Forget this team?": "从库中移除这支队伍？",
   Forget: "移除",
   "forget {team}": "移除 {team}",
+  "panel|← back to options": "← 返回选项",
   "samples from every regulation": "所有赛制的示例队伍",
   imported: "导入",
   saved: "已保存",

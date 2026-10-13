@@ -323,6 +323,7 @@ export const JA: Record<string, string> = {
   "Forget this team?": "このパーティをライブラリから削除しますか？",
   Forget: "削除",
   "forget {team}": "{team} を削除",
+  "panel|← back to options": "← 選択に戻る",
   "samples from every regulation": "すべてのレギュレーションのサンプル",
   imported: "読み込み",
   saved: "保存済み",

@@ -1400,6 +1400,23 @@ changed nothing**, because RLS filters the rows out before the delete sees
 them. `unpublishGroup` therefore asks for `.select("slug")` and treats an empty
 result as failure. This is the same trap recorded for the catalogue in 2026-08-12.
 
+## A panel's modes need a step back, not just an exit (2026-10-12)
+
+`cancel` is not `back`. The team chooser's import panel had a working cancel
+that ran the chooser's `onCancel` — which throws the whole draft set away — so
+opening it was a **one-way door**: there was no route back to "New team / Use
+existing". Fourth time the user has reported a missing way back.
+
+The rule, on top of **"no page is a dead end"**: a panel with modes needs a
+control back to the previous mode from every non-initial one, and that control
+**names its destination** — `← back to options`, never `← back`. The page's own
+`BackLink` already renders `← back`, and two identical labels on one screen is
+the exact collision the navigation rule was written to stop (verified: the page
+now has one `← back` and the panels say something else).
+
+Where there is no mode behind the current one — `TeamChooser` opened with
+`startOn: "import"` — backing out _is_ cancelling, and the control says so.
+
 ## Reaching the catalogue: search by VGCPastes code (2026-10-12)
 
 The catalogue has been 1,295+ teams since August with **no way to reach any of
