@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   BackLink,
   HeaderNav,
@@ -10,6 +9,7 @@ import {
   Wordmark,
 } from "../../../nav";
 import { useLang } from "../../../i18n/provider";
+import { InlineConfirm, useCopy } from "../../../ui";
 import { MonIcon } from "../../../demo/components";
 import { TeamSprites } from "../../../demo/team-picker";
 import { groupByMyTeam, loadMatchups } from "../../../demo/storage";
@@ -17,6 +17,7 @@ import type { SavedMatchup, StoredTeam } from "../../../demo/storage";
 import {
   loadMyPublished,
   publishGroup,
+  unpublishGroup,
   type MyPublished,
 } from "../../../demo/publish";
 import { parseReportText, reportKey, type Report } from "../../../demo/report";
@@ -36,7 +37,6 @@ import { SpeciesToken } from "./species-token";
  */
 export function ReportComposer({ teamId }: { teamId: string }) {
   const { t, n } = useLang();
-  const router = useRouter();
   const [team, setTeam] = useState<StoredTeam | null>(null);
   const [boards, setBoards] = useState<SavedMatchup[]>([]);
   const [published, setPublished] = useState<MyPublished | null>(null);
@@ -49,6 +49,12 @@ export function ReportComposer({ teamId }: { teamId: string }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [slug, setSlug] = useState<string | null>(null);
+  const [confirmGone, setConfirmGone] = useState(false);
+  const { copied, copy } = useCopy();
+  const url =
+    slug && typeof window !== "undefined"
+      ? `${window.location.origin}/g/${slug}`
+      : null;
 
   useEffect(() => {
     let alive = true;
@@ -100,6 +106,19 @@ export function ReportComposer({ teamId }: { teamId: string }) {
   };
 
   /** One writable gap. Empty until you ask for it, so the page stays quiet. */
+  /** Take it down. The set itself is untouched — only the public copy goes. */
+  const unpublish = async () => {
+    if (!slug) return;
+    setBusy(true);
+    const ok = await unpublishGroup(slug);
+    setBusy(false);
+    setConfirmGone(false);
+    if (ok) {
+      setSlug(null);
+      setPublished(null);
+    } else setProblem("error");
+  };
+
   /** One writable gap, keyed by the matchup it sits above. */
   const gap = (value: string, set: (v: string) => void) => (
     <div className="py-1">
@@ -218,14 +237,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                     ? t("Update the published page")
                     : t("Publish")}
               </button>
-              {slug && (
-                <button
-                  onClick={() => router.push(`/g/${slug}`)}
-                  className="text-xs text-stone-500 underline-offset-2 hover:text-stone-900 hover:underline"
-                >
-                  {t("see the page ↗")}
-                </button>
-              )}
+
               {problem && (
                 <span className="text-[11px] text-amber-700">
                   {problem === "no-username"
@@ -240,6 +252,62 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                 </span>
               )}
             </div>
+
+            {/* The link, where the work that produced it is. This used to live
+                in a panel on /matchups beside a *second* publish button, so the
+                obvious button gave the old title-and-text flow and the report
+                sat behind another one. One path now. */}
+            {url && (
+              <div className="grow-in mt-4 rounded-lg border border-stone-200 bg-white p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                  {t("Published")}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded bg-stone-50 px-2 py-1.5 text-xs text-stone-700">
+                    {url}
+                  </code>
+                  <button
+                    onClick={() => copy(url)}
+                    className="shrink-0 rounded bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:opacity-80"
+                  >
+                    {copied ? t("Copied ✓") : t("copy link")}
+                  </button>
+                  <a
+                    href={`/g/${slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-[11px] text-stone-500 underline-offset-2 hover:text-stone-900 hover:underline"
+                  >
+                    {t("open it ↗")}
+                  </a>
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
+                  {t(
+                    "Anyone with the link can read it. Publish again to update it.",
+                  )}
+                </p>
+                <div className="mt-2">
+                  {confirmGone ? (
+                    <InlineConfirm
+                      question={t(
+                        "Take this off the web? Your set stays here.",
+                      )}
+                      confirmLabel={t("Unpublish")}
+                      busy={busy}
+                      onConfirm={() => void unpublish()}
+                      onCancel={() => setConfirmGone(false)}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setConfirmGone(true)}
+                      className="text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-[#e5484d] hover:underline"
+                    >
+                      {t("unpublish")}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 

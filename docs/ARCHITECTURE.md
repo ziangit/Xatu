@@ -1615,6 +1615,15 @@ locally — was buried behind it.
 
 ## The team report (2026-10-13)
 
+**The composer _is_ the publish flow.** It shipped first as a separate `report`
+button beside the old `publish`, which opened an inline title-and-description
+panel — so the obvious button gave the old experience and the report hid behind
+the other one ("when i try to publish it is still title + text"). There is one
+button per set now and it goes to `/matchups/<team>/report`, which carries the
+title, the summary, the prose, Publish/Update, and once published the link with
+copy, open and unpublish. `publish-panel.tsx` is gone, and so is the
+`?publish=` deep link the board needed to open it.
+
 Prose between the matchups, which is what the reference article
 (`docs/PRODUCT.md` → the note.com guide) actually looks like and what the
 reader never had.

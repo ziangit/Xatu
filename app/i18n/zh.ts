@@ -226,10 +226,8 @@ export const ZH: Record<string, string> = {
   "publish {team} and everything you've planned against":
     "发布 {team} 以及你为它规划的全部对阵",
   "publish {team} so anyone can read it": "发布 {team}，让任何人都能查看",
-  "Publish this set": "发布这一组",
   Publish: "发布",
   Published: "已发布",
-  "Say something about it — optional": "写点说明——可不填",
   "copy link": "复制链接",
   "open it ↗": "打开 ↗",
   "Anyone with the link can read it. Publish again to update it.":
@@ -237,7 +235,6 @@ export const ZH: Record<string, string> = {
   "Pick a username first — it’s your byline. Open the account menu.":
     "请先设置用户名——它会作为署名。在账号菜单里设置。",
   "Sign in to publish.": "登录后才能发布。",
-  "A title is required.": "标题不能为空。",
   "That’s 5 new posts today — the daily limit. Editing a post you already published still works.":
     "今天已经发布 5 个新帖子——达到每日上限。已发布的帖子仍然可以继续修改。",
   "That’s 30 comments today — the daily limit.":

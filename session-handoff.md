@@ -190,6 +190,25 @@ exports at module load, which was worth fixing (`presets()` is lazy now, and
 `TeamChooser` is a dynamic import) — but it moved paint by **4ms**. Measure
 first.
 
+## 2026-10-13: two publish paths, one of them the old one
+
+User: _"when i try to publish it is still title + text with no feature I
+mentioned?"_ Correct, and my fault: the composer shipped behind a **separate**
+`report` button while `publish` still opened the old inline panel. The obvious
+button gave the old flow.
+
+One path now. The `publish` button on a set goes to the composer, which carries
+everything the panel did — title, summary, Publish/Update, and once published
+the link with copy, open and unpublish — plus the prose. `publish-panel.tsx` is
+deleted, the `publishing` state with it, and the board's `publish set →` goes
+to the composer directly, which also retires the `?publish=` deep link (back to
+one query intent).
+
+**The lesson, since it is the second time this session**: adding a feature
+beside the old path rather than replacing it leaves the old path as the default.
+A new surface that supersedes an old one has to _take its entry point_, not sit
+next to it.
+
 ## 2026-10-13: the team report
 
 User: make publishing "really a minimal team report" — a page before publish,

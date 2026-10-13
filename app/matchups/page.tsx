@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
 import { useLang } from "../i18n/provider";
-import { PublishPanel } from "./publish-panel";
 import {
   loadMyPublished,
   unpublishGroup,
@@ -136,8 +135,6 @@ export default function MatchupsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   /** Row awaiting its in-place delete confirmation (never window.confirm). */
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  /** Group whose publish panel is open, if any. */
-  const [publishing, setPublishing] = useState<string | null>(null);
   /** Which group was copied — the shared hook says *whether*, this says *which*. */
   const { copied, copy } = useCopy();
   const [copiedTeamId, setCopiedTeamId] = useState<string | null>(null);
@@ -266,17 +263,15 @@ export default function MatchupsPage() {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      // Two deep links, both from the board, both the same shape: "take me to
-      // this set, with this panel open". The board knows which set it is
-      // planning and this page does not, which is the whole reason they exist
-      // — `?new=1` and `?add=1` went with the builder. Read from `location`
-      // rather than useSearchParams, which would force a Suspense boundary
-      // around the whole page.
-      const params = new URLSearchParams(window.location.search);
-      const team = params.get("team");
+      // One deep link, from the board: "take me to this set with its
+      // add-opponents panel open". The board knows which set it is planning
+      // and this page does not. (Publishing used to need a second one; it
+      // goes straight to the composer route now.) Read from `location` rather
+      // than useSearchParams, which would force a Suspense boundary around the
+      // whole page.
+      const team = new URLSearchParams(window.location.search).get("team");
       if (team) setAddingTo(team);
-      const toPublish = params.get("publish");
-      if (toPublish) setPublishing(toPublish);
+
       void refresh();
     });
     return () => {
@@ -822,6 +817,11 @@ export default function MatchupsPage() {
                             {t("public ↗")}
                           </a>
                         )}
+                        {/* One button, and it goes to the composer. There
+                            used to be two — `report` here and `publish`
+                            opening an inline title-and-text panel — so the
+                            obvious one gave the old flow and the report hid
+                            behind the other. */}
                         <Link
                           href={`/matchups/${encodeURIComponent(group.teamId)}/report`}
                           title={t("write the report that goes with {team}", {
@@ -829,23 +829,10 @@ export default function MatchupsPage() {
                           })}
                           className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                         >
-                          {t("report")}
-                        </Link>
-                        <button
-                          onClick={() =>
-                            setPublishing(
-                              publishing === group.teamId ? null : group.teamId,
-                            )
-                          }
-                          title={t("publish {team} so anyone can read it", {
-                            team: group.team.name,
-                          })}
-                          className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
-                        >
                           {published.has(group.teamId)
                             ? t("published")
                             : t("publish")}
-                        </button>
+                        </Link>
                         <button
                           onClick={() => setConfirmId(`group:${group.teamId}`)}
                           title={t("delete {team} and all {count} it has", {
@@ -859,17 +846,6 @@ export default function MatchupsPage() {
                       </>
                     )}
                   </header>
-                  {publishing === group.teamId && (
-                    <div className="px-3 pb-1">
-                      <PublishPanel
-                        my={group.team}
-                        boards={group.rows.map((r) => r.entry)}
-                        published={published.get(group.teamId)}
-                        onChanged={() => void refresh()}
-                        onClose={() => setPublishing(null)}
-                      />
-                    </div>
-                  )}
                   {addingTo === group.teamId && (
                     <div className="border-b border-stone-100 px-4 py-3">
                       <TeamChooser

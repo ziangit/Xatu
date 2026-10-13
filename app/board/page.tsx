@@ -1220,7 +1220,7 @@ export default function SimPage() {
                     is on screen. */}
                 <span onClickCapture={saveIfDirty}>
                   <Link
-                    href={`/matchups?publish=${encodeURIComponent(setup.my.id)}`}
+                    href={`/matchups/${encodeURIComponent(setup.my.id)}/report`}
                     title={t(
                       "publish {team} and everything you've planned against",
                       {
