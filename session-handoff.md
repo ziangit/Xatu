@@ -190,6 +190,24 @@ exports at module load, which was worth fixing (`presets()` is lazy now, and
 `TeamChooser` is a dynamic import) — but it moved paint by **4ms**. Measure
 first.
 
+## 2026-10-13: the composer now looks like what it makes
+
+User: _"where is the place I add pokemon sprite? and this is way too small why
+don't you keep the layout of the match up page? Just don't let me do the edit
+of the match up here"_. Both right.
+
+- **The matchups are real boards now**, rendered with the reader's `BoardView`
+  inside `pointer-events-none`, at `max-w-6xl`. I had used one-line rows to
+  "keep the prose the focus", which is backwards — you cannot write around
+  matchups you cannot see.
+- **The sprite control was unfindable because it only rendered _inside_ an
+  already-open slot.** Same invisible-control mistake as the damage-calculator
+  link (2026-09-13) and the catalogue search (2026-10-12). Third time: a
+  control you need in order to _start_ cannot live behind the thing it starts.
+  It is a labelled `+ Pokémon sprite` button now.
+- **A closed slot renders its prose**, sprites included, so the page you edit
+  looks like the page you publish. The separate preview block went with it.
+
 ## 2026-10-13: two publish paths, one of them the old one
 
 User: _"when i try to publish it is still title + text with no feature I
