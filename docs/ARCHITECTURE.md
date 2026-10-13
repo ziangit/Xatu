@@ -1648,8 +1648,11 @@ keeps pixel art crisp. Still hotlinked from Showdown, so nothing is committed.
 
 **Report prose is a white card, the same material as a turn card.** The page
 has exactly two surfaces — white is content, cream is chrome — so prose laid
-straight onto the cream read as unplaced. The card is `w-fit max-w-2xl`: a
-six-word note in a 672px box reads as an empty input rather than a sentence.
+straight onto the cream read as unplaced. The card spans the **full content
+width, the same as the matchup below it** (user-directed, 2026-10-13): a report
+reads as one document with one left and right edge, and cards that each stop
+somewhere different read as a pile. An earlier `w-fit` version sized each card
+to its text and was rejected for exactly that.
 `ReportProse` carries no vertical margin of its own; the caller owns the
 spacing. In the composer, the **filled** slot is that published card itself
 rather than a card inside the dashed draft frame — the frame says
@@ -1661,8 +1664,8 @@ somewhere to type, and neither is content.
 Boxing the prose was not enough on its own — the thing that made a report look
 broken was eight hard-wrapped lines of `Ability:` / `EVs:` / `- Move` in a
 14px sans at 1.6 line-height, which is the one block of text every Pokémon
-site on earth sets in monospace. A run of consecutive set-shaped lines becomes
-a tinted monospace block with the species line as its heading, drawn
+site on earth sets in monospace. A run of consecutive set-shaped lines is set
+in monospace with the species line as its heading, drawn
 **verbatim** — nothing is parsed out of it and nothing is verified, so the
 no-battle-computation rule is untouched; noticing that a line begins with
 `Ability:` is typography, not a calculation.
@@ -1673,11 +1676,15 @@ least one line that only a set has (`@ item`, `Ability:`, `EVs:`, `IVs:`,
 as `- lead hard` / `- keep Protect` would turn into a code block; a test says
 so.
 
+**The set block carries no tint and no frame** (user-directed, 2026-10-13). It
+already sits inside the report card, and a box inside a box reads as a
+quotation from somewhere else rather than as the author's own team.
+
 **A sprite alone on its line is an illustration, not a word**, so it leaves the
-text flow — and when a set follows it the two render side by side, which is how
-an RMT reads and which fills the dead space a 96px sprite otherwise leaves
-beside it. A sprite written inside a sentence stays inline. That rule is what
-lets one syntax serve both uses without a second token.
+text flow — and a set that follows it stacks directly beneath, artwork over
+set, which is how every RMT introduces a Pokémon. A sprite written inside a
+sentence stays inline. That rule is what lets one syntax serve both uses
+without a second token.
 
 **It is not a block list.** The ask was one thing — text between two matchups —
 so the shape is a text slot keyed by the matchup below it, plus one at the end:

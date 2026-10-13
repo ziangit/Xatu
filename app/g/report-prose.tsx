@@ -12,19 +12,20 @@ import { parseReportBlocks, type Block } from "../demo/report";
  *
  * It renders as **a white card, the same material as a turn card**. The page
  * has exactly two surfaces — white is content, cream is chrome — so prose laid
- * straight onto the cream read as unplaced. The card is `w-fit`: a six-word
- * note in a 672px box reads as an empty input, not as a sentence.
+ * straight onto the cream read as unplaced. The card spans the **full content
+ * width**, the same as the matchup below it, so the report reads as one
+ * document with one left and right edge rather than as a column of boxes that
+ * each stop somewhere different.
  *
  * Inside, three things are set differently because they *are* different:
  *
- * - **A pasted Showdown set** gets monospace, tight leading and a tinted
- *   block. Set as prose it was a wall of hard-wrapped lines in a 1.6
- *   line-height sans, which is the one thing that made a report look broken.
- *   The lines are drawn verbatim; see `parseReportBlocks`.
+ * - **A pasted Showdown set** gets monospace and tight leading. Set as prose
+ *   it was a wall of hard-wrapped lines in a 1.6 line-height sans, which is
+ *   the one thing that made a report look broken. The lines are drawn
+ *   verbatim; see `parseReportBlocks`.
  * - **A sprite alone on its line** is an illustration, not a word, so it
- *   leaves the text flow — and when a set follows it, the two sit side by
- *   side. That is how an RMT reads, and it fills the dead space a 96px sprite
- *   otherwise leaves beside it.
+ *   leaves the text flow — and a set that follows it stacks directly beneath,
+ *   artwork over set, which is how every RMT introduces a Pokémon.
  * - **Everything else** is a paragraph at a reading measure.
  *
  * The sprite is the full gen-5 artwork at its **native 96px**, not the
@@ -51,10 +52,17 @@ function MonArt({ species }: { species: string }) {
   );
 }
 
-/** A pasted set, drawn the way every Pokémon site draws one. */
+/**
+ * A pasted set.
+ *
+ * Monospace and tight leading, because that is what a set is — but **no tint
+ * and no frame**. It already sits inside the report card, and a box inside a
+ * box reads as a quotation from somewhere else rather than as the author's own
+ * team. Reference RMTs run the set as plain text under the artwork.
+ */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
-    <div className="w-fit whitespace-pre rounded-md border border-stone-200 bg-stone-50 px-3 py-2 font-mono text-[12px] leading-[1.55] text-stone-600">
+    <div className="whitespace-pre font-mono text-[12px] leading-[1.6] text-stone-600">
       {lines.map((line, i) => (
         // The species line is the set's heading — without it the block has no
         // entry point and reads as eight equal lines.
@@ -95,15 +103,22 @@ export function ReportProse({
     const block = blocks[i];
     const next = blocks[i + 1];
     if (block.kind === "art" && next?.kind === "set") {
+      // Artwork over the set it introduces, tight together: they are one
+      // entry, and the gap the card's own rhythm would put between them
+      // reads as two unrelated things.
       out.push(
-        <div key={i} className="flex items-center gap-4">
+        <div key={i}>
           <MonArt species={block.species} />
           <SetBlock lines={next.lines} />
         </div>,
       );
       i += 1;
     } else if (block.kind === "art") {
-      out.push(<MonArt key={i} species={block.species} />);
+      out.push(
+        <div key={i}>
+          <MonArt species={block.species} />
+        </div>,
+      );
     } else if (block.kind === "set") {
       out.push(<SetBlock key={i} lines={block.lines} />);
     } else {
@@ -113,7 +128,7 @@ export function ReportProse({
 
   return (
     <div
-      className={`w-fit max-w-2xl space-y-3 rounded-lg border border-stone-200 bg-white px-5 py-4 text-sm leading-relaxed text-stone-700 ${className}`}
+      className={`space-y-3 rounded-lg border border-stone-200 bg-white px-5 py-4 text-sm leading-relaxed text-stone-700 ${className}`}
     >
       {out}
     </div>

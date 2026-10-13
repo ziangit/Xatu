@@ -353,9 +353,9 @@ function TextSlot({
             className="transition-colors hover:border-stone-400"
           />
         ) : (
-          // Same measure as the card it becomes, so a slot doesn't jump width
-          // the moment you write in it.
-          <span className="block max-w-2xl rounded-lg border border-dashed border-stone-300 bg-white/60 px-4 py-2.5 text-[11px] text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-700">
+          // Same width as the card it becomes — and as the matchup below it —
+          // so a slot doesn't jump when you write in it.
+          <span className="block rounded-lg border border-dashed border-stone-300 bg-white/60 px-4 py-2.5 text-[11px] text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-700">
             {t("+ add text here")}
           </span>
         )}
@@ -363,7 +363,7 @@ function TextSlot({
     );
 
   return (
-    <div className="max-w-2xl rounded-lg border border-dashed border-stone-300 bg-white/60 p-2.5">
+    <div className="rounded-lg border border-dashed border-stone-300 bg-white/60 p-2.5">
       <textarea
         value={value}
         autoFocus
