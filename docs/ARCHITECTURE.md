@@ -1388,11 +1388,18 @@ real group, and never written as a half-saved record. If the chosen team
 already heads a group, there is no draft at all — the existing group's add
 panel opens instead, so one team can never appear twice on the page.
 
-**One query intent survives, and it is a deep link, not a protocol.**
-`/matchups?team=<id>` opens that group's add-opponents panel. The board's
-`+ add opponent` needs it because the board is a different page and genuinely
-knows something this page does not: which set you were planning. `?new=1` and
-`?add=1` went with the builder.
+**Two query intents survive, and they are deep links, not a protocol.**
+`/matchups?team=<id>` opens that group's add-opponents panel and
+`/matchups?publish=<id>` opens its publish panel. The board needs both because it is a different page and genuinely knows
+something this page does not: which set you are planning. `?new=1` and `?add=1`
+went with the builder.
+
+**Publishing is offered on the board even though it acts on the set.** The
+scope really is the whole set — this team against every opponent — which is why
+the control lives on the set's header. But you are looking at the thing you
+want to publish, and a user who has to go and find it will ask where it is
+(they did). The board's copy says "publish **set**" so the scope is stated, and
+it saves first, or the snapshot would miss whatever is on screen.
 
 **`app/demo/team-picker.tsx` is the one team-choosing flow.** The builder had
 two near-copies — one for My Team, one for the opposing list — differing only

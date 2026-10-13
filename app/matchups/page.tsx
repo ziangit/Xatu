@@ -247,14 +247,17 @@ export default function MatchupsPage() {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      // The one surviving query intent. `?new=1` and `?add=1` went with the
-      // builder — this page can start and extend a set by itself now. What it
-      // cannot do from here is know which set the *board* was planning, so
-      // "+ add opponent" over there deep-links to the right group's panel.
-      // Read from `location` rather than useSearchParams, which would force a
-      // Suspense boundary around the whole page.
-      const team = new URLSearchParams(window.location.search).get("team");
+      // Two deep links, both from the board, both the same shape: "take me to
+      // this set, with this panel open". The board knows which set it is
+      // planning and this page does not, which is the whole reason they exist
+      // — `?new=1` and `?add=1` went with the builder. Read from `location`
+      // rather than useSearchParams, which would force a Suspense boundary
+      // around the whole page.
+      const params = new URLSearchParams(window.location.search);
+      const team = params.get("team");
       if (team) setAddingTo(team);
+      const toPublish = params.get("publish");
+      if (toPublish) setPublishing(toPublish);
       void refresh();
     });
     return () => {

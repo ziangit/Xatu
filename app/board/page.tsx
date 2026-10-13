@@ -1211,6 +1211,27 @@ export default function SimPage() {
                 >
                   {t("+ add opponent")}
                 </Link>
+                {/* Publishing acts on the whole **set** — this team against
+                    every opponent — not on the one board you are looking at,
+                    which is why it lives on the set's header. But you are
+                    looking at the thing you want to publish, so the board has
+                    to offer it; the label says "set" so the scope is not a
+                    surprise. Saves first, or the snapshot would miss whatever
+                    is on screen. */}
+                <span onClickCapture={saveIfDirty}>
+                  <Link
+                    href={`/matchups?publish=${encodeURIComponent(setup.my.id)}`}
+                    title={t(
+                      "publish {team} and everything you've planned against",
+                      {
+                        team: setup.my.name,
+                      },
+                    )}
+                    className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
+                  >
+                    {t("publish set →")}
+                  </Link>
+                </span>
                 {/* A button, not the hairline link it started as — nobody saw
                     that one. Still out of the right-hand row: those act on this
                     board (Reset, Import, Copy JSON, Save) and this leaves the

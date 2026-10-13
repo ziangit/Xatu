@@ -225,6 +225,9 @@ export const JA: Record<string, string> = {
 
   // ── /matchups ──────────────────────────────────────────────────────────────
   publish: "公開",
+  "publish set →": "このグループを公開 →",
+  "publish {team} and everything you've planned against":
+    "{team} と、それに対して立てたプランをすべて公開します",
   "publish {team} so anyone can read it":
     "{team} を公開して誰でも読めるようにする",
   "Publish this set": "このグループを公開",

@@ -202,6 +202,9 @@ export const ZH: Record<string, string> = {
 
   // ── /matchups ──────────────────────────────────────────────────────────────
   publish: "发布",
+  "publish set →": "发布这一组 →",
+  "publish {team} and everything you've planned against":
+    "发布 {team} 以及你为它规划的全部对阵",
   "publish {team} so anyone can read it": "发布 {team}，让任何人都能查看",
   "Publish this set": "发布这一组",
   Publish: "发布",

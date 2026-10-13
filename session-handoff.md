@@ -157,6 +157,29 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-13: publishing, from the board
+
+User, on a board: _"and how to publish this team?"_ It was only on `/matchups`,
+on the set's header — so the answer was "save, leave, find the set, publish",
+while looking straight at the thing they wanted to publish. Fifth missing
+affordance of the session.
+
+The board now carries **`publish set →`**, beside `+ add opponent`. It saves
+first (or the snapshot would miss what is on screen) and deep-links to
+`/matchups?publish=<teamId>`, which opens that set's publish panel.
+
+**The label says "set" on purpose.** Publishing acts on the whole group — this
+team against every opponent — not on the one board you are looking at. That is
+a real scope difference and the reason the control lives on the group header;
+naming it in the button is cheaper than explaining it afterwards.
+
+That makes two query intents, `?team=` and `?publish=`, both the same shape:
+_take me to this set, with this panel open_. Both exist because the board knows
+which set it is planning and `/matchups` does not.
+
+Verified: from a forked board, `publish set →` lands on
+`/matchups?publish=…` with the panel open and the title prefilled.
+
 ## 2026-10-13: "account sync failed" — a matchup id is per-account
 
 User, on the board: _"what does this mean"_ — an amber line reading _"saved to
