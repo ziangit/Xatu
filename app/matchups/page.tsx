@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
@@ -151,6 +151,17 @@ export default function MatchupsPage() {
   const [published, setPublished] = useState<Map<string, MyPublished>>(
     new Map(),
   );
+  /** Rows whose automatic upload failed — the only time sync is worth a word. */
+  const [syncFailed, setSyncFailed] = useState<Set<string>>(new Set());
+  /** Already attempted this visit, so refresh → sync → refresh cannot loop. */
+  const attempted = useRef<Set<string>>(new Set());
+
+  /** Badges flip as soon as the write lands — the refresh behind it only
+   * reconciles, so a row never sits there looking unchanged. */
+  const markInCloud = (ids: string[]) =>
+    setRows((prev) =>
+      prev.map((r) => (ids.includes(r.id) ? { ...r, inCloud: true } : r)),
+    );
 
   /**
    * One list, painted once. Earlier this rendered the browser-only rows first
@@ -168,11 +179,68 @@ export default function MatchupsPage() {
       return;
     }
     const result = await listCloudMatchups();
-    setRows(mergeRows(local, result.state === "ok" ? result.matchups : null));
+    const merged = mergeRows(
+      local,
+      result.state === "ok" ? result.matchups : null,
+    );
+    setRows(merged);
     setPublished(await loadMyPublished());
-    if (result.state === "ok") setCloud("ok");
-    else if (result.state === "off") setCloud("off");
-    else setCloud({ error: result.message });
+    if (result.state === "off") {
+      setCloud("off");
+      return;
+    }
+    if (result.state !== "ok") {
+      setCloud({ error: result.message });
+      return;
+    }
+    setCloud("ok");
+
+    /**
+     * Put anything browser-only into the account, without being asked.
+     *
+     * Every *write* path already mirrors — the board's save, an import, adding
+     * an opponent, a fork — so a row that is browser-only was made while
+     * signed out, or had a mirror fail. Asking the reader to notice that and
+     * press "upload" was the app showing its own plumbing: four controls
+     * (`upload all`, `upload`, and the `browser` / `account` badges that
+     * explained them) in service of a decision nobody wants to make.
+     *
+     * Sync is therefore silent when it works, and only says anything when it
+     * does not. Inlined rather than extracted so `refresh` closes over nothing
+     * but setters, refs and imports — a component-scope callee makes it an
+     * unstable reference and the mount effect's empty dep array a lint error.
+     */
+    const pending = merged.filter(
+      (r) => r.inBrowser && !r.inCloud && !attempted.current.has(r.id),
+    );
+    if (pending.length === 0) return;
+    const done: string[] = [];
+    const failed: string[] = [];
+    for (const row of pending) {
+      attempted.current.add(row.id);
+      const outcome = await upsertCloudMatchup(row.entry);
+      if (outcome === "ok") done.push(row.id);
+      else if (outcome !== "off") failed.push(row.id);
+    }
+    if (done.length)
+      setRows((prev) =>
+        prev.map((r) => (done.includes(r.id) ? { ...r, inCloud: true } : r)),
+      );
+    if (failed.length) setSyncFailed((prev) => new Set([...prev, ...failed]));
+  };
+
+  /** Try a failed row again, by hand — the one sync control left. */
+  const retrySync = async (row: Row) => {
+    setBusyId(row.id);
+    const outcome = await upsertCloudMatchup(row.entry);
+    setBusyId(null);
+    if (outcome !== "ok") return;
+    setSyncFailed((prev) => {
+      const next = new Set(prev);
+      next.delete(row.id);
+      return next;
+    });
+    markInCloud([row.id]);
   };
 
   useEffect(() => {
@@ -201,23 +269,6 @@ export default function MatchupsPage() {
     saveSetup(row.entry.setup);
     setActiveMatchupId(row.id);
     router.push("/board");
-  };
-
-  /** Badges flip as soon as the write lands — the refresh behind it only
-   * reconciles, so a row never sits there looking unchanged. */
-  const markInCloud = (ids: string[]) =>
-    setRows((prev) =>
-      prev.map((r) => (ids.includes(r.id) ? { ...r, inCloud: true } : r)),
-    );
-
-  const upload = async (row: Row) => {
-    setBusyId(row.id);
-    const result = await upsertCloudMatchup(row.entry);
-    setBusyId(null);
-    if (result === "ok") {
-      markInCloud([row.id]);
-      void refresh();
-    } else if (result !== "off") setCloud({ error: result });
   };
 
   /**
@@ -283,23 +334,6 @@ export default function MatchupsPage() {
     setRenamingId(null);
     if (!renameTeam(teamId, name)) return;
     setDraft((d) => (d && d.id === teamId ? { ...d, name } : d));
-    void refresh();
-  };
-
-  /** Whole group at once — a team's plans are worth syncing together. */
-  const uploadAll = async (pending: Row[]) => {
-    setBusyId(pending[0]?.id ?? null);
-    const done: string[] = [];
-    for (const row of pending) {
-      const result = await upsertCloudMatchup(row.entry);
-      if (result !== "ok" && result !== "off") {
-        setCloud({ error: result });
-        break;
-      }
-      if (result === "ok") done.push(row.id);
-    }
-    setBusyId(null);
-    markInCloud(done);
     void refresh();
   };
 
@@ -632,9 +666,6 @@ export default function MatchupsPage() {
         ) : (
           <div className="mt-6 space-y-6">
             {groupRows(rows).map((group, gi) => {
-              const pending = group.rows.filter(
-                (r) => r.inBrowser && !r.inCloud,
-              );
               // The wash marks what the *last paste* landed in, not provenance
               // — that's the badge's job, and it is permanent. Highlighting
               // every set that ever arrived in a document meant three groups on
@@ -725,15 +756,6 @@ export default function MatchupsPage() {
                       />
                     ) : (
                       <>
-                        {cloud === "ok" && pending.length > 0 && (
-                          <button
-                            onClick={() => uploadAll(pending)}
-                            disabled={busyId !== null}
-                            className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
-                          >
-                            {t("upload all ({n})", { n: pending.length })}
-                          </button>
-                        )}
                         <button
                           onClick={() => copyGroup(group)}
                           title={t("copy {team} and all {count} as JSON", {
@@ -917,29 +939,21 @@ export default function MatchupsPage() {
                           />
                         ) : (
                           <>
-                            <span className="flex shrink-0 gap-1">
-                              {row.inBrowser && (
-                                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-stone-500">
-                                  {t("browser")}
-                                </span>
-                              )}
-                              {row.inCloud && (
-                                <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-sky-700">
-                                  {t("account")}
-                                </span>
-                              )}
-                            </span>
-                            {cloud === "ok" &&
-                              row.inBrowser &&
-                              !row.inCloud && (
-                                <button
-                                  onClick={() => upload(row)}
-                                  disabled={busyId === row.id}
-                                  className="shrink-0 rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400 disabled:opacity-40"
-                                >
-                                  {t("upload")}
-                                </button>
-                              )}
+                            {/* Nothing is said while sync works, because
+                                nothing needs doing. A row only speaks up when
+                                its automatic upload failed. */}
+                            {syncFailed.has(row.id) && (
+                              <button
+                                onClick={() => void retrySync(row)}
+                                disabled={busyId === row.id}
+                                title={t("this one isn’t in your account yet")}
+                                className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-40"
+                              >
+                                {busyId === row.id
+                                  ? t("retrying…")
+                                  : t("not synced — retry")}
+                              </button>
+                            )}
                             <button
                               onClick={() => setRenamingId(row.id)}
                               className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"

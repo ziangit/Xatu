@@ -252,11 +252,13 @@ export const ZH: Record<string, string> = {
   "Delete this set — {count} — from {places}?":
     "从{places}删除这一组（{count}）？",
   "Delete set": "删除整组",
+  "not synced — retry": "未同步——重试",
+  "retrying…": "重试中…",
+  "this one isn’t in your account yet": "这一条还没有同步到你的账号",
   "delete set": "删除整组",
   "Delete from {places}?": "从{places}删除？",
   "this browser": "此浏览器",
   "your account": "你的账号",
-  "upload all ({n})": "全部上传（{n}）",
   "copy {team} and all {count} as JSON":
     "把 {team} 和它的 {count}一起复制为 JSON",
   "add opposing teams to plan against {team}":

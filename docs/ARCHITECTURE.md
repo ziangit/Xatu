@@ -1473,6 +1473,32 @@ saved teams (never for samples, which aren't in the library until picked).
 named a team, which is what stops this orphaning a plan. That guard is now
 unit-tested, because it went from an internal tidy-up to a user-facing delete.
 
+## Sync is not a decision the reader should make (2026-10-12)
+
+`/matchups` carried four controls — `upload all (N)`, a per-row `upload`, and
+the `browser` / `account` badges that existed to explain them. All four were the
+app showing its own plumbing.
+
+**Every write path already mirrors**: the board's save, an import, adding an
+opponent, a fork. So a browser-only row was one made while signed out, or one
+whose mirror failed. Neither is something to ask the reader to notice and act
+on. The page now uploads those itself on load and **says nothing when it
+works**; a row speaks up only when its upload failed, as one amber
+`not synced — retry`.
+
+What is left on a group: `copy JSON`, `＋ add teams`, `publish`, `delete set`.
+On a row: the opponent (opens the board), `rename`, `delete`.
+
+Two implementation notes:
+
+- **`attempted` is a ref**, so refresh → upload → refresh cannot loop.
+- **The upload loop is inlined into `refresh`, not extracted.** `refresh` is
+  called from a mount effect with an empty dep array, and that is only lint-
+  clean while it closes over nothing but setters, refs and imports. Calling a
+  component-scope `syncUp()` made it an unstable reference and
+  `react-hooks/exhaustive-deps` reported it immediately — a real signal, not
+  noise, and worth knowing before refactoring anything else out of `refresh`.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

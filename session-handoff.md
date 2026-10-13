@@ -1,5 +1,9 @@
 # Session handoff
 
+> Updated 2026-10-12: `/matchups` **syncs by itself** — `upload all`, the
+> per-row `upload` and the `browser`/`account` badges are gone, because every
+> write path already mirrored and the buttons were just plumbing on display.
+>
 > Updated 2026-10-12: the team chooser's panels have a **step back** to the
 > New team / Use existing choice — `cancel` threw the draft away instead.
 > Fourth missing-back report; the rule is now in docs/ARCHITECTURE.md.
@@ -137,6 +141,35 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: four buttons cut, by making sync automatic
+
+User, on `/matchups`: _"too many buttons here, which ones can be cut?"_
+
+The answer was that four of them were one problem wearing four hats:
+`upload all (N)`, the per-row `upload`, and the `browser` / `account` badges
+that only existed to explain when those buttons mattered. **Every write path
+already mirrors to the account** — the board's save, imports, adding an
+opponent, a fork — so a browser-only row was one made while signed out or one
+whose mirror failed. Neither is a decision worth handing to the reader.
+
+Now the page uploads those rows itself on load and is silent when it works; a
+row says `not synced — retry` only when its upload actually failed. Rules in
+docs/ARCHITECTURE.md → **"Sync is not a decision the reader should make"**.
+
+Left standing: `copy JSON`, `＋ add teams`, `publish`, `delete set` on a group;
+the opponent, `rename`, `delete` on a row.
+
+**The lint lesson is worth keeping**: the upload loop is _inlined_ into
+`refresh` rather than extracted. `refresh` runs from a mount effect with `[]`
+deps, which is only clean while it closes over nothing but setters, refs and
+imports. Extracting `syncUp()` made `refresh` an unstable reference and
+`exhaustive-deps` flagged it at once. Confirmed by linting HEAD and the working
+tree side by side, rather than assuming the warning was pre-existing.
+
+Verified with a throwaway account: signed out there are no badges and no upload
+control; signed in, a browser-only row reaches the `matchups` table **with no
+button pressed** and the page says nothing about it.
 
 ## 2026-10-12: a panel needs a step back, not just an exit
 

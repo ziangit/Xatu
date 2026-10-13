@@ -278,11 +278,14 @@ export const JA: Record<string, string> = {
   "Delete this set — {count} — from {places}?":
     "{places}からこのグループ（{count}）を削除しますか？",
   "Delete set": "グループを削除",
+  "not synced — retry": "未同期——再試行",
+  "retrying…": "再試行中…",
+  "this one isn’t in your account yet":
+    "これはまだアカウントに同期されていません",
   "delete set": "グループを削除",
   "Delete from {places}?": "{places}から削除しますか？",
   "this browser": "このブラウザ",
   "your account": "あなたのアカウント",
-  "upload all ({n})": "すべてアップロード（{n}）",
   "copy {team} and all {count} as JSON":
     "{team} とその {count}をまとめて JSON にコピー",
   "add opposing teams to plan against {team}":
