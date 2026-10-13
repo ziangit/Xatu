@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useCopy } from "../ui";
+import { InlineConfirm, useCopy } from "../ui";
 import { useT } from "../i18n/provider";
-import { publishGroup } from "../demo/publish";
+import {
+  publishGroup,
+  unpublishGroup,
+  type MyPublished,
+} from "../demo/publish";
 import type { SavedMatchup, StoredTeam } from "../demo/storage";
 
 /**
@@ -16,18 +20,26 @@ import type { SavedMatchup, StoredTeam } from "../demo/storage";
 export function PublishPanel({
   my,
   boards,
+  published,
+  onChanged,
   onClose,
 }: {
   my: StoredTeam;
   boards: SavedMatchup[];
+  /** Where this set is already public, if it is. */
+  published?: MyPublished;
+  /** Something changed on the server — the list should re-read. */
+  onChanged: () => void;
   onClose: () => void;
 }) {
   const t = useT();
   const { copied, copy } = useCopy();
-  const [title, setTitle] = useState(my.name);
+  const [title, setTitle] = useState(published?.title ?? my.name);
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
-  const [slug, setSlug] = useState<string | null>(null);
+  const [slug, setSlug] = useState<string | null>(published?.slug ?? null);
+  const [confirmGone, setConfirmGone] = useState(false);
+  const [gone, setGone] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
   const url =
@@ -40,8 +52,26 @@ export function PublishPanel({
     setProblem(null);
     const r = await publishGroup({ my, boards, title, description });
     setBusy(false);
-    if (r.ok) setSlug(r.slug);
-    else setProblem(r.reason);
+    if (r.ok) {
+      setSlug(r.slug);
+      onChanged();
+    } else setProblem(r.reason);
+  };
+
+  /** Take it down. The set itself is untouched — only the public copy goes. */
+  const unpublish = async () => {
+    if (!slug) return;
+    setBusy(true);
+    const ok = await unpublishGroup(slug);
+    setBusy(false);
+    setConfirmGone(false);
+    if (!ok) {
+      setProblem("error");
+      return;
+    }
+    setGone(true);
+    setSlug(null);
+    onChanged();
   };
 
   if (url) {
@@ -72,12 +102,30 @@ export function PublishPanel({
         <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
           {t("Anyone with the link can read it. Publish again to update it.")}
         </p>
-        <button
-          onClick={onClose}
-          className="mt-2 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-        >
-          {t("close")}
-        </button>
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+          >
+            {t("close")}
+          </button>
+          {confirmGone ? (
+            <InlineConfirm
+              question={t("Take this off the web? Your set stays here.")}
+              confirmLabel={t("Unpublish")}
+              busy={busy}
+              onConfirm={() => void unpublish()}
+              onCancel={() => setConfirmGone(false)}
+            />
+          ) : (
+            <button
+              onClick={() => setConfirmGone(true)}
+              className="text-[11px] text-stone-400 underline-offset-2 transition-colors hover:text-[#e5484d] hover:underline"
+            >
+              {t("unpublish")}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -87,6 +135,11 @@ export function PublishPanel({
       <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
         {t("Publish this set")}
       </p>
+      {gone && (
+        <p className="mt-1 text-[11px] text-stone-500">
+          {t("Taken down. The link no longer works for anyone.")}
+        </p>
+      )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}

@@ -259,6 +259,22 @@ export const JA: Record<string, string> = {
   "Build one →": "作ってみる →",
   "team id {id}": "パーティ id {id}",
   "matchup id {id}": "マッチアップ id {id}",
+  unpublish: "公開を取り消す",
+  Unpublish: "公開を取り消す",
+  "public ↗": "公開中 ↗",
+  "open the published page": "公開ページを開く",
+  "Take this off the web? Your set stays here.":
+    "ウェブから取り下げますか？このグループは残ります。",
+  "Take this off the web? Your set stays in your matchups.":
+    "ウェブから取り下げますか？このグループはマイマッチアップに残ります。",
+  "Taken down. The link no longer works for anyone.":
+    "取り下げました。このリンクは誰からも開けません。",
+  "Only you can see this — it's your post.":
+    "これが見えるのはあなただけです——あなたの投稿です。",
+  "Couldn’t take it down — try again.":
+    "取り下げられませんでした——もう一度お試しください。",
+  "Delete this set — {count} — from {places}, and take its published page down?":
+    "{places}からこのグループ（{count}）を削除し、公開ページも取り下げますか？",
   "Delete this set — {count} — from {places}?":
     "{places}からこのグループ（{count}）を削除しますか？",
   "Delete set": "グループを削除",

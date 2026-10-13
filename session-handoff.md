@@ -1,5 +1,9 @@
 # Session handoff
 
+> Updated 2026-10-12: **a published post can be taken down** — from the post
+> itself, or with the set. Fixed on the way: re-publishing a set used to mint a
+> _second_ public post. docs/ARCHITECTURE.md → **"Taking a post down"**.
+>
 > Updated 2026-10-12: **the builder is gone — `/demo` merged into
 > `/matchups`.** They were a list and a detail view of one noun; a set now
 > expands in place. Routes are `/`, `/matchups`, `/board`, `/lookup`, `/feed`,
@@ -119,6 +123,43 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: unpublish, and one post per set
+
+User: _"Can I delete my published match up?"_ **No** — the RLS policy existed
+(`published groups are author-deletable`) but had never been given a caller.
+Checking turned up a worse, quieter bug beside it.
+
+**Re-publishing a set made a second post.** `publishGroup` takes an
+`existingSlug` parameter and nothing ever passed one, so every publish minted a
+fresh slug — while the panel said "Publish again to update it" and PRODUCT.md
+called a published page a snapshot. Only one row existed live, so it had not
+bitten yet. Same root cause as the missing delete: nothing recorded where a set
+had been published. Fixed with `published_groups.team_id` + a partial unique
+index; rules in docs/ARCHITECTURE.md → **"Taking a post down"**.
+
+- **Two delete paths, deliberately.** On the post (`AuthorControls`) the
+  question is just "is this mine", which works for **every** post — including
+  the one published before `team_id` existed. On `/matchups` the group header
+  shows a `public ↗` chip, the publish panel offers `unpublish`, and
+  `delete set` now takes the public copy with it and says so in the
+  confirmation.
+- **`adoptLegacyPost`** stops the one pre-existing post being orphaned: a
+  publish with no `team_id` match adopts a single unstamped post of mine with
+  the same team name. Requires _exactly one_ match, so same-named sets cannot
+  swap pages.
+- **Judge a delete by rows, not status** — verified live: a stranger's DELETE
+  and an anonymous DELETE each return **204 having changed nothing**, because
+  RLS filters first. `unpublishGroup` asks for the row back and treats empty as
+  failure. (The 2026-08-12 catalogue note warned about exactly this.)
+
+Verified against the live database with throwaway accounts: second publish of
+the same set is refused by the index (23505), a _different_ set is still its own
+post, stranger and anonymous deletes change nothing, the author's delete returns
+the row, and a legacy post with no `team_id` is still removable. Then in a
+browser: signed out there is **no** unpublish control; signed in as the author
+it appears, confirms in place (no dialog), and lands on `/feed` with the row
+gone. The user's own post was never touched.
 
 ## 2026-10-12: first principles — the builder merged into /matchups
 

@@ -1369,6 +1369,37 @@ reads that file now.
 Net: 1,502 lines across two pages became 1,204 across a page and a module,
 one route disappeared, and 34 dictionary entries lost their last caller.
 
+## Taking a post down, and one post per set (2026-10-12)
+
+Publishing shipped without an unpublish, and with a bug that only shows on the
+second click: `publishGroup` never passed `existingSlug`, so **re-publishing a
+set minted a second public post**. The panel's own copy said "Publish again to
+update it" and docs/PRODUCT.md calls a published page a snapshot that "changes
+only when its author re-publishes" — both were false. Same root cause as the
+missing delete: nothing recorded _where_ a set had been published.
+
+- **`published_groups.team_id`** (text — a set headed by a built-in sample has
+  an id like `preset-0`) plus a partial unique index on `(user_id, team_id)
+where team_id is not null`. One post per set per author, enforced by the
+  database rather than by the client remembering.
+- **Two delete paths, on purpose.** `/matchups` can only offer one for a set it
+  can match by `team_id`; the post's own page asks the simpler question "is
+  this mine", which is answerable for **every** post including ones published
+  before the column existed. The list path also makes `delete set` take the
+  public copy with it — deleting your work used to leave a page up that nothing
+  in the app pointed at any more.
+- **`adoptLegacyPost`** closes the migration gap: on publish, a set with no
+  `team_id` match looks for an unstamped post of mine with the same team name
+  and adopts it. Narrow on purpose — it requires **exactly one** match, so two
+  sets sharing a name can never swap pages — and self-erasing, since the row
+  has a `team_id` afterwards.
+
+**Judge a delete by rows, not by status.** Verified live with two throwaway
+accounts: a stranger's DELETE and an anonymous DELETE both return **204 having
+changed nothing**, because RLS filters the rows out before the delete sees
+them. `unpublishGroup` therefore asks for `.select("slug")` and treats an empty
+result as failure. This is the same trap recorded for the catalogue in 2026-08-12.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

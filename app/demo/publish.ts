@@ -50,7 +50,12 @@ export type PublishedGroup = {
   createdAt: string;
   updatedAt: string;
   author: string | null;
+  /** The author's account id, so the reader can offer them a delete. */
+  userId: string;
 };
+
+/** Where one of my sets is published, keyed by the set's team id. */
+export type MyPublished = { slug: string; title: string; updatedAt: string };
 
 /**
  * Publish, or re-publish to the same slug when one is supplied.
@@ -79,6 +84,8 @@ export async function publishGroup(
 
   const row = {
     user_id: uid,
+    // Which set this is, so a second publish updates rather than duplicates.
+    team_id: input.my.id,
     title: title.slice(0, 120),
     description: input.description.trim().slice(0, 4000),
     document: encodeGroup(
@@ -92,33 +99,146 @@ export async function publishGroup(
     updated_at: new Date().toISOString(),
   };
 
-  if (existingSlug) {
-    // An UPDATE, so re-publishing an existing post never costs daily quota.
+  // Re-publishing this set updates the post it already has. Without this the
+  // same set published twice became two public posts, which contradicted both
+  // the panel's own "Publish again to update it" and docs/PRODUCT.md.
+  const slug =
+    existingSlug ??
+    (await publishedSlugFor(supabase, uid, input.my.id)) ??
+    (await adoptLegacyPost(supabase, uid, input.my.id, input.my.name));
+  if (slug) {
+    // An UPDATE, so re-publishing never costs daily quota either.
     const { error } = await supabase
       .from("published_groups")
       .update(row)
-      .eq("slug", existingSlug);
+      .eq("slug", slug);
     return error
       ? { ok: false, reason: "error", detail: error.message }
-      : { ok: true, slug: existingSlug };
+      : { ok: true, slug };
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {
-    const slug = newSlug();
+    const fresh = newSlug();
     const { error } = await supabase
       .from("published_groups")
-      .insert({ ...row, slug });
-    if (!error) return { ok: true, slug };
+      .insert({ ...row, slug: fresh });
+    if (!error) return { ok: true, slug: fresh };
     // P0001 is the daily cap in supabase/rate-limits.sql, raised by a trigger
-    // the client cannot go around. Distinct from 23505 (slug collision), which
-    // is just bad luck and worth retrying.
+    // the client cannot go around.
     if (error.code === "P0001") return { ok: false, reason: "rate-limited" };
     if (error.code !== "23505") {
       return { ok: false, reason: "error", detail: error.message };
     }
-    // 23505 on the primary key: that slug exists. Try another.
+    // 23505 is either the slug (bad luck, retry) or `published_groups_one_per_set`
+    // — another tab published this set a moment ago. Check before retrying, or
+    // the loop burns five slugs and fails on something already done.
+    const raced = await publishedSlugFor(supabase, uid, input.my.id);
+    if (raced) {
+      const { error: err } = await supabase
+        .from("published_groups")
+        .update(row)
+        .eq("slug", raced);
+      return err
+        ? { ok: false, reason: "error", detail: err.message }
+        : { ok: true, slug: raced };
+    }
   }
   return { ok: false, reason: "error", detail: "could not allocate a slug" };
+}
+
+/**
+ * A post of mine from before `team_id` existed, matched by the set's name.
+ *
+ * Without this, re-publishing a set that was published earlier would not find
+ * its post and would mint a second one — leaving the first orphaned and public
+ * with nothing in the app pointing at it. Deliberately narrow: it adopts only
+ * when **exactly one** unstamped post of mine carries that team name, so two
+ * sets that happen to share a name can never swap pages.
+ *
+ * One-way and self-erasing — once adopted the row has a `team_id` and this
+ * never looks at it again.
+ */
+async function adoptLegacyPost(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  userId: string,
+  teamId: string,
+  teamName: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("published_groups")
+    .select("slug")
+    .eq("user_id", userId)
+    .is("team_id", null)
+    .eq("team_name", teamName);
+  if (!data || data.length !== 1) return null;
+  const slug = data[0].slug;
+  const { error } = await supabase
+    .from("published_groups")
+    .update({ team_id: teamId })
+    .eq("slug", slug);
+  return error ? null : slug;
+}
+
+/** The slug this set is already published at, or null. */
+async function publishedSlugFor(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  userId: string,
+  teamId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("published_groups")
+    .select("slug")
+    .eq("user_id", userId)
+    .eq("team_id", teamId)
+    .maybeSingle();
+  return data?.slug ?? null;
+}
+
+/**
+ * Every set of mine that is published, keyed by the set's team id, so the
+ * list can say which ones are public without a request per group.
+ *
+ * Posts made before `team_id` existed carry none and are simply absent here.
+ * They are still removable from the post itself, which is the path that works
+ * for every post regardless.
+ */
+export async function loadMyPublished(): Promise<Map<string, MyPublished>> {
+  const out = new Map<string, MyPublished>();
+  const supabase = getSupabase();
+  if (!supabase) return out;
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return out;
+  const { data } = await supabase
+    .from("published_groups")
+    .select("slug,title,team_id,updated_at")
+    .eq("user_id", uid);
+  for (const row of data ?? []) {
+    if (row.team_id)
+      out.set(row.team_id, {
+        slug: row.slug,
+        title: row.title,
+        updatedAt: row.updated_at,
+      });
+  }
+  return out;
+}
+
+/**
+ * Take a post down. RLS refuses anyone but its author, so there is no owner
+ * check here — and judge the result by rows, not by status: an anon DELETE
+ * returns 204 having matched nothing, because the policy filters the rows out
+ * before the delete sees them.
+ */
+export async function unpublishGroup(slug: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("published_groups")
+    .delete()
+    .eq("slug", slug)
+    .select("slug");
+  return !error && (data?.length ?? 0) > 0;
 }
 
 /** One published group by slug, for the reader page. Works signed out. */
@@ -156,5 +276,6 @@ export async function loadPublished(
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     author: profile?.username ?? null,
+    userId: data.user_id,
   };
 }

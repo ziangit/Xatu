@@ -7,6 +7,11 @@ import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
 import { useLang } from "../i18n/provider";
 import { PublishPanel } from "./publish-panel";
+import {
+  loadMyPublished,
+  unpublishGroup,
+  type MyPublished,
+} from "../demo/publish";
 import { InlineConfirm, InlineRename, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
 import { TeamChooser, TeamSprites } from "../demo/team-picker";
@@ -142,6 +147,10 @@ export default function MatchupsPage() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   /** Team being renamed in place — my team by group id, an opponent by row id. */
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  /** Which of my sets are public, by team id. Empty when signed out. */
+  const [published, setPublished] = useState<Map<string, MyPublished>>(
+    new Map(),
+  );
 
   /**
    * One list, painted once. Earlier this rendered the browser-only rows first
@@ -160,6 +169,7 @@ export default function MatchupsPage() {
     }
     const result = await listCloudMatchups();
     setRows(mergeRows(local, result.state === "ok" ? result.matchups : null));
+    setPublished(await loadMyPublished());
     if (result.state === "ok") setCloud("ok");
     else if (result.state === "off") setCloud("off");
     else setCloud({ error: result.message });
@@ -383,6 +393,10 @@ export default function MatchupsPage() {
     setConfirmId(null);
     setBusyId(group.rows[0]?.id ?? null);
     if (justImported === group.teamId) setJustImported(null);
+    // The public copy goes too, or deleting your work would leave a page up
+    // that you can no longer reach from anywhere — the confirmation says so.
+    const post = published.get(group.teamId);
+    if (post) await unpublishGroup(post.slug);
     await removeRows(group.rows);
     setBusyId(null);
     void refresh();
@@ -682,13 +696,28 @@ export default function MatchupsPage() {
                         so nothing needs to be described back to you. */}
                     {confirmId === `group:${group.teamId}` ? (
                       <InlineConfirm
-                        question={t(
-                          "Delete this set — {count} — from {places}?",
-                          {
-                            count: n(group.rows.length, "matchup", "matchups"),
-                            places: placesOfRows(group.rows),
-                          },
-                        )}
+                        question={
+                          published.has(group.teamId)
+                            ? t(
+                                "Delete this set — {count} — from {places}, and take its published page down?",
+                                {
+                                  count: n(
+                                    group.rows.length,
+                                    "matchup",
+                                    "matchups",
+                                  ),
+                                  places: placesOfRows(group.rows),
+                                },
+                              )
+                            : t("Delete this set — {count} — from {places}?", {
+                                count: n(
+                                  group.rows.length,
+                                  "matchup",
+                                  "matchups",
+                                ),
+                                places: placesOfRows(group.rows),
+                              })
+                        }
                         confirmLabel={t("Delete set")}
                         busy={busyId !== null}
                         onConfirm={() => void removeGroup(group)}
@@ -733,6 +762,22 @@ export default function MatchupsPage() {
                         >
                           {t("＋ add teams")}
                         </button>
+                        {/* Whether this set is already public is worth seeing
+                            without opening anything — it is the difference
+                            between "share this" and "this is already out
+                            there". */}
+                        {published.has(group.teamId) && (
+                          <a
+                            href={`/g/${published.get(group.teamId)!.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title={t("open the published page")}
+                            className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 hover:underline"
+                          >
+                            {t("public ↗")}
+                          </a>
+                        )}
                         <button
                           onClick={() =>
                             setPublishing(
@@ -744,7 +789,9 @@ export default function MatchupsPage() {
                           })}
                           className="shrink-0 rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition-colors hover:border-stone-500"
                         >
-                          {t("publish")}
+                          {published.has(group.teamId)
+                            ? t("published")
+                            : t("publish")}
                         </button>
                         <button
                           onClick={() => setConfirmId(`group:${group.teamId}`)}
@@ -764,6 +811,8 @@ export default function MatchupsPage() {
                       <PublishPanel
                         my={group.team}
                         boards={group.rows.map((r) => r.entry)}
+                        published={published.get(group.teamId)}
+                        onChanged={() => void refresh()}
                         onClose={() => setPublishing(null)}
                       />
                     </div>

@@ -11,6 +11,7 @@ import { htmlLang } from "../../i18n/translate";
 import { BoardView } from "../board-view";
 import { Discussion } from "../discussion";
 import { ForkButton } from "../fork";
+import { AuthorControls } from "../author-controls";
 
 /**
  * A published group, read-only, at a short slug fit to post on X.
@@ -117,6 +118,7 @@ export function PublishedView({ slug }: { slug: string }) {
               {/* Only offered when the document actually decoded — forking
                   something we couldn't read would write a broken group. */}
               {group && <ForkButton slug={post.slug} group={group} />}
+              <AuthorControls slug={post.slug} authorId={post.userId} />
             </div>
 
             {!group && (
