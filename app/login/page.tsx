@@ -101,10 +101,10 @@ export default function LoginPage() {
             <BackLink fallback="/" />
             <HomeLink />
             <Link
-              href="/demo"
+              href="/matchups"
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              {t("builder")}
+              {t("matchups")}
             </Link>
             {/* No AccountLink on this page — it *is* the account page — so the
                 toggle simply ends the bar. */}
@@ -119,10 +119,10 @@ export default function LoginPage() {
               parts={[
                 <Link
                   key="builder"
-                  href="/demo"
+                  href="/matchups"
                   className="underline underline-offset-2"
                 >
-                  {t("Open the builder →")}
+                  {t("Open my matchups →")}
                 </Link>,
               ]}
             />
@@ -141,10 +141,10 @@ export default function LoginPage() {
             </p>
             <div className="mt-4 flex items-center gap-3">
               <Link
-                href="/demo"
+                href="/matchups"
                 className="rounded-md bg-[#e5484d] px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:opacity-85"
               >
-                {t("Open the builder")}
+                {t("Open my matchups")}
               </Link>
               <button
                 onClick={() => supabase.auth.signOut()}

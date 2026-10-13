@@ -2,27 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
-import { T } from "../../i18n/T";
-import { useLang, useT } from "../../i18n/provider";
-import { htmlLang } from "../../i18n/translate";
-import { useCopy } from "../../ui";
+import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
+import { T } from "../i18n/T";
+import { useLang, useT } from "../i18n/provider";
+import { htmlLang } from "../i18n/translate";
+import { useCopy } from "../ui";
 import {
   cascadePositions,
   isAlternate,
   layoutRows,
   stripMove,
   switchedInSpecies,
-} from "../board";
-import { MonIcon, TYPE_COLORS } from "../components";
-import { upsertCloudMatchup } from "../cloud";
+} from "../demo/board";
+import { MonIcon, TYPE_COLORS } from "../demo/components";
+import { upsertCloudMatchup } from "../demo/cloud";
 import {
   decodeWorkflowGroup,
   encodeGroup,
   encodeWorkflow,
   parseTargetRef,
-} from "../workflow-io";
-import { applyGroupImport, importSummary } from "../import-group";
+} from "../demo/workflow-io";
+import { applyGroupImport, importSummary } from "../demo/import-group";
 import {
   findPairMatchup,
   groupDocId,
@@ -36,7 +36,7 @@ import {
   type SideState,
   type SimSetup,
   type TurnNode,
-} from "../storage";
+} from "../demo/storage";
 
 // Simulation page (per the xatu.png reference sketch): turn columns left to
 // right, one state card per node with both sides shown as roster row +
@@ -821,7 +821,7 @@ export default function SimPage() {
           parts={[
             <Link
               key="pick"
-              href="/demo"
+              href="/matchups"
               className="underline underline-offset-2"
             >
               {t("Pick teams first →")}
@@ -1175,7 +1175,6 @@ export default function SimPage() {
               <Wordmark heading={false} />
             </span>
             <HeaderNav onBeforeLeave={saveIfDirty}>
-              <NavLink href="/demo">{t("builder")}</NavLink>
               <NavLink href="/matchups">{t("matchups")}</NavLink>
             </HeaderNav>
           </div>
@@ -1250,7 +1249,7 @@ export default function SimPage() {
                   </>
                 )}
                 <Link
-                  href={`/demo?team=${encodeURIComponent(setup.my.id)}&add=1`}
+                  href={`/matchups?team=${encodeURIComponent(setup.my.id)}`}
                   title={t("add another opposing team to plan against {team}", {
                     team: setup.my.name,
                   })}

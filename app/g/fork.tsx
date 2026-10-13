@@ -46,7 +46,8 @@ export function ForkButton({
     // are in this browser either way, and `/matchups` badges what is
     // browser-only.
     for (const entry of applied.written) void upsertCloudMatchup(entry);
-    router.push(`/demo?team=${encodeURIComponent(applied.my.id)}`);
+    // Groups sort newest-first, so the copy is at the top when we land.
+    router.push("/matchups");
   }
 
   return (

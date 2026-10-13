@@ -46,7 +46,7 @@ export const ZH: Record<string, string> = {
   "nav|← back": "← 返回",
   builder: "构建器",
   matchups: "对阵",
-  "matchup builder": "对阵构建器",
+  "Which of your teams?": "用你的哪支队伍？",
   "my matchups": "我的对阵",
   cancel: "取消",
   Delete: "删除",
@@ -96,8 +96,9 @@ export const ZH: Record<string, string> = {
   // through, which is honest rather than a half-guessed mapping.
   "Accounts aren’t set up in this build. Everything still works without one — teams and matchups save to your browser. {0}":
     "此版本没有配置账号。不用账号一样能用——队伍和对阵都会存在你的浏览器里。{0}",
-  "Open the builder →": "打开构建器 →",
-  "Open the builder": "打开构建器",
+  "my matchups →": "我的对阵 →",
+  "Open my matchups →": "打开我的对阵 →",
+  "Open my matchups": "打开我的对阵",
   "Signed in as {0}": "已登录：{0}",
   "sign out": "退出登录",
   "Create an account": "注册账号",
@@ -259,10 +260,7 @@ export const ZH: Record<string, string> = {
     "先选你的队伍，再加上你预计会遇到的每一支队伍——每支一份计划",
   "My Team": "我的队伍",
   "Opposing teams": "对手队伍",
-  "panel|← back": "← 返回",
-  "＋ new team": "＋ 新建队伍",
   "New team": "新建队伍",
-  "switch team": "切换队伍",
   "use existing": "使用已有的",
   "Use existing": "使用已有的",
   "+ import a new one instead": "＋ 改为导入一支新的",
@@ -271,12 +269,6 @@ export const ZH: Record<string, string> = {
     "还没有其他保存过的队伍——先导入一支。",
   "type the six, or paste several teams at once — one matchup each":
     "输入六只，或者一次粘贴多支队伍——每支各生成一个对阵",
-  "Set your team first, then add as many opponents as you want to plan against.":
-    "先设置你的队伍，然后想规划多少对手就加多少。",
-  "plan {team}": "规划 {team}",
-  "remove {team}": "移除 {team}",
-  "Remove with its plan?": "连同它的计划一起移除？",
-  "Remove?": "移除？",
   Remove: "移除",
   open: "打开",
   plan: "规划",
@@ -286,15 +278,9 @@ export const ZH: Record<string, string> = {
   "samples from every regulation": "所有赛制的示例队伍",
   imported: "导入",
   saved: "已保存",
-  "Open board": "打开战术板",
   Simulate: "开始推演",
   "vs. {team}": "对阵 {team}",
-  "vs. {team} · switch opponents from the board":
-    "对阵 {team} · 可在战术板上切换对手",
-  "＋ new matchup with a different team": "＋ 用另一支队伍新建对阵",
   "Your other teams": "你的其他队伍",
-  "all matchups (incl. account) →": "全部对阵（含账号）→",
-  "switch to {team}": "切换到 {team}",
 
   // ── import panel / team panel (app/demo/components.tsx) ────────────────────
   "Add — {label}": "添加 — {label}",
@@ -521,7 +507,6 @@ export const ZH: Record<string, string> = {
   "{species} → {target}": "{species} → {target}",
 
   // ── landing ────────────────────────────────────────────────────────────────
-  "open the builder →": "打开构建器 →",
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":
     "宝可梦双打对阵规划 · 带六选四",
   "See turn one coming.": "预见第一回合。",

@@ -47,8 +47,10 @@ describe("the sample teams", () => {
    * so it is checked as wiring: the page must not reach for `FORMATS[0]`.
    */
   it("are not wired to whatever regulation is current", () => {
+    // `PRESETS` moved to `team-picker.tsx` when the builder merged into
+    // /matchups; the rule travelled with it.
     const page = readFileSync(
-      join(import.meta.dirname, "..", "page.tsx"),
+      join(import.meta.dirname, "..", "team-picker.tsx"),
       "utf8",
     );
     // Comments stripped first: the rule is about what the code does, and the

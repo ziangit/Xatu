@@ -55,7 +55,7 @@ export function PublishedView({ slug }: { slug: string }) {
           <Wordmark />
           <HeaderNav back="/">
             <NavLink href="/feed">{t("published")}</NavLink>
-            <NavLink href="/demo">{t("builder")}</NavLink>
+            <NavLink href="/matchups">{t("matchups")}</NavLink>
           </HeaderNav>
         </header>
 

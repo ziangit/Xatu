@@ -1,5 +1,11 @@
 # Session handoff
 
+> Updated 2026-10-12: **the builder is gone — `/demo` merged into
+> `/matchups`.** They were a list and a detail view of one noun; a set now
+> expands in place. Routes are `/`, `/matchups`, `/board`, `/lookup`, `/feed`,
+> `/g/<slug>`, `/login`. Rules in docs/ARCHITECTURE.md → **"One page for a
+> set"**. Top section, newest first.
+>
 > Updated 2026-10-12: the landing page **shows the three newest published
 > matchups** as real cards, under the hero — the feed is what the site is for,
 > and a button asked people to imagine what was behind it. Card markup is now
@@ -81,6 +87,59 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-10-12: first principles — the builder merged into /matchups
+
+User: _"Let us work on the 'first principal' to simplify the project. First
+tell me what is the diff btw 'match up' and 'builder', can we merge them?"_
+then _"Work on it, use your choice"_.
+
+**They were one noun split across two pages.** A group is every `SavedMatchup`
+sharing `setup.my.id`; `/demo` edited one, `/matchups` listed them all. The
+evidence was in the code, not in taste: a duplicated grouping rule with a
+comment saying so, a second weaker group list on `/demo` whose own link read
+_"all matchups (incl. account) →"_, three query intents that existed only for
+one page to drive the other, and `＋ add teams` navigating away to edit what
+you were already looking at. Full write-up in docs/ARCHITECTURE.md → **"One
+page for a set"**.
+
+- **The board stayed separate.** Planning turns is a different activity from
+  composing rosters. That split is real; the other one was not.
+- **`/demo` is gone**; `/demo/sim` → **`/board`**, `/demo/lookup` → **`/lookup`**.
+  The modules under `app/demo/` stayed — library code, not routes, and moving
+  50 import paths is churn with no user-visible payoff.
+- **One intent survives**: `/matchups?team=<id>` opens that group's add panel,
+  for the board's `+ add opponent`. That is a deep link to a place on a page,
+  not a control protocol between two halves of one screen.
+- **`app/demo/team-picker.tsx`** is now the single team-choosing flow; the
+  builder had two near-copies differing only by `multi`.
+- **A set with no opponents has no storage representation** (a group is derived
+  from its rows), so the picked-but-empty state is React-only and drawn in the
+  same shape. If that team already heads a group there is no draft — its add
+  panel opens instead, so a team can never appear twice.
+- **Two landing buttons became one.** "Try New Match Ups!" and "My matchups"
+  were the new-vs-existing split of one page; after the merge they pointed at
+  the same URL, which is the confusion they were added to solve. Same for the
+  nav: `builder` and `matchups` were two labels for one destination.
+
+Net **1,502 → 1,204 lines**, one route gone, and **34 dictionary entries**
+removed after checking each against the whole live tree (the first pass at that
+used a regex that orphaned wrapped values and broke both dictionaries — revert
+and redo; an entry ends at the first line closing with a comma, not at the
+first newline).
+
+Verified by clicking, not by reading: from an empty browser, `＋ New matchup` →
+pick a sample → paste two opposing teams → 2 rows written and the group listed
+with both unplanned; `＋ add teams` adds a third **without leaving the page**;
+renaming the team from the group header propagates into every stored board;
+a row opens `/board`; the board's `+ add opponent` returns to
+`/matchups?team=…` with the panel already open; publish, copy JSON and
+`delete set` still work; `/demo`, `/demo/sim` and `/demo/lookup` all 404.
+Console clean throughout. 213 tests, tsc / eslint / build green.
+
+**Not done, deliberately**: `app/demo/*` module paths, and deleting `/lookup`
+— it is a leftover demo of `matchOpponent` that only the landing page links to,
+but removing a user-facing page is a product call, not a simplification.
 
 ## 2026-10-12: the feed, on the landing page
 

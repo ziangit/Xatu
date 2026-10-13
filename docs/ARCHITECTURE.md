@@ -1312,6 +1312,63 @@ project-wide** — Supabase's built-in SMTP, which is not meant for production.
 That throttles real sign-ups across all users, not per person. It needs a real
 mail provider configured in the Auth settings.
 
+## One page for a set: the builder merged into /matchups (2026-10-12)
+
+`/demo` and `/matchups` were a **detail view and a list of the same noun**. A
+_group_ is every `SavedMatchup` sharing `setup.my.id`; the builder edited one
+and this page listed them all. Four things in the code said so:
+
+- `/matchups` carried a comment reading "Same grouping rule as the builder"
+  above a reimplementation of `groupByMyTeam`.
+- `/demo` had **"Your other teams"** plus a link labelled _"all matchups (incl.
+  account) →"_ — a second, weaker group list that admitted in its own label
+  that it was incomplete.
+- The intents `?new=1`, `?team=<id>`, `?team=<id>&add=1` existed **only** so one
+  page could drive the other.
+- `＋ add teams` navigated away to edit what you were already looking at.
+
+A group now expands in place. **The board stays its own route** — planning
+turns is a different activity from composing rosters, and that split is real.
+
+### What the routes are now
+
+| route                | what it is                                                     |
+| -------------------- | -------------------------------------------------------------- |
+| `/`                  | landing                                                        |
+| `/matchups`          | every set: list, compose, add opponents, rename, publish, sync |
+| `/board`             | one pairing's turn tree (was `/demo/sim`)                      |
+| `/lookup`            | match an observed team against a guide (was `/demo/lookup`)    |
+| `/feed`, `/g/<slug>` | published posts                                                |
+| `/login`             | account                                                        |
+
+`/demo` is gone. The modules under `app/demo/` stayed put — they are library
+code, not routes, and moving ~50 import paths is churn with no user-visible
+payoff. A directory under `app/` with no `page.tsx` is not a route.
+
+### Three rules worth keeping
+
+**A set with no opponents has nothing in storage.** A group is _derived_ from
+its rows, so a team picked for a new set has no group until the first opponent
+is added. That gap is held in React (`draft`), drawn in the same shape as a
+real group, and never written as a half-saved record. If the chosen team
+already heads a group, there is no draft at all — the existing group's add
+panel opens instead, so one team can never appear twice on the page.
+
+**One query intent survives, and it is a deep link, not a protocol.**
+`/matchups?team=<id>` opens that group's add-opponents panel. The board's
+`+ add opponent` needs it because the board is a different page and genuinely
+knows something this page does not: which set you were planning. `?new=1` and
+`?add=1` went with the builder.
+
+**`app/demo/team-picker.tsx` is the one team-choosing flow.** The builder had
+two near-copies — one for My Team, one for the opposing list — differing only
+in whether several teams could be picked at once. That is now the `multi` prop.
+`PRESETS` lives there too, so the "samples aren't pinned to `FORMATS[0]`" test
+reads that file now.
+
+Net: 1,502 lines across two pages became 1,204 across a page and a module,
+one route disappeared, and 34 dictionary entries lost their last caller.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

@@ -62,7 +62,6 @@ export default function FeedPage() {
             </p>
           </div>
           <HeaderNav back="/">
-            <NavLink href="/demo">{t("builder")}</NavLink>
             <NavLink href="/matchups">{t("matchups")}</NavLink>
           </HeaderNav>
         </header>

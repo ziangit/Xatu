@@ -55,7 +55,7 @@ export const JA: Record<string, string> = {
   "nav|← back": "← 戻る",
   builder: "ビルダー",
   matchups: "マッチアップ",
-  "matchup builder": "マッチアップビルダー",
+  "Which of your teams?": "どのパーティを使いますか？",
   "my matchups": "マイマッチアップ",
   cancel: "キャンセル",
   Delete: "削除",
@@ -106,8 +106,9 @@ export const JA: Record<string, string> = {
   // through, which is honest rather than a half-guessed mapping.
   "Accounts aren’t set up in this build. Everything still works without one — teams and matchups save to your browser. {0}":
     "このビルドではアカウントが設定されていません。なくても問題なく使えます——パーティもマッチアップもブラウザに保存されます。{0}",
-  "Open the builder →": "ビルダーを開く →",
-  "Open the builder": "ビルダーを開く",
+  "my matchups →": "マイマッチアップ →",
+  "Open my matchups →": "マイマッチアップを開く →",
+  "Open my matchups": "マイマッチアップを開く",
   "Signed in as {0}": "ログイン中：{0}",
   "sign out": "ログアウト",
   "Create an account": "アカウントを作成",
@@ -283,10 +284,7 @@ export const JA: Record<string, string> = {
     "まず自分のパーティ、次に当たりそうなパーティをすべて——それぞれにプランを1つずつ",
   "My Team": "自分のパーティ",
   "Opposing teams": "相手パーティ",
-  "panel|← back": "← 戻る",
-  "＋ new team": "＋ 新しいパーティ",
   "New team": "新しいパーティ",
-  "switch team": "パーティを切り替え",
   "use existing": "既存から選ぶ",
   "Use existing": "既存から選ぶ",
   "+ import a new one instead": "＋ 代わりに新しく読み込む",
@@ -295,12 +293,6 @@ export const JA: Record<string, string> = {
     "保存された他のパーティはまだありません——読み込んでください。",
   "type the six, or paste several teams at once — one matchup each":
     "6匹を入力するか、複数のパーティをまとめて貼り付け——それぞれにマッチアップが1件",
-  "Set your team first, then add as many opponents as you want to plan against.":
-    "先に自分のパーティを設定してから、プランを立てたい相手を好きなだけ追加してください。",
-  "plan {team}": "{team} のプランを立てる",
-  "remove {team}": "{team} を削除",
-  "Remove with its plan?": "プランごと削除しますか？",
-  "Remove?": "削除しますか？",
   Remove: "削除",
   open: "開く",
   plan: "プラン",
@@ -310,15 +302,9 @@ export const JA: Record<string, string> = {
   "samples from every regulation": "すべてのレギュレーションのサンプル",
   imported: "読み込み",
   saved: "保存済み",
-  "Open board": "ボードを開く",
   Simulate: "シミュレート",
   "vs. {team}": "対 {team}",
-  "vs. {team} · switch opponents from the board":
-    "対 {team} · 相手はボード上で切り替えられます",
-  "＋ new matchup with a different team": "＋ 別のパーティで新しいマッチアップ",
   "Your other teams": "他のパーティ",
-  "all matchups (incl. account) →": "すべてのマッチアップ（アカウント含む）→",
-  "switch to {team}": "{team} に切り替え",
 
   // ── import panel / team panel (app/demo/components.tsx) ────────────────────
   "Add — {label}": "追加 — {label}",
@@ -551,7 +537,6 @@ export const JA: Record<string, string> = {
   "{species} → {target}": "{species} → {target}",
 
   // ── landing ────────────────────────────────────────────────────────────────
-  "open the builder →": "ビルダーを開く →",
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":
     "ポケモンダブルバトルのマッチアップ設計 · 6匹持ち込み · 4匹選出",
   "See turn one coming.": "1ターン目を、見通す。",

@@ -7,9 +7,9 @@ import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
 import { useLang } from "../i18n/provider";
 import { PublishPanel } from "./publish-panel";
-import { htmlLang } from "../i18n/translate";
-import { InlineConfirm, useCopy } from "../ui";
+import { InlineConfirm, InlineRename, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
+import { TeamChooser, TeamSprites } from "../demo/team-picker";
 import { supabaseConfigured } from "../auth/client";
 import {
   deleteCloudMatchup,
@@ -23,6 +23,7 @@ import {
   forgetTeams,
   groupDocId,
   loadMatchups,
+  renameTeam,
   saveSetup,
   setActiveMatchupId,
   upsertMatchup,
@@ -33,6 +34,17 @@ import {
 // My matchups: every saved board — the ones in this browser and the ones
 // synced to the signed-in account — grouped under the team of mine they were
 // built with, because one team is planned against many opponents.
+//
+// This page absorbed the old `/demo` builder (2026-10-12). They were a list
+// and a detail view of the same noun: a **group** is every SavedMatchup
+// sharing `setup.my.id`, and the builder edited one while this listed them
+// all. The split cost a duplicate grouping rule, a second weaker group list
+// ("Your other teams"), and three query-string intents (`?new=1`, `?team=`,
+// `?add=1`) whose only job was for one page to drive the other. A group now
+// expands in place and the whole protocol is gone.
+//
+// The board stays its own route. Planning turns is a different activity from
+// composing rosters, and that split is real.
 
 interface Row {
   id: string;
@@ -49,7 +61,9 @@ interface Group {
   savedAt: string;
 }
 
-/** Same grouping rule as the builder, applied to merged browser+account rows. */
+/** Groups merged browser+account rows by the team of mine they belong to. It
+ * is `groupByMyTeam`'s rule over `Row`s rather than bare `SavedMatchup`s,
+ * because a row also carries where it lives (browser, account, or both). */
 function groupRows(rows: Row[]): Group[] {
   const groups = new Map<string, Group>();
   for (const row of rows) {
@@ -117,6 +131,17 @@ export default function MatchupsPage() {
    * are dismissed, and gone on the next visit. Transient by design: it answers
    * "where did that go?", which stops being a question once you've looked. */
   const [justImported, setJustImported] = useState<string | null>(null);
+  /** Composing a brand-new set: no team chosen yet. */
+  const [composing, setComposing] = useState(false);
+  /** A team chosen for a new set that has no opponents yet, so no rows exist
+   * for it. A group is derived from its rows, so until the first opponent is
+   * added there is nothing in storage to list — this is that gap, held in
+   * React rather than written as a half-saved group. */
+  const [draft, setDraft] = useState<StoredTeam | null>(null);
+  /** Group whose add-opponents panel is open. */
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  /** Team being renamed in place — my team by group id, an opponent by row id. */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   /**
    * One list, painted once. Earlier this rendered the browser-only rows first
@@ -143,7 +168,16 @@ export default function MatchupsPage() {
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) void refresh();
+      if (cancelled) return;
+      // The one surviving query intent. `?new=1` and `?add=1` went with the
+      // builder — this page can start and extend a set by itself now. What it
+      // cannot do from here is know which set the *board* was planning, so
+      // "+ add opponent" over there deep-links to the right group's panel.
+      // Read from `location` rather than useSearchParams, which would force a
+      // Suspense boundary around the whole page.
+      const team = new URLSearchParams(window.location.search).get("team");
+      if (team) setAddingTo(team);
+      void refresh();
     });
     return () => {
       cancelled = true;
@@ -156,7 +190,7 @@ export default function MatchupsPage() {
     upsertMatchup(row.entry);
     saveSetup(row.entry.setup);
     setActiveMatchupId(row.id);
-    router.push("/demo/sim");
+    router.push("/board");
   };
 
   /** Badges flip as soon as the write lands — the refresh behind it only
@@ -176,12 +210,70 @@ export default function MatchupsPage() {
     } else if (result !== "off") setCloud({ error: result });
   };
 
-  /** Add more opposing teams to a team's group, on the builder. The freshest
-   * board is pulled local first so `/demo?team=` can resolve an account-only
-   * group to a team. */
-  const addTeams = (group: Group) => {
-    upsertMatchup(group.rows[0].entry);
-    router.push(`/demo?team=${encodeURIComponent(group.teamId)}&add=1`);
+  /**
+   * Line up opponents for one of my teams. Each becomes its own board straight
+   * away, unplanned (`nodes: []`) — the group is the only record of "my team
+   * vs these", so an opponent with no plan yet still has to exist.
+   *
+   * This used to navigate to `/demo?team=…&add=1`; it is now the same page.
+   */
+  const addOpponents = async (my: StoredTeam, teams: StoredTeam[]) => {
+    const already = new Set(
+      rows
+        .filter((r) => r.entry.setup.my.id === my.id)
+        .map((r) => r.entry.setup.opp.id),
+    );
+    const now = new Date().toISOString();
+    const created: SavedMatchup[] = [];
+    for (const opp of teams) {
+      if (opp.id === my.id || already.has(opp.id)) continue;
+      already.add(opp.id);
+      const entry: SavedMatchup = {
+        id: crypto.randomUUID(),
+        name: `${my.name} vs ${opp.name}`,
+        setup: { my, opp },
+        nodes: [],
+        savedAt: now,
+      };
+      upsertMatchup(entry);
+      created.push(entry);
+    }
+    setAddingTo(null);
+    setDraft(null);
+    // Signed in → the pairing is worth syncing before any plan exists. A
+    // failure stays silent: the row shows as browser-only with an upload
+    // button, which is the honest signal.
+    for (const entry of created) void upsertCloudMatchup(entry);
+    await refresh();
+  };
+
+  /**
+   * Picking the team for a new set. If that team already heads a group, there
+   * is nothing to draft — open that group's add panel instead, so the same
+   * team can never appear twice on this page.
+   */
+  const pickDraftTeam = (teams: StoredTeam[]) => {
+    const team = teams[0];
+    if (!team) return;
+    setComposing(false);
+    if (groupRows(rows).some((g) => g.teamId === team.id)) {
+      setDraft(null);
+      setAddingTo(team.id);
+    } else {
+      setDraft(team);
+    }
+  };
+
+  /**
+   * Renaming touches the team library, every saved board that references the
+   * team, and the in-progress setup — `renameTeam` does all three — so the
+   * list is re-read after it. A no-op rename returns null and nothing is read.
+   */
+  const rename = (teamId: string, name: string) => {
+    setRenamingId(null);
+    if (!renameTeam(teamId, name)) return;
+    setDraft((d) => (d && d.id === teamId ? { ...d, name } : d));
+    void refresh();
   };
 
   /** Whole group at once — a team's plans are worth syncing together. */
@@ -305,7 +397,6 @@ export default function MatchupsPage() {
             <p className="text-xs text-stone-400">{t("my matchups")}</p>
           </div>
           <HeaderNav>
-            <NavLink href="/demo">{t("builder")}</NavLink>
             <NavLink href="/feed">{t("published")}</NavLink>
           </HeaderNav>
         </header>
@@ -326,12 +417,15 @@ export default function MatchupsPage() {
           >
             {t("paste JSON")}
           </button>
-          <Link
-            href="/demo?new=1"
+          <button
+            onClick={() => {
+              setComposing(!composing);
+              setDraft(null);
+            }}
             className="rounded-md bg-[#e5484d] px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 active:scale-[0.98]"
           >
             {t("＋ New matchup")}
-          </Link>
+          </button>
         </div>
 
         {showImport && (
@@ -402,6 +496,64 @@ export default function MatchupsPage() {
           </div>
         )}
 
+        {composing && (
+          <div className="grow-in mt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+              {t("Which of your teams?")}
+            </p>
+            <div className="mt-2">
+              <TeamChooser
+                label={t("My Team")}
+                importLabel={t("+ import a new one instead")}
+                hint={t(
+                  "your team, then every team you expect to face — one plan each",
+                )}
+                onPick={pickDraftTeam}
+                onCancel={() => setComposing(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* A set with a team but no opponents yet. It has no rows, so it is
+            not in the list below — it is drawn here, in the same shape, until
+            the first opponent makes it real. */}
+        {draft && (
+          <section className="grow-in mt-4 rounded-lg border border-dashed border-stone-300 bg-white">
+            <header className="flex items-center gap-3 border-b border-stone-100 px-4 py-2.5">
+              <TeamSprites team={draft} scale={0.55} />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">
+                {draft.name}
+              </span>
+              <button
+                onClick={() => setDraft(null)}
+                className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+              >
+                {t("cancel")}
+              </button>
+            </header>
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+                {t("Opposing teams")}
+              </p>
+              <div className="mt-2">
+                <TeamChooser
+                  label={t("Opposing teams")}
+                  multi
+                  exclude={(tm) => tm.id === draft.id}
+                  hint={t(
+                    "type the six, or paste several teams at once — one matchup each",
+                  )}
+                  emptyNote={t("No other saved teams yet — import one.")}
+                  importLabel={t("+ import new ones instead")}
+                  onPick={(teams) => void addOpponents(draft, teams)}
+                  onCancel={() => setDraft(null)}
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
         {cloud === "off" && (
           <p className="mt-4 text-xs leading-relaxed text-stone-400">
             <T
@@ -453,13 +605,13 @@ export default function MatchupsPage() {
             <T
               k="No saved matchups yet. {0}"
               parts={[
-                <Link
+                <button
                   key="build"
-                  href="/demo"
+                  onClick={() => setComposing(true)}
                   className="underline underline-offset-2 hover:text-stone-800"
                 >
                   {t("Build one →")}
-                </Link>,
+                </button>,
               ]}
             />
           </div>
@@ -497,16 +649,31 @@ export default function MatchupsPage() {
                       ))}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline gap-1.5">
-                        <span
-                          title={t("team id {id}", { id: group.teamId })}
-                          className="min-w-0 truncate text-sm font-semibold text-stone-800"
-                        >
-                          {group.team.name}
+                      {renamingId === `my:${group.teamId}` ? (
+                        <InlineRename
+                          value={group.team.name}
+                          label={t("rename {team}", { team: group.team.name })}
+                          onRename={(next) => rename(group.teamId, next)}
+                          onCancel={() => setRenamingId(null)}
+                        />
+                      ) : (
+                        <span className="flex items-baseline gap-1.5">
+                          <button
+                            onClick={() => setRenamingId(`my:${group.teamId}`)}
+                            title={t("rename {team}", {
+                              team: group.team.name,
+                            })}
+                            className="min-w-0 truncate text-left text-sm font-semibold text-stone-800 underline-offset-2 hover:underline"
+                          >
+                            {group.team.name}
+                          </button>
+                          <ImportedBadge team={group.team} />
                         </span>
-                        <ImportedBadge team={group.team} />
-                      </span>
-                      <span className="text-[10px] text-stone-400">
+                      )}
+                      <span
+                        title={t("team id {id}", { id: group.teamId })}
+                        className="block text-[10px] text-stone-400"
+                      >
                         {n(group.rows.length, "matchup", "matchups")}
                       </span>
                     </span>
@@ -551,7 +718,11 @@ export default function MatchupsPage() {
                             : t("copy JSON ({n})", { n: group.rows.length })}
                         </button>
                         <button
-                          onClick={() => addTeams(group)}
+                          onClick={() =>
+                            setAddingTo(
+                              addingTo === group.teamId ? null : group.teamId,
+                            )
+                          }
                           title={t(
                             "add opposing teams to plan against {team}",
                             {
@@ -597,42 +768,82 @@ export default function MatchupsPage() {
                       />
                     </div>
                   )}
+                  {addingTo === group.teamId && (
+                    <div className="border-b border-stone-100 px-4 py-3">
+                      <TeamChooser
+                        label={t("Opposing teams")}
+                        multi
+                        exclude={(tm) =>
+                          tm.id === group.teamId ||
+                          group.rows.some((r) => r.entry.setup.opp.id === tm.id)
+                        }
+                        hint={t(
+                          "type the six, or paste several teams at once — one matchup each",
+                        )}
+                        emptyNote={t("No other saved teams yet — import one.")}
+                        importLabel={t("+ import new ones instead")}
+                        onPick={(teams) => void addOpponents(group.team, teams)}
+                        onCancel={() => setAddingTo(null)}
+                      />
+                    </div>
+                  )}
                   <div className="divide-y divide-stone-100">
                     {group.rows.map((row) => (
                       <div
                         key={row.id}
                         className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-stone-50/60"
                       >
-                        <button
-                          onClick={() => open(row)}
-                          title={t("open {name}", { name: row.entry.name })}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left transition-opacity hover:opacity-70"
+                        {renamingId === row.id ? (
+                          <span className="flex min-w-0 flex-1 items-center gap-2">
+                            <TeamSprites
+                              team={row.entry.setup.opp}
+                              scale={0.5}
+                            />
+                            <InlineRename
+                              value={row.entry.setup.opp.name}
+                              label={t("rename {team}", {
+                                team: row.entry.setup.opp.name,
+                              })}
+                              onRename={(next) =>
+                                rename(row.entry.setup.opp.id, next)
+                              }
+                              onCancel={() => setRenamingId(null)}
+                              className="flex-1"
+                            />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => open(row)}
+                            title={t("open {name}", { name: row.entry.name })}
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left transition-opacity hover:opacity-70"
+                          >
+                            <span className="shrink-0 text-[10px] text-stone-300">
+                              vs
+                            </span>
+                            <TeamSprites
+                              team={row.entry.setup.opp}
+                              scale={0.5}
+                            />
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
+                              {row.entry.setup.opp.name}
+                            </span>
+                          </button>
+                        )}
+                        {/* How much plan exists, which is what the builder's
+                            row showed. It replaces the saved-at date: the
+                            question here is "did I plan this one yet", and a
+                            date never answered it. */}
+                        <span
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${
+                            row.entry.nodes.length > 0
+                              ? "bg-stone-100 text-stone-500"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
                         >
-                          <span className="shrink-0 text-[10px] text-stone-300">
-                            vs
-                          </span>
-                          <span className="flex shrink-0">
-                            {row.entry.setup.opp.parsed
-                              .slice(0, 6)
-                              .map((p, i) => (
-                                <MonIcon
-                                  key={i}
-                                  species={p.species}
-                                  scale={0.5}
-                                />
-                              ))}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
-                            {row.entry.setup.opp.name}
-                          </span>
-                          <span className="shrink-0 text-[10px] text-stone-400">
-                            {row.entry.nodes.length > 0
-                              ? new Date(row.entry.savedAt).toLocaleDateString(
-                                  htmlLang(lang),
-                                )
-                              : t("no plan yet")}
-                          </span>
-                        </button>
+                          {row.entry.nodes.length > 0
+                            ? n(row.entry.nodes.length, "state", "states")
+                            : t("no plan yet")}
+                        </span>
                         {/* The row's own id, shown because two rows can now
                             look identical — same opponent, same sprites, one
                             in a group you built and one in a group you pasted
@@ -680,6 +891,12 @@ export default function MatchupsPage() {
                                   {t("upload")}
                                 </button>
                               )}
+                            <button
+                              onClick={() => setRenamingId(row.id)}
+                              className="shrink-0 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+                            >
+                              {t("rename")}
+                            </button>
                             <button
                               onClick={() => setConfirmId(row.id)}
                               disabled={busyId === row.id}

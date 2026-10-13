@@ -6,11 +6,11 @@ import { selectPlan } from "@/lib/schema";
 import type { ParsedMon, Plan, Rule, TurnCondition } from "@/lib/schema";
 import { formeCandidates, matchOpponent } from "@/lib/match";
 import { importTeamText } from "@/lib/team";
-import { HeaderNav, LegalFooter, NavLink, Wordmark } from "../../nav";
-import { T } from "../../i18n/T";
-import { useT } from "../../i18n/provider";
-import type { Params } from "../../i18n/translate";
-import { demoGuide, SAMPLE_TEAMS } from "../demo-data";
+import { HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
+import { T } from "../i18n/T";
+import { useT } from "../i18n/provider";
+import type { Params } from "../i18n/translate";
+import { demoGuide, SAMPLE_TEAMS } from "../demo/demo-data";
 
 // Demo of the lookup flow: paste the opposing team (Showdown export or
 // pokepast.es link) → matchOpponent finds the matchup → selectPlan picks the
@@ -262,8 +262,8 @@ export default function DemoPage() {
               })}
             </p>
           </div>
-          <HeaderNav back="/demo">
-            <NavLink href="/demo">{t("builder")}</NavLink>
+          <HeaderNav back="/matchups">
+            <NavLink href="/matchups">{t("matchups")}</NavLink>
             {opponent && (
               <button
                 onClick={reset}

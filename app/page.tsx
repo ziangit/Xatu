@@ -320,10 +320,10 @@ export default function LandingPage() {
             <LangToggle />
             <AccountLink />
             <Link
-              href="/demo"
+              href="/matchups"
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
-              {t("open the builder →")}
+              {t("my matchups →")}
             </Link>
           </span>
         </header>
@@ -374,21 +374,15 @@ export default function LandingPage() {
               className="land-rise mt-7 flex flex-wrap items-center gap-3"
               style={{ animationDelay: "0.3s" }}
             >
-              {/* `?new=1` starts a fresh matchup with the import panel already
-                  open. Landing on the builder's own resume state instead reads
-                  as "here is the matchup you already had", which is the other
-                  button's job. */}
+              {/* One button, where there were two. "Try new match ups" and
+                  "My matchups" were the new-vs-existing split of one page, and
+                  once the builder merged into /matchups they pointed at the
+                  same URL — which is the confusion they were meant to solve. */}
               <Link
-                href="/demo?new=1"
+                href="/matchups"
                 className="rounded-md bg-[#e5484d] px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-85"
               >
                 {t("Try New Match Ups!")}
-              </Link>
-              <Link
-                href="/matchups"
-                className="rounded-md border border-stone-300 bg-white px-4 py-2.5 text-xs text-stone-600 hover:border-stone-500"
-              >
-                {t("My matchups")}
               </Link>
               <Link
                 href="/feed"
@@ -397,7 +391,7 @@ export default function LandingPage() {
                 {t("Published matchups")}
               </Link>
               <Link
-                href="/demo/lookup"
+                href="/lookup"
                 className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
               >
                 {t("guide lookup →")}
