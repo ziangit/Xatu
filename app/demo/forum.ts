@@ -172,7 +172,8 @@ export async function loadComments(slug: string): Promise<Comment[]> {
 }
 
 export type CommentResult =
-  { ok: true } | { ok: false; reason: "signed-out" | "empty" | "error" };
+  | { ok: true }
+  | { ok: false; reason: "signed-out" | "empty" | "rate-limited" | "error" };
 
 export async function addComment(
   slug: string,
@@ -188,7 +189,12 @@ export async function addComment(
   const { error } = await supabase
     .from("post_comments")
     .insert({ slug, user_id: uid, body: text.slice(0, 2000) });
-  return error ? { ok: false, reason: "error" } : { ok: true };
+  if (!error) return { ok: true };
+  // P0001 is the daily cap from supabase/rate-limits.sql.
+  return {
+    ok: false,
+    reason: error.code === "P0001" ? "rate-limited" : "error",
+  };
 }
 
 /** Delete your own. RLS refuses anyone else's, so this needs no owner check. */

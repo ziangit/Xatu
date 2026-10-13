@@ -77,6 +77,8 @@ export const ZH: Record<string, string> = {
   "Usernames are 3–20 characters.": "用户名需为 3–20 个字符。",
   "Letters, digits, - and _ only.": "只能使用字母、数字、- 和 _。",
   "Couldn’t save that — try again.": "保存失败——请重试。",
+  "The only thing shown on your posts. Change it anytime.":
+    "这是你的帖子上唯一会显示的信息，随时可以修改。",
   "Needed before you can publish or comment.": "发布或评论前需要先设置。",
   "sign in": "登录",
   "Sign in": "登录",
@@ -203,6 +205,11 @@ export const ZH: Record<string, string> = {
     "请先设置用户名——它会作为署名。在账号菜单里设置。",
   "Sign in to publish.": "登录后才能发布。",
   "A title is required.": "标题不能为空。",
+  "That’s 5 new posts today — the daily limit. Editing a post you already published still works.":
+    "今天已经发布 5 个新帖子——达到每日上限。已发布的帖子仍然可以继续修改。",
+  "That’s 30 comments today — the daily limit.":
+    "今天已经发表 30 条评论——达到每日上限。",
+  "Couldn’t post that — try again.": "这条没能发出去——请重试。",
   "Couldn’t publish — try again.": "发布失败——请重试。",
   "paste JSON": "粘贴 JSON",
   "copy JSON": "复制 JSON",

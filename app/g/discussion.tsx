@@ -33,6 +33,7 @@ export function Discussion({ slug }: { slug: string }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [sendProblem, setSendProblem] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -57,12 +58,17 @@ export function Discussion({ slug }: { slug: string }) {
 
   const onSend = async () => {
     setBusy(true);
+    setSendProblem(null);
     const r = await addComment(slug, draft);
     setBusy(false);
     if (r.ok) {
       setDraft("");
       setComments(await loadComments(slug));
+      return;
     }
+    // A refused comment used to do nothing at all, which reads as a broken
+    // button. The daily cap in particular has to say what happened.
+    setSendProblem(r.reason);
   };
 
   return (
@@ -102,6 +108,15 @@ export function Discussion({ slug }: { slug: string }) {
           >
             {busy ? t("Posting…") : t("Post comment")}
           </button>
+          {sendProblem && (
+            <p className="mt-2 text-[11px] text-amber-700">
+              {sendProblem === "rate-limited"
+                ? t("That’s 30 comments today — the daily limit.")
+                : sendProblem === "signed-out"
+                  ? t("Sign in to like or comment.")
+                  : t("Couldn’t post that — try again.")}
+            </p>
+          )}
         </div>
       ) : (
         <p className="mt-4 text-xs text-stone-500">

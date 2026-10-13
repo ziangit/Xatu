@@ -1,5 +1,12 @@
 # Session handoff
 
+> Updated 2026-10-12: **accounts get a username at signup** (Google's profile
+> name, or the email's local part), and **posting is capped** — 5 new posts and
+> 30 comments per account per day, enforced by a Postgres trigger the client
+> cannot go around. Registration still has no per-IP cap and cannot have one
+> from here; see docs/ARCHITECTURE.md → **"Abuse limits"**. Top section,
+> newest first.
+>
 > Updated 2026-10-12: **switching language no longer moves the page.** The
 > landing hero was 364px tall in 日 and 228px in 中, so the toggle shifted the
 > tree and every section under it. Fixed by reserving the tallest language's
@@ -69,6 +76,53 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-10-12: usernames at signup, and daily caps
+
+User asked three things: does register check the name is taken, can email
+signup get a default name like teamsheet.gg does, and can we rate-limit by IP.
+
+**Taken names were already handled** — a unique index on `lower(username)`, so
+"Phalap" and "phalap" cannot both exist, and `saveMyUsername` turns `23505`
+into "taken". Decided by the database rather than a pre-flight SELECT, which
+two people typing at once would both pass.
+
+**The default name: teamsheet.gg reads it from Google, not from the email.**
+The user sent its consent screen — "Name and profile picture" — so the name
+they saw was Google's `name`, i.e. their real name. We already request the same
+scopes, so the field was sitting there unused.
+
+I raised the cost twice and the user confirmed twice by showing the behaviour
+they wanted, including its rename screen. **So this is now user-directed and
+PRODUCT.md is amended**: the old "a username is never derived from the email
+address" rule is gone. `supabase/initial-username.sql` assigns one in a trigger
+on `auth.users` — Google's name with non-alphanumerics stripped, else the
+email's local part — because a trigger runs once inside the signup transaction
+next to the unique index, while a client-side "if no username, make one" races
+across two tabs and never runs for someone who signs up and never returns.
+**The email itself is still never shown; `profiles` has no column for one.**
+
+Verified against the live database, every branch: `Ziang Sun` → `ZiangSun`, a
+second one → `ZiangSun2`, an email local part straight through, `Admin` →
+`trainer-0c286a` (the reserved list is mirrored in the SQL, or Google's "Admin"
+would have been handed it), `Jo` and an emoji-only name → the same fallback, a
+42-character name truncated to 20. Throwaway accounts deleted afterwards and
+`profiles` was back to one row.
+
+**The trigger swallows its own errors on purpose.** A username is a
+convenience; signing up is not. Anything unexpected and the account is created
+without one, and the account menu prompts exactly as before.
+
+**Caps: 5 posts and 30 comments per account per 24h**, in a trigger, counting
+an append-only `rate_events` log rather than surviving rows — otherwise
+post-five-delete-five-post-five defeats it. Rules and the table in
+docs/ARCHITECTURE.md → **"Abuse limits"**.
+
+**The IP cap the user asked for cannot be built from here**, and the doc says so
+so nobody re-litigates it: signup never touches our server or database. The
+lever is CAPTCHA, which needs a key from the user and was offered. Also found:
+`rate_limit_email_sent` is **2 per hour project-wide** on Supabase's built-in
+SMTP — a hard ceiling on real signups that needs a mail provider before launch.
 
 ## 2026-10-12: the language toggle moved the page
 

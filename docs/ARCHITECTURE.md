@@ -1261,6 +1261,57 @@ things, both tested: forking the same page twice updates one set instead of
 forking two, and two authors who publish the same archetype under the same name
 cannot collide.
 
+## Abuse limits, and what cannot be limited (2026-10-12)
+
+**The caps are in the database, not the client.** The browser talks to
+PostgREST directly with the anon key, so a check in React is bypassed by one
+`curl`. `supabase/rate-limits.sql` puts them in a BEFORE INSERT trigger, which
+a request cannot go around:
+
+| action                      | cap      | why                                                                  |
+| --------------------------- | -------- | -------------------------------------------------------------------- |
+| publish a new post          | 5 / 24h  | the user's number                                                    |
+| comment                     | 30 / 24h | mine — a forum with a post cap and no comment cap still has the hole |
+| like                        | none     | the primary key is `(slug, user_id)`; there is nothing to flood      |
+| re-publish an existing post | free     | it is an UPDATE, so editing never costs quota                        |
+
+**It counts actions, not surviving rows.** `rate_events` is append-only, and
+RLS is on with **no policies at all**, so nothing reaches it through PostgREST
+in either direction — only the `security definer` trigger writes it. Counting
+live posts instead would let someone publish five, delete five and publish five
+more; the spam went out either way and the deletion is the spammer's own
+clean-up. Verified against the live database: the 6th publish is refused, and
+deleting all five does not refund the quota.
+
+A cap raises `P0001`, deliberately distinct from `23505` (a slug collision,
+which is bad luck and worth retrying), so the UI can say "that is today's
+limit" rather than the generic refusal it shows for an RLS denial.
+
+Ordering note: a BEFORE trigger runs before the RLS WITH CHECK, so a client
+that lied about `user_id` would log an event against someone else — but the
+RLS denial aborts the statement and that write rolls back with it. Nobody can
+burn another account's quota.
+
+**Registration cannot be capped per IP from here, and this is not a gap to
+keep re-discovering.** Sign-up goes browser → Supabase Auth; it never reaches
+our server or our database, so neither can see the address. Supabase exposes no
+per-IP-per-day signup limit either. The three real levers:
+
+- **Email confirmation** — on (`mailer_autoconfirm: false`), so every account
+  needs a working mailbox.
+- **CAPTCHA** — `security_captcha_enabled`, hCaptcha or Turnstile. Off. This is
+  the actual answer to scripted signups, and it needs a key from the user.
+- Supabase's generic per-IP auth rate limits.
+
+Proxying sign-up through a Next route handler would give us the IP, and is
+rejected: it would put the password through our server, which is the one thing
+CLAUDE.md says never happens.
+
+**A ceiling to fix before launch**: `rate_limit_email_sent` is **2 per hour,
+project-wide** — Supabase's built-in SMTP, which is not meant for production.
+That throttles real sign-ups across all users, not per person. It needs a real
+mail provider configured in the Auth settings.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

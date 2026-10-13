@@ -10,15 +10,30 @@ import { getSupabase } from "./client";
  * (see docs/PRODUCT.md). `public.profiles` holds only a username and
  * timestamps, so a byline has nothing else to leak even by accident.
  *
- * A username is never derived from the email. `megazchomp@gmail.com` becoming
- * `megazchomp` would publish the local part of an address the user never chose
- * to show, which is the exact thing the separate table is here to prevent.
+ * **A username IS derived at signup** — user-directed, 2026-10-12, after
+ * comparing with teamsheet.gg, which assigns `ZiangSun` from the Google
+ * profile the moment you sign in and lets you rename it afterwards. Google
+ * gives us a real name and email/password gives us the address's local part,
+ * so the default byline does say something about the person; renaming it is
+ * one field in the account menu, and that is the trade. The derivation itself
+ * lives in `supabase/initial-username.sql`, in a trigger on `auth.users`, so
+ * it runs once inside the signup transaction next to the unique index that
+ * settles collisions.
+ *
+ * What has NOT changed: the email is still never *shown*. `profiles` has no
+ * column for one, so a byline rendered for a signed-out visitor still has
+ * nothing else to leak.
  */
 
 /** Mirrors `profiles_username_shape` in supabase/profiles.sql — keep both. */
 const SHAPE = /^[A-Za-z0-9][A-Za-z0-9_-]{2,19}$/;
 
-/** Names that would let someone pose as the site. Short on purpose. */
+/**
+ * Names that would let someone pose as the site, plus `trainer` — the stem of
+ * the auto-assigned fallback (`trainer-0c286a`), so a bare "trainer" can't be
+ * mistaken for one. Keep in step with `v_reserved` in
+ * supabase/initial-username.sql.
+ */
 const RESERVED = new Set([
   "xatu",
   "admin",
@@ -29,6 +44,7 @@ const RESERVED = new Set([
   "official",
   "system",
   "root",
+  "trainer",
 ]);
 
 export type UsernameProblem = "too-short" | "too-long" | "charset" | "reserved";

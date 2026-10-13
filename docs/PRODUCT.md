@@ -71,9 +71,15 @@ finished product** — there is no phase after it.
   anonymous write endpoint to abuse.
   Public identity is **a username and nothing else**: no avatar, no bio, no
   join date, no followers. `public.profiles` holds only a username and
-  timestamps, so a byline has nothing else to leak — and a username is never
-  derived from the email address. Changing it lives in the account menu,
-  deliberately the same menu people already open.
+  timestamps, so a byline has nothing else to leak.
+  A username **is derived at signup** (amended 2026-10-12, user-directed,
+  matching teamsheet.gg): Google's profile name with non-alphanumerics
+  stripped, or the email's local part when there is no Google name, assigned
+  by a trigger in `supabase/initial-username.sql`. The cost was raised and
+  accepted — a Google name is a real name, so the default byline does identify
+  the person. What makes it acceptable is that renaming is one field in the
+  account menu and the auto-assigned name is never the only option. The email
+  itself is still never _shown_; there is no column for one.
 - **Moderation tooling.** No report button, no flags, no queue — matching
   teamsheet.gg, which is the reference for this surface. Sign-in is required to
   post, authors can delete their own posts and comments, and the site owner can

@@ -112,7 +112,11 @@ export function PublishPanel({
               ? t("Sign in to publish.")
               : problem === "empty"
                 ? t("A title is required.")
-                : t("Couldn’t publish — try again.")}
+                : problem === "rate-limited"
+                  ? t(
+                      "That’s 5 new posts today — the daily limit. Editing a post you already published still works.",
+                    )
+                  : t("Couldn’t publish — try again.")}
         </p>
       )}
       <div className="mt-2 flex items-center gap-3">

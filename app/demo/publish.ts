@@ -34,7 +34,7 @@ export type PublishResult =
   | { ok: true; slug: string }
   | {
       ok: false;
-      reason: "signed-out" | "no-username" | "empty" | "error";
+      reason: "signed-out" | "no-username" | "empty" | "rate-limited" | "error";
       detail?: string;
     };
 
@@ -93,6 +93,7 @@ export async function publishGroup(
   };
 
   if (existingSlug) {
+    // An UPDATE, so re-publishing an existing post never costs daily quota.
     const { error } = await supabase
       .from("published_groups")
       .update(row)
@@ -108,6 +109,10 @@ export async function publishGroup(
       .from("published_groups")
       .insert({ ...row, slug });
     if (!error) return { ok: true, slug };
+    // P0001 is the daily cap in supabase/rate-limits.sql, raised by a trigger
+    // the client cannot go around. Distinct from 23505 (slug collision), which
+    // is just bad luck and worth retrying.
+    if (error.code === "P0001") return { ok: false, reason: "rate-limited" };
     if (error.code !== "23505") {
       return { ok: false, reason: "error", detail: error.message };
     }

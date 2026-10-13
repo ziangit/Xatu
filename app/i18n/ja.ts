@@ -87,6 +87,8 @@ export const JA: Record<string, string> = {
   "Letters, digits, - and _ only.": "英数字と - _ のみ使えます。",
   "Couldn’t save that — try again.":
     "保存できませんでした——もう一度お試しください。",
+  "The only thing shown on your posts. Change it anytime.":
+    "投稿で表示されるのはこれだけです。いつでも変更できます。",
   "Needed before you can publish or comment.": "投稿やコメントの前に必要です。",
   "sign in": "ログイン",
   "Sign in": "ログイン",
@@ -225,6 +227,12 @@ export const JA: Record<string, string> = {
     "先にユーザー名を設定してください——署名になります。アカウントメニューから設定できます。",
   "Sign in to publish.": "公開するにはログインしてください。",
   "A title is required.": "タイトルは必須です。",
+  "That’s 5 new posts today — the daily limit. Editing a post you already published still works.":
+    "本日の新規投稿は 5 件に達しました——1 日の上限です。公開済みの投稿の編集は引き続きできます。",
+  "That’s 30 comments today — the daily limit.":
+    "本日のコメントは 30 件に達しました——1 日の上限です。",
+  "Couldn’t post that — try again.":
+    "投稿できませんでした——もう一度お試しください。",
   "Couldn’t publish — try again.":
     "公開できませんでした——もう一度お試しください。",
   "paste JSON": "JSON を貼り付け",

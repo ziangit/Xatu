@@ -45,6 +45,30 @@ describe("checkUsername", () => {
     }
   });
 
+  it("reserves `trainer`, the stem of the auto-assigned fallback", () => {
+    // supabase/initial-username.sql hands out `trainer-0c286a` when it cannot
+    // derive a name. A bare "trainer" must not look like one of those.
+    expect(checkUsername("trainer")).toBe("reserved");
+    expect(checkUsername("Trainer")).toBe("reserved");
+    // The suffixed form is a normal name and stays available.
+    expect(checkUsername("trainer-0c286a")).toBeNull();
+  });
+
+  it("accepts what the signup trigger derives", () => {
+    // Round-trips the cases verified against the live database: a Google name
+    // with its space stripped, a collision suffix, an email local part, the
+    // 20-char truncation, and the fallback.
+    for (const name of [
+      "ZiangSun",
+      "ZiangSun2",
+      "megazchomp",
+      "BartholomewMaximilia",
+      "trainer-0c286a",
+    ]) {
+      expect(checkUsername(name), name).toBeNull();
+    }
+  });
+
   it("trims before judging, so a stray space isn't an error", () => {
     expect(checkUsername("  Phalap  ")).toBeNull();
   });

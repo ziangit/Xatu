@@ -186,9 +186,13 @@ export function AccountLink() {
                           : t("Couldn’t save that — try again.")}
                 </p>
               )}
-              {!username && !editing && !problem && (
+              {!editing && !problem && (
                 <p className="mt-1 text-[10px] leading-relaxed text-stone-400">
-                  {t("Needed before you can publish or comment.")}
+                  {username
+                    ? t(
+                        "The only thing shown on your posts. Change it anytime.",
+                      )
+                    : t("Needed before you can publish or comment.")}
                 </p>
               )}
               <p
