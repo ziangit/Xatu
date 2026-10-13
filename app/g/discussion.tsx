@@ -13,7 +13,7 @@ import {
   toggleLike,
   type Comment,
 } from "../demo/forum";
-import { getSupabase } from "../auth/client";
+import { currentUserId } from "../auth/session";
 
 /**
  * Likes and a flat comment list under a published matchup.
@@ -37,9 +37,8 @@ export function Discussion({ slug }: { slug: string }) {
 
   useEffect(() => {
     let alive = true;
-    const supabase = getSupabase();
-    void supabase?.auth.getUser().then(({ data }) => {
-      if (alive) setSignedIn(Boolean(data.user));
+    void currentUserId().then((id) => {
+      if (alive) setSignedIn(Boolean(id));
     });
     void loadLikes(slug).then((l) => alive && setLikes(l));
     void loadComments(slug).then((c) => alive && setComments(c));

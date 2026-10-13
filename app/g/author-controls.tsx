@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { InlineConfirm } from "../ui";
 import { useT } from "../i18n/provider";
-import { getSupabase } from "../auth/client";
+import { currentUserId } from "../auth/session";
 import { unpublishGroup } from "../demo/publish";
 
 /**
@@ -34,11 +34,9 @@ export function AuthorControls({
 
   useEffect(() => {
     let alive = true;
-    void getSupabase()
-      ?.auth.getUser()
-      .then(({ data }) => {
-        if (alive) setMine(data.user?.id === authorId);
-      });
+    void currentUserId().then((id) => {
+      if (alive) setMine(id === authorId);
+    });
     return () => {
       alive = false;
     };

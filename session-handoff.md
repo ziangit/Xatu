@@ -157,6 +157,39 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-13: /matchups took 1.6s to paint, for no reason
+
+User: _"why loading taking so long, did we do lazy loading"_. Measured rather
+than guessed, and the answer was neither bundle size nor lazy loading — it was
+the request waterfall. Rules in docs/ARCHITECTURE.md → **"`getUser()` is a
+network call"**.
+
+Before: **1,637ms to paint**, data in hand at 416ms. Ten Supabase requests,
+**six of them `/auth/v1/user`** (one 989ms), three identical `profiles`
+queries, and `published_groups` not starting until 1,237ms.
+
+- **`auth.getUser()` is a network round trip**; `getSession()` is local. Safe
+  because RLS is the authority — the argument `userClient()` already made in
+  August and that never spread to the other thirteen call sites.
+  `app/auth/session.ts` is now the single place.
+- **The two reads were serial** though independent, and the page waits for
+  both. `Promise.all`.
+- **Three components each fetched the username**; `loadMyUsername()` now shares
+  one in-flight promise.
+
+After: **three requests, all parallel, last one at 164ms** on a production
+build.
+
+**The measurement lesson.** My first numbers (846ms) were my own harness
+waiting on `p.goto`'s load event plus a 100ms poll loop. Timing from inside the
+page (`performance.getEntriesByType('navigation')`) showed DOM interactive at
+14ms. Don't quote a CDP `goto`-to-poll figure as user-perceived latency.
+
+**And lazy loading did almost nothing.** `PRESETS` parsed nineteen sample
+exports at module load, which was worth fixing (`presets()` is lazy now, and
+`TeamChooser` is a dynamic import) — but it moved paint by **4ms**. Measure
+first.
+
 ## 2026-10-13: the team report
 
 User: make publishing "really a minimal team report" — a page before publish,

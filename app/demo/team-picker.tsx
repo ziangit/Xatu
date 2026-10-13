@@ -29,22 +29,37 @@ import type { StoredTeam } from "./storage";
 // The built-in teams offered before you've imported any of your own. They are
 // exactly SAMPLE_TEAMS — a preset is a real pasted team, not a special kind of
 // one, so nothing here may diverge from what an import would produce.
-export const PRESETS: StoredTeam[] = SAMPLE_TEAMS.map((s, i) => ({
-  id: `preset-${i}`,
-  name: s.label,
-  // Each sample states its own regulation. NOT `FORMATS[0]` — that is whichever
-  // regulation is current, so when the ladder rotates this would silently
-  // relabel real M-B pastes as the new one. It is also what the list filters on.
-  format: s.format,
-  exportText: s.text,
-  parsed: importTeamText(s.text)?.parsed ?? [],
-}));
+let presetCache: StoredTeam[] | null = null;
+
+/**
+ * Built on first use, not at import.
+ *
+ * `demo-data.ts` is 23KB of Showdown exports and this parses all nineteen of
+ * them through `importTeamText`. Doing that at module evaluation charged the
+ * cost to every page that imports this file — `/matchups` paid it on load for
+ * a picker most visits never open.
+ */
+export function presets(): StoredTeam[] {
+  presetCache ??= SAMPLE_TEAMS.map((s, i) => ({
+    id: `preset-${i}`,
+    name: s.label,
+    // Each sample states its own regulation. NOT `FORMATS[0]` — that is
+    // whichever regulation is current, so when the ladder rotates this would
+    // silently relabel real M-B pastes as the new one. It is also what the
+    // list filters on.
+    format: s.format,
+    exportText: s.text,
+    parsed: importTeamText(s.text)?.parsed ?? [],
+  }));
+  return presetCache;
+}
 
 /** Regulations the built-in samples actually span, newest first. Derived, not
  * hard-coded: adding a sample from a new regulation must not need a second edit
- * here, and a regulation nothing is tagged with must not appear as a dead tab. */
+ * here, and a regulation nothing is tagged with must not appear as a dead tab.
+ * Reads `SAMPLE_TEAMS` directly so it costs nothing to evaluate. */
 const SAMPLE_REGULATIONS = FORMATS.filter((f) =>
-  PRESETS.some((p) => p.format === f),
+  SAMPLE_TEAMS.some((s) => s.format === f),
 );
 
 /** Compact sprite row — the way a team is named everywhere but the board. */
@@ -82,7 +97,7 @@ export function existingTeams(
   // Both groups still exist; this only decides which one this list offers.
   const mine = saved.filter((t) => !isKeptApart(t));
   const pasted = saved.filter((t) => isKeptApart(t));
-  for (const team of [...mine, ...pasted, ...PRESETS]) {
+  for (const team of [...mine, ...pasted, ...presets()]) {
     const key = team.parsed.map((m) => m.species).join("|");
     if (seen.has(team.id) || seen.has(key) || exclude(team)) continue;
     seen.add(team.id);

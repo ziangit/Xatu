@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabase } from "../auth/client";
+import { currentUserId } from "../auth/session";
 import { loadMyUsername } from "../auth/profile";
 import { encodeGroup } from "./workflow-io";
 import { pruneReport, reportKey, type Report } from "./report";
@@ -80,8 +81,7 @@ export async function publishGroup(
 ): Promise<PublishResult> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, reason: "signed-out" };
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
+  const uid = await currentUserId();
   if (!uid) return { ok: false, reason: "signed-out" };
 
   // A byline needs a name. Gating here rather than at the button keeps the
@@ -222,8 +222,7 @@ export async function loadMyPublished(): Promise<Map<string, MyPublished>> {
   const out = new Map<string, MyPublished>();
   const supabase = getSupabase();
   if (!supabase) return out;
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
+  const uid = await currentUserId();
   if (!uid) return out;
   const { data } = await supabase
     .from("published_groups")

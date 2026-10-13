@@ -6,6 +6,7 @@ import { getSupabase, supabaseConfigured } from "./client";
 import { checkUsername, loadMyUsername, saveMyUsername } from "./profile";
 import { InlineRename } from "../ui";
 import { useT } from "../i18n/provider";
+import { currentUserEmail } from "./session";
 import { isHandleAddress } from "./handle";
 
 /**
@@ -40,10 +41,10 @@ export function AccountLink() {
     const supabase = getSupabase();
     if (!supabase) return;
     let alive = true;
-    supabase.auth.getUser().then(({ data }) => {
+    void currentUserEmail().then((mail) => {
       if (!alive) return;
       setChecked(true);
-      setEmail(data.user?.email ?? null);
+      setEmail(mail);
     });
     void loadMyUsername().then((u) => {
       if (alive) setUsername(u);

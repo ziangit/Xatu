@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabase } from "../auth/client";
+import { currentUserId } from "../auth/session";
 
 /**
  * The forum: a feed of published groups, likes, and flat comments.
@@ -94,8 +95,7 @@ export async function loadLikes(
     .from("post_likes")
     .select("slug", { count: "exact", head: true })
     .eq("slug", slug);
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
+  const uid = await currentUserId();
   if (!uid) return { count: count ?? 0, mine: false };
   const { data } = await supabase
     .from("post_likes")
@@ -113,8 +113,7 @@ export async function toggleLike(
 ): Promise<boolean | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
+  const uid = await currentUserId();
   if (!uid) return null;
   if (liked) {
     await supabase
@@ -160,8 +159,7 @@ export async function loadComments(slug: string): Promise<Comment[]> {
       p.username,
     ]),
   );
-  const { data: auth } = await supabase.auth.getUser();
-  const me = auth.user?.id ?? null;
+  const me = await currentUserId();
   return rows.map((r) => ({
     id: r.id,
     body: r.body,
@@ -183,8 +181,7 @@ export async function addComment(
   if (!text) return { ok: false, reason: "empty" };
   const supabase = getSupabase();
   if (!supabase) return { ok: false, reason: "signed-out" };
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
+  const uid = await currentUserId();
   if (!uid) return { ok: false, reason: "signed-out" };
   const { error } = await supabase
     .from("post_comments")

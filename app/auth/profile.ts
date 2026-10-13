@@ -1,6 +1,7 @@
 "use client";
 
 import { getSupabase } from "./client";
+import { currentUserId } from "./session";
 
 /**
  * Public identity. One field: a username.
@@ -35,12 +36,30 @@ export type SaveResult =
   | { ok: true; username: string }
   | { ok: false; reason: UsernameProblem | "taken" | "signed-out" | "error" };
 
+/**
+ * Shares one in-flight request between simultaneous callers.
+ *
+ * The header's account widget, the login page and the composer all ask on
+ * mount, which was three identical `profiles` queries per page load. Only
+ * *concurrent* calls are shared — the promise is released as soon as it
+ * settles — so there is no cache to invalidate when the name changes.
+ */
+let inFlight: Promise<string | null> | null = null;
+
 /** This user's username, or null when they have not chosen one yet. */
-export async function loadMyUsername(): Promise<string | null> {
+export function loadMyUsername(): Promise<string | null> {
+  if (!inFlight) {
+    inFlight = fetchMyUsername().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+async function fetchMyUsername(): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
-  const { data: auth } = await supabase.auth.getUser();
-  const id = auth.user?.id;
+  const id = await currentUserId();
   if (!id) return null;
   const { data } = await supabase
     .from("profiles")
@@ -65,8 +84,7 @@ export async function saveMyUsername(raw: string): Promise<SaveResult> {
 
   const supabase = getSupabase();
   if (!supabase) return { ok: false, reason: "signed-out" };
-  const { data: auth } = await supabase.auth.getUser();
-  const id = auth.user?.id;
+  const id = await currentUserId();
   if (!id) return { ok: false, reason: "signed-out" };
 
   const { error } = await supabase

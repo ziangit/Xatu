@@ -14,7 +14,20 @@ import {
 } from "../demo/publish";
 import { InlineConfirm, InlineRename, useCopy } from "../ui";
 import { ImportedBadge, MonIcon } from "../demo/components";
-import { TeamChooser, TeamSprites } from "../demo/team-picker";
+import dynamic from "next/dynamic";
+import { TeamSprites } from "../demo/team-picker";
+
+/**
+ * Loaded when you open it, not when the page does.
+ *
+ * The chooser pulls in the import panel, the species type-ahead and the
+ * catalogue query, and it renders only while you are composing a set or
+ * adding opponents — which most visits to this list never do.
+ */
+const TeamChooser = dynamic(
+  () => import("../demo/team-picker").then((m) => m.TeamChooser),
+  { ssr: false },
+);
 import { supabaseConfigured } from "../auth/client";
 import {
   deleteCloudMatchup,
@@ -178,13 +191,19 @@ export default function MatchupsPage() {
       setCloud("off");
       return;
     }
-    const result = await listCloudMatchups();
+    // Together, not one after the other: they are independent reads and the
+    // page waits for both before it paints (the "one list, one paint" rule),
+    // so serialising them put the whole second round trip on the clock.
+    const [result, mine] = await Promise.all([
+      listCloudMatchups(),
+      loadMyPublished(),
+    ]);
     const merged = mergeRows(
       local,
       result.state === "ok" ? result.matchups : null,
     );
     setRows(merged);
-    setPublished(await loadMyPublished());
+    setPublished(mine);
     if (result.state === "off") {
       setCloud("off");
       return;

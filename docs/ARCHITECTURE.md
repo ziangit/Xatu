@@ -1649,6 +1649,39 @@ that would watch it.
 up — it is the Open Graph description and the feed card's subtitle, so prose
 moving into the report must not take the link preview with it.
 
+## `getUser()` is a network call (2026-10-13)
+
+`/matchups` took **1,637ms** to paint while its data arrived at 416ms. The
+waterfall showed **six requests to `/auth/v1/user`**, one of them 989ms, and
+`published_groups` not even starting until 1,237ms.
+
+`supabase.auth.getUser()` round-trips to the server to validate the JWT.
+`getSession()` reads the token the client already holds. Thirteen call sites
+used the former to answer "who is signed in", which nothing here needs a server
+to confirm: **RLS is the authority**, so a stale local session buys only a
+request Postgres refuses. `app/auth/session.ts` is now the one place that
+decides, and `userClient()` in `cloud.ts` had already made this exact argument
+back in August — the fix simply never spread.
+
+Two other things were on the critical path:
+
+- **`listCloudMatchups()` and `loadMyPublished()` ran in sequence.** They are
+  independent, and the page waits for both before painting ("one list, one
+  paint"), so the second round trip was pure latency. `Promise.all` now.
+- **Three components each fetched the username on mount.** `loadMyUsername()`
+  shares one in-flight promise — released as soon as it settles, so there is no
+  cache to invalidate when the name changes.
+
+Result: **ten requests became three**, all starting together. On a production
+build the last of them lands at **164ms**.
+
+**Lazy work, and what it was not.** `PRESETS` parsed all nineteen sample
+exports (23KB of `demo-data.ts`) at _module evaluation_, charging every page
+that imports `team-picker` — so `/matchups` paid for a picker most visits never
+open. It is `presets()` now, built on first use, and `TeamChooser` is a
+`next/dynamic` import. Worth doing, but measure before believing it helps:
+splitting the picker moved paint by **4ms**. The waterfall was the whole story.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

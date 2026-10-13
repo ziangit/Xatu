@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "../auth/client";
 import { checkUsername, isHandleAddress, loginAddress } from "../auth/handle";
+import { currentUserEmail } from "../auth/session";
 import { loadMyUsername } from "../auth/profile";
 // The account widget is deliberately absent here — this page IS the account
 // page — so the nav is hand-rolled instead of using HeaderNav.
@@ -43,11 +44,11 @@ export default function LoginPage() {
       return;
     }
     let alive = true;
-    client.auth.getUser().then(({ data }) => {
+    void currentUserEmail().then((mail) => {
       if (!alive) return;
-      setSessionEmail(data.user?.email ?? null);
+      setSessionEmail(mail);
       setChecked(true);
-      if (data.user) void loadMyUsername().then((n) => alive && setMyName(n));
+      if (mail) void loadMyUsername().then((n) => alive && setMyName(n));
     });
     const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
       if (!alive) return;
