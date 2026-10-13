@@ -1,5 +1,10 @@
 # Session handoff
 
+> Updated 2026-10-12: the landing page **shows the three newest published
+> matchups** as real cards, under the hero — the feed is what the site is for,
+> and a button asked people to imagine what was behind it. Card markup is now
+> shared with `/feed` (`app/feed/post-card.tsx`) so the two cannot drift.
+>
 > Updated 2026-10-12: **accounts get a username at signup** (Google's profile
 > name, or the email's local part), and **posting is capped** — 5 new posts and
 > 30 comments per account per day, enforced by a Postgres trigger the client
@@ -76,6 +81,34 @@
 > accounts are live, and the site is deployed to production. **The Supabase
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
+
+## 2026-10-12: the feed, on the landing page
+
+User: _"Also show 'Published Match Ups' under 'guide lookup' and the line, it
+is the core feature so user should see it at first glance"_ — with a screenshot
+of teamsheet.gg's "Featured · HAND-PICKED REPORTS" row as the reference.
+
+- **`PostCard` is extracted to `app/feed/post-card.tsx`** and used by both
+  `/feed` (a one-column list) and the strip (a three-column row), so they
+  cannot drift — the `ExistingTeamList` / `BoardView` precedent. It carries
+  `h-full` and pushes its sprite row down with `mt-auto`, which squares up a
+  grid row and does nothing in a list, so **no variant prop was needed**.
+- **Exactly three, then `see all →`.** A landing page that keeps scrolling
+  buries everything under it; this is a shortcut into the feed, not the feed.
+- **It renders nothing when Supabase is unconfigured** —
+  `supabaseConfigured()` answers synchronously, so the local-first build has no
+  hole where the strip would be, and no shift.
+- **The grid reserves `md:min-h-[12.5rem]`, and that number earns its keep
+  twice**: the fetch lands after first paint, _and_ the card's byline wraps to
+  two lines in English and Japanese but one in Chinese (195 / 180 / 197px),
+  which would otherwise have reintroduced the drift fixed earlier the same day.
+  Re-measured after: all four sections identical in all three languages.
+  It cannot cover everything — a card is mostly somebody's title and
+  description, and that is author content, not chrome.
+- **A dashed "Publish yours →" tile fills the gap while fewer than three posts
+  exist.** With one real post the row was two-thirds empty and read as a
+  failed load. It is `md:flex`, so it never appears on a phone, where the grid
+  is one column and there is no gap to fill.
 
 ## 2026-10-12: usernames at signup, and daily caps
 

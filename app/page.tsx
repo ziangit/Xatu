@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AccountLink } from "./auth/AccountLink";
+import { supabaseConfigured } from "./auth/client";
+import { loadFeed, type FeedPost } from "./demo/forum";
+import { PostCard } from "./feed/post-card";
 import { MonIcon } from "./demo/components";
 import { useT } from "./i18n/provider";
 import { LangToggle } from "./i18n/toggle";
@@ -35,6 +39,94 @@ function IconRow({ species, scale }: { species: string[]; scale: number }) {
         <MonIcon key={s} species={s} scale={scale} />
       ))}
     </span>
+  );
+}
+
+/**
+ * The three newest published matchups, on the landing page.
+ *
+ * The feed is the thing the site is for, and a button labelled "Published
+ * matchups" asks someone to imagine what is behind it. Real cards do not.
+ *
+ * Exactly three — one row — and `see all` for the rest. That is a shortcut
+ * into the feed, not the feed; a landing page that keeps scrolling buries
+ * everything under it.
+ *
+ * Two rules it has to keep. It renders **nothing at all** when Supabase is
+ * unconfigured, which `supabaseConfigured()` answers synchronously, so the
+ * local-first build has no hole where this would be. And the row has a
+ * reserved height above `md`, which earns its keep twice: the fetch lands
+ * after first paint, and the card's byline wraps to two lines in English and
+ * Japanese but one in Chinese (measured 195 / 180 / 197px), which would
+ * otherwise move the section below it.
+ *
+ * 12.5rem covers all three. It cannot cover everything — a card is mostly
+ * somebody's title and description, so a long post makes a tall row in any
+ * language. That much is author content, and pinning it is neither possible
+ * nor desirable.
+ */
+function PublishedStrip() {
+  const t = useT();
+  const [posts, setPosts] = useState<FeedPost[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadFeed("new", 3).then((p) => alive && setPosts(p));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!supabaseConfigured()) return null;
+
+  return (
+    <section className="border-t border-stone-200 py-14">
+      <div className="flex items-baseline gap-3">
+        <h2 className="font-display text-xl font-bold tracking-tight">
+          {t("Published matchups")}
+        </h2>
+        <span className="hidden text-[10px] font-semibold uppercase tracking-widest text-stone-400 sm:inline">
+          {t("from the community")}
+        </span>
+        <span aria-hidden="true" className="h-px flex-1 bg-stone-200" />
+        <Link
+          href="/feed"
+          className="shrink-0 text-xs text-stone-500 underline-offset-2 hover:text-stone-900 hover:underline"
+        >
+          {t("see all →")}
+        </Link>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 md:min-h-[12.5rem] md:grid-cols-3">
+        {posts === null ? (
+          // Invisible for 300ms, so a quick response replaces it before it was
+          // ever seen — the `.late-fade-in` rule from /matchups.
+          <p className="late-fade-in text-xs text-stone-400">{t("Loading…")}</p>
+        ) : posts.length === 0 ? (
+          <p className="text-xs text-stone-400">
+            {t("Nothing published yet.")}
+          </p>
+        ) : (
+          <>
+            {posts.map((p) => (
+              <PostCard key={p.slug} post={p} />
+            ))}
+            {/* Until three posts exist, the row is mostly empty space. One
+                dashed tile in the gap makes that read as an invitation rather
+                than as something that failed to load — and it is the only
+                place the landing page says you can publish at all. */}
+            {posts.length < 3 && (
+              <Link
+                href="/matchups"
+                className="hidden items-center justify-center rounded-lg border border-dashed border-stone-300 p-4 text-center text-xs text-stone-400 transition-colors hover:border-stone-400 hover:text-stone-600 md:flex"
+              >
+                {t("Publish yours →")}
+              </Link>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -317,6 +409,8 @@ export default function LandingPage() {
             <HeroTree />
           </div>
         </section>
+
+        <PublishedStrip />
 
         {/* Each blurb reserves four lines (4 x leading-relaxed), so this row
             is the same height in every language — 中 uses three. Same rule as
