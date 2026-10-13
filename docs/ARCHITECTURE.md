@@ -1628,6 +1628,24 @@ Prose between the matchups, which is what the reference article
 (`docs/PRODUCT.md` → the note.com guide) actually looks like and what the
 reader never had.
 
+**The composer shows the real boards, read-only.** It shipped with one-line
+matchup rows to "keep the prose the focus", which is backwards: you cannot
+write _around_ matchups you cannot see. It renders `BoardView` — the same
+component the published page uses — inside a `pointer-events-none` wrapper at
+`max-w-6xl`. Editing a board stays the board's job.
+
+**A closed text slot renders its prose, not its source**, sprites and all, so
+the page being edited looks like the page being made. The sprite picker is a
+labelled button; it previously rendered only _inside an already-open slot_,
+which is nowhere to find it from a standing start.
+
+**Report sprites are the full gen-5 artwork at native 96px**, not the
+team-preview icon the rest of the app draws with. The icon sheet's tiles are
+40×30, so anything this size would be an upscale of a 40px source — and a
+report uses a sprite as an illustration, captioning a set or heading a section,
+rather than as a chip in a list. Native size means no resampling, which is what
+keeps pixel art crisp. Still hotlinked from Showdown, so nothing is committed.
+
 **It is not a block list.** The ask was one thing — text between two matchups —
 so the shape is a text slot keyed by the matchup below it, plus one at the end:
 `{ before: { <key>: string }, outro?: string }`. Nothing reorders, so there is
