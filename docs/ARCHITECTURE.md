@@ -1400,6 +1400,56 @@ changed nothing**, because RLS filters the rows out before the delete sees
 them. `unpublishGroup` therefore asks for `.select("slug")` and treats an empty
 result as failure. This is the same trap recorded for the catalogue in 2026-08-12.
 
+## Reaching the catalogue: search by VGCPastes code (2026-10-12)
+
+The catalogue has been 1,295+ teams since August with **no way to reach any of
+them** — the picker offered 19 built-in samples and nothing else, and the only
+other consumer was the read-only "does this look like a known team?" panel.
+
+**The id was already there.** `community_teams.source_team_id` has carried the
+sheet's own code since the first ingest (its column comment literally says
+`e.g. "MB712"`) and had never been queried, so it had no index. It does now.
+Codes are `MB1`–`MB861` and `MC1`–`MC583`; the prefix is the regulation's
+shorthand, and **no code is ambiguous** (checked: zero duplicates across 1,443
+rows).
+
+- **Search, never a list.** 1,443 teams is not something anyone scrolls, and
+  the samples stay the default — empty box, exactly the old behaviour. A code
+  matches exactly and case-insensitively; anything else is matched against the
+  team name, capped at 8.
+- **The samples and your own teams are hidden while searching**, so the
+  regulation tabs can't look like they scope the results. They don't.
+- **`export_text` is selected here**, unlike the overlap query, because the
+  point is to import the team — the cap keeps that to ~8KB.
+- **The "still searching" flag is derived**, not set in the effect: `found`
+  carries the query it answers, so `found.query !== search` _is_ "in flight".
+  Clearing results in the effect body is the `set-state-in-effect` lint error
+  this codebase has now hit three times.
+
+### Re-ingesting: the sheet is cached
+
+`ingest.mjs` caches each tab's CSV as `data/tab-<gid>.csv` and **will happily
+re-run against a stale copy** — a re-ingest reported the same 712 M-B teams it
+found in August while the sheet had grown to 861. Pass **`--refresh-sheet`**.
+The paste cache is separate and should be kept; only the sheet needs refreshing.
+
+A re-seed is an upsert on `paste_url`, so teams **removed** from the sheet stay
+in the table (19 of them after this run). They are real teams with real pastes
+and their codes are not reused, so they are reachable and harmless — but it is
+why the row count exceeds what the ingest reports.
+
+## Forgetting a saved team (2026-10-12)
+
+There was no way to delete a team from the library. `forgetTeams` existed but
+was only ever called when a matchup was deleted, so a team nothing referenced —
+a sample picked once, or one left over from a build that shipped different demo
+data — sat in "use existing" permanently. The picker's rows now carry a ✕ for
+saved teams (never for samples, which aren't in the library until picked).
+
+`forgetTeams` already refused while any board or the in-progress setup still
+named a team, which is what stops this orphaning a plan. That guard is now
+unit-tested, because it went from an internal tidy-up to a user-facing delete.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

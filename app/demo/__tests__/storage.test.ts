@@ -4,6 +4,7 @@ import {
   loadMatchups,
   loadSavedTeams,
   rememberTeam,
+  forgetTeams,
   loadSetup,
   renameTeam,
   saveSetup,
@@ -240,5 +241,52 @@ describe("renameTeam", () => {
     expect(renameTeam(t.id, "   ")).toBeNull();
     expect(renameTeam(t.id, "Sand")).toBeNull();
     expect(loadSavedTeams()[0].name).toBe("Sand");
+  });
+});
+
+/**
+ * `forgetTeams` is now a user-facing delete — the ✕ on a saved team in the
+ * picker — so what it refuses matters. It had no test before that.
+ */
+describe("forgetTeams", () => {
+  it("drops a team nothing points at", () => {
+    const t = rememberTeam(team("Superpower", "Stale"), {
+      authoritative: true,
+    });
+    forgetTeams([t.id]);
+    expect(loadSavedTeams().some((x) => x.id === t.id)).toBe(false);
+  });
+
+  it("refuses while a saved board still names it", () => {
+    const my = rememberTeam(team("Superpower", "Mine"), {
+      authoritative: true,
+    });
+    const opp = rememberTeam(otherTeam("Theirs"), { authoritative: true });
+    upsertMatchup({
+      id: "m-1",
+      name: "Mine vs Theirs",
+      setup: { my, opp },
+      nodes: [],
+      savedAt: new Date().toISOString(),
+    });
+
+    forgetTeams([my.id, opp.id]);
+
+    // Both sides of a stored pairing survive: dropping either would leave the
+    // board pointing at a team the library no longer has.
+    expect(loadSavedTeams().some((x) => x.id === my.id)).toBe(true);
+    expect(loadSavedTeams().some((x) => x.id === opp.id)).toBe(true);
+  });
+
+  it("refuses while the in-progress setup still names it", () => {
+    const my = rememberTeam(team("Superpower", "Open"), {
+      authoritative: true,
+    });
+    const opp = rememberTeam(otherTeam("Against"), { authoritative: true });
+    saveSetup({ my, opp });
+
+    forgetTeams([my.id]);
+
+    expect(loadSavedTeams().some((x) => x.id === my.id)).toBe(true);
   });
 });

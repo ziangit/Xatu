@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { importTeamText } from "@/lib/team";
 import { useT } from "../i18n/provider";
+import { InlineConfirm } from "../ui";
 import { ImportPanel, MonIcon } from "./components";
 import { SAMPLE_TEAMS } from "./demo-data";
 import { FORMATS } from "./formats";
-import { isKeptApart, loadSavedTeams, rememberTeam } from "./storage";
+import { searchCatalogue, type CatalogueTeam } from "./catalogue";
+import {
+  forgetTeams,
+  isKeptApart,
+  loadSavedTeams,
+  rememberTeam,
+} from "./storage";
 import type { StoredTeam } from "./storage";
 
 /**
@@ -97,16 +104,50 @@ function ExistingTeamList({
   teams,
   onPick,
   onImport,
+  onForget,
   importLabel,
   emptyNote,
 }: {
   teams: StoredTeam[];
   onPick: (team: StoredTeam) => void;
   onImport: () => void;
+  /** Drop a saved team from the library. Absent = not offered. */
+  onForget?: (team: StoredTeam) => void;
   importLabel: string;
   emptyNote?: string;
 }) {
   const t = useT();
+  /** VGCPastes search. Empty is the default and shows only the samples —
+   * 1,295 catalogue teams is not a list anybody scrolls. */
+  const [search, setSearch] = useState("");
+  /** Results together with the query they answer. Keeping the query here is
+   * what makes "still searching" derivable — clearing results in the effect
+   * body would be a synchronous setState during an effect. */
+  const [found, setFound] = useState<{
+    query: string;
+    teams: CatalogueTeam[];
+  } | null>(null);
+  const [forgetId, setForgetId] = useState<string | null>(null);
+  const query = search.trim();
+  const searching = query !== "" && found?.query !== query;
+
+  useEffect(() => {
+    const text = search.trim();
+    if (!text) return;
+    // Debounced: a code is five keystrokes and every one of them would
+    // otherwise be a round trip.
+    let alive = true;
+    const timer = setTimeout(() => {
+      void searchCatalogue(text).then((r) => {
+        if (alive)
+          setFound({ query: text, teams: r.state === "ok" ? r.teams : [] });
+      });
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
   // Defaults to the current regulation rather than "all": the common case is
   // planning for what is being played now, and 19 rows is a scroll.
   const [reg, setReg] = useState<string>(SAMPLE_REGULATIONS[0] ?? "");
@@ -115,33 +156,102 @@ function ExistingTeamList({
     (tm) => tm.id.startsWith("preset-") && (reg === "" || tm.format === reg),
   );
 
-  const row = (tm: StoredTeam) => (
-    <button
-      key={tm.id}
-      onClick={() => onPick(tm)}
-      className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-stone-50"
-    >
-      <TeamSprites team={tm} scale={0.45} />
-      <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-        {tm.name}
-      </span>
-      <span className="ml-auto shrink-0 text-[10px] text-stone-400">
-        {tm.id.startsWith("preset-")
-          ? t("sample")
-          : isKeptApart(tm)
-            ? t("imported")
-            : t("saved")}
-      </span>
-    </button>
-  );
+  const row = (tm: StoredTeam) => {
+    const isSample = tm.id.startsWith("preset-");
+    return (
+      <div
+        key={tm.id}
+        className="flex w-full items-center gap-2 px-3 py-1.5 transition-colors hover:bg-stone-50"
+      >
+        <button
+          onClick={() => onPick(tm)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <TeamSprites team={tm} scale={0.45} />
+          <span className="min-w-0 truncate text-xs font-medium text-stone-700">
+            {tm.name}
+          </span>
+          <span className="ml-auto shrink-0 text-[10px] text-stone-400">
+            {isSample
+              ? t("sample")
+              : isKeptApart(tm)
+                ? t("imported")
+                : t("saved")}
+          </span>
+        </button>
+        {/* Saved teams only. A sample is not in the library until it is
+            picked, and there has been no way at all to drop one until now —
+            a team left over from an old build simply sat here forever. */}
+        {onForget &&
+          !isSample &&
+          (forgetId === tm.id ? (
+            <InlineConfirm
+              question={t("Forget this team?")}
+              confirmLabel={t("Forget")}
+              onConfirm={() => {
+                setForgetId(null);
+                onForget(tm);
+              }}
+              onCancel={() => setForgetId(null)}
+            />
+          ) : (
+            <button
+              onClick={() => setForgetId(tm.id)}
+              title={t("forget {team}", { team: tm.name })}
+              className="shrink-0 rounded px-1 py-0.5 text-[11px] text-stone-300 hover:text-red-600"
+            >
+              ✕
+            </button>
+          ))}
+      </div>
+    );
+  };
+
+  /** A catalogue hit, offered the same way a sample is. */
+  const catalogueRow = (team: CatalogueTeam) => {
+    const parsed = importTeamText(team.export_text);
+    if (!parsed) return null;
+    return (
+      <button
+        key={team.source_team_id}
+        onClick={() =>
+          onPick(
+            rememberTeam(
+              {
+                id: crypto.randomUUID(),
+                name: team.name ?? team.source_team_id,
+                format: team.regulation,
+                exportText: parsed.exportText,
+                parsed: parsed.parsed,
+              },
+              { authoritative: true },
+            ),
+          )
+        }
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-stone-50"
+      >
+        <span className="flex shrink-0">
+          {team.species.slice(0, 6).map((sp, i) => (
+            <MonIcon key={`${sp}-${i}`} species={sp} scale={0.45} />
+          ))}
+        </span>
+        <span className="min-w-0 truncate text-xs font-medium text-stone-700">
+          {team.name ?? team.source_team_id}
+        </span>
+        <span className="ml-auto shrink-0 font-mono text-[10px] text-stone-400">
+          {team.source_team_id}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div className="grow-in rounded-lg border border-stone-200 bg-white py-1">
       {teams.length === 0 && emptyNote && (
         <p className="px-3 py-2 text-xs text-stone-400">{emptyNote}</p>
       )}
-      {mine.map(row)}
-      {SAMPLE_REGULATIONS.length > 0 && (
+      {!search && mine.map(row)}
+      {!search && SAMPLE_REGULATIONS.length > 0 && (
         <div className="mt-1 flex items-center gap-2 border-t border-stone-100 px-3 pb-1 pt-2">
           <span className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
             {t("samples")}
@@ -168,7 +278,36 @@ function ExistingTeamList({
           </span>
         </div>
       )}
-      {samples.map(row)}
+      {!search && samples.map(row)}
+
+      {/* VGCPastes, by the id the sheet prints: MB712, MC20. The catalogue is
+          1,295 teams, so it is reachable by search and never listed — the
+          samples stay the default, which is what the picker is for. */}
+      <div className="mt-1 border-t border-stone-100 px-3 pb-1 pt-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("VGCPastes code or name — MB712, MC20…")}
+          spellCheck={false}
+          className="w-full rounded border border-stone-200 bg-white px-2 py-1 text-xs text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
+        />
+      </div>
+      {query && (
+        <>
+          {searching && (
+            <p className="px-3 py-1.5 text-[11px] text-stone-400">
+              {t("Searching…")}
+            </p>
+          )}
+          {!searching && found?.teams.length === 0 && (
+            <p className="px-3 py-1.5 text-[11px] text-stone-400">
+              {t("No team with that code or name.")}
+            </p>
+          )}
+          {!searching && found?.teams.map(catalogueRow)}
+        </>
+      )}
+
       <button
         onClick={onImport}
         className="w-full px-3 py-1.5 text-left text-xs text-stone-400 hover:bg-stone-50"
@@ -217,6 +356,16 @@ export function TeamChooser({
     // localStorage is browser-only; read on interaction, not at render.
     setExisting(existingTeams(exclude));
     setMode("existing");
+  };
+
+  /**
+   * Drop a team from the library. `forgetTeams` refuses while any board or the
+   * in-progress setup still names it, so this cannot orphan a plan — and when
+   * it refuses, the row simply stays, which is the honest outcome.
+   */
+  const forget = (team: StoredTeam) => {
+    forgetTeams([team.id]);
+    setExisting(existingTeams(exclude));
   };
 
   return (
@@ -273,6 +422,7 @@ export function TeamChooser({
           teams={existing}
           onPick={(team) => onPick([team])}
           onImport={() => setMode("import")}
+          onForget={forget}
           importLabel={importLabel}
           emptyNote={emptyNote}
         />

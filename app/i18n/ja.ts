@@ -315,6 +315,14 @@ export const JA: Record<string, string> = {
   sample: "サンプル",
   samples: "サンプル",
   all: "すべて",
+  "VGCPastes code or name — MB712, MC20…":
+    "VGCPastes の番号または名前——MB712、MC20…",
+  "Searching…": "検索中…",
+  "No team with that code or name.":
+    "その番号・名前のパーティは見つかりません。",
+  "Forget this team?": "このパーティをライブラリから削除しますか？",
+  Forget: "削除",
+  "forget {team}": "{team} を削除",
   "samples from every regulation": "すべてのレギュレーションのサンプル",
   imported: "読み込み",
   saved: "保存済み",

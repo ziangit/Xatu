@@ -1,5 +1,10 @@
 # Session handoff
 
+> Updated 2026-10-12: the picker can **search VGCPastes by code** (`MB860`,
+> `MC20`) — the id was already a column and had simply never been queried.
+> Samples stay the default. Saved teams can now be **deleted** (there was no
+> way at all before). Catalogue re-ingested: **1,443 teams**.
+>
 > Updated 2026-10-12: **guide lookup is deleted** (user's call) — it searched
 > one hardcoded fixture guide and was the last surface using the `lib/schema`
 > guide format. `lib/match` and `lib/schema` stay: the extension needs them.
@@ -128,6 +133,43 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: VGCPastes search, and deleting a saved team
+
+User: delete _"Hard Trick Room team"_, and _"I want user able to search like
+'MB860', 'MC20' for teams from vgcpastes … but to prevent too many teams,
+default only show the sample teams. Is this hard to achieve?"_
+
+**Not hard — the id was already in the table.** `community_teams.source_team_id`
+has carried the sheet's code since the first ingest and had never been queried,
+so this was an index, a query and a search box. Rules in docs/ARCHITECTURE.md →
+**"Reaching the catalogue"**.
+
+**"Hard Trick Room team" is not in the app and has not been since 2026-08-13.**
+`git log -S` puts it in `780eafb` as a shipped demo team, removed in `02a4115`
+when the samples became the user's own eight. It survives in _their browser_,
+because picking a team copies it into the library — and **nothing could delete a
+saved team**. `forgetTeams` existed but only ran when a matchup was deleted, so
+a team no board referenced sat in the list forever. That was the real bug; the
+picker's rows now carry a ✕, and `forgetTeams`' refusal (while a board or the
+in-progress setup still names the team) is now unit-tested, since it went from
+an internal tidy-up to a user-facing delete.
+
+**The re-ingest trap, worth knowing before the next rotation**: `ingest.mjs`
+caches each tab's CSV and will re-run against a stale copy without saying so —
+my first run reported the same 712 M-B teams from August while the sheet held 861. **`--refresh-sheet`** is the flag. The paste cache is separate and worth
+keeping; only the sheet goes stale.
+
+Catalogue now **1,443 teams** (564 M-C, 874 M-B, 5 M-A). 874 exceeds the 860
+the ingest kept because a re-seed upserts on `paste_url`, so 19 teams since
+removed from the sheet survive — real teams, codes not reused, no ambiguity
+(checked: zero duplicate codes).
+
+Verified in a browser: the box is empty by default and only samples show; typing
+`MB860` returns _"cona's Worlds 2026 Runner Up Team"_, `MC20` returns
+_"WyatVGC's Salamence Kingambit Team"_, a nonsense code says so, and picking
+`MB861` saves _"Takuma Yamazaki's Worlds 2026 Champion Team"_ with six Pokémon.
+A stale team is removable in place; a team a board still uses survives.
 
 ## 2026-10-12: guide lookup, deleted
 

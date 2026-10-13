@@ -22,6 +22,27 @@ import { getSupabase } from "../auth/client";
  * pure, testable and shareable with the extension. Only the query lives here.
  */
 
+/** `MB712`, `mc20` — the sheet's own id for a team. */
+export const CODE_RE = /^[A-Za-z]{1,2}\d{1,4}$/;
+
+export type CatalogueTeam = {
+  source_team_id: string;
+  name: string | null;
+  author: string | null;
+  regulation: string;
+  species: string[];
+  export_text: string;
+  paste_url: string;
+};
+
+export type CatalogueSearchResult =
+  | { state: "off" }
+  | { state: "ok"; teams: CatalogueTeam[] }
+  | { state: "error"; message: string };
+
+const SEARCH_COLUMNS =
+  "source_team_id,name,author,regulation,species,export_text,paste_url";
+
 export type CatalogueResult =
   | { state: "off" } // no Supabase configured
   | { state: "ok"; matches: CatalogueMatch[]; scanned: number }
@@ -34,6 +55,46 @@ export type CatalogueResult =
  */
 const COLUMNS =
   "match_species,roster_code,species,name,author,paste_url,featured,category";
+
+/**
+ * One team by the id VGCPastes prints in the sheet — `MB712`, `MC20` — or a
+ * few by name.
+ *
+ * Why a search at all: the catalogue is 1,295 teams and the picker shows a
+ * handful of samples, so everything else was unreachable. Why a *search* and
+ * not a list: 1,295 rows is not a list anybody scrolls, and the user asked for
+ * the sample teams to stay the default.
+ *
+ * `export_text` is selected here, unlike the overlap query above, because the
+ * point is to import the team — but the cap keeps that to ~8KB.
+ */
+export async function searchCatalogue(
+  queryText: string,
+  { limit = 8 }: { limit?: number } = {},
+): Promise<CatalogueSearchResult> {
+  const supabase = getSupabase();
+  if (!supabase) return { state: "off" };
+  const text = queryText.trim();
+  if (!text) return { state: "ok", teams: [] };
+
+  const query = supabase
+    .from("community_teams")
+    .select(SEARCH_COLUMNS)
+    .limit(limit);
+
+  // A code is exact and case-insensitive; anything else is treated as part of
+  // a team's name. `ilike` with a leading wildcard cannot use the index, but
+  // it is one bounded query over 1,295 rows on a deliberate keystroke.
+  const { data, error } = CODE_RE.test(text)
+    ? await query.ilike("source_team_id", text)
+    : await query.ilike("name", `%${text}%`);
+
+  if (error) return { state: "error", message: error.message };
+  return {
+    state: "ok",
+    teams: (data ?? []) as unknown as CatalogueTeam[],
+  };
+}
 
 export async function findCatalogueTeams(
   species: string[],
