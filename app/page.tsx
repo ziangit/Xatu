@@ -383,7 +383,7 @@ export default function LandingPage() {
               className="land-rise text-[10px] font-semibold uppercase tracking-widest text-stone-400"
               style={{ animationDelay: "0.05s" }}
             >
-              {t("Matchup planning for Pokémon doubles · bring 6 · pick 4")}
+              {t("Matchup planning for Pokémon doubles")}
             </p>
             <h1
               // Deliberately NOT height-reserved, unlike the paragraph below.

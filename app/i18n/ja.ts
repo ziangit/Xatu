@@ -525,8 +525,8 @@ export const JA: Record<string, string> = {
   "No terrain": "フィールドなし",
 
   // ── landing ────────────────────────────────────────────────────────────────
-  "Matchup planning for Pokémon doubles · bring 6 · pick 4":
-    "ポケモンダブルバトルのマッチアップ設計 · 6匹持ち込み · 4匹選出",
+  "Matchup planning for Pokémon doubles":
+    "ポケモンダブルバトルのマッチアップ設計",
   "See turn one coming.": "1ターン目を、見通す。",
   "Try New Match Ups!": "新しいマッチアップを作る！",
   "guide lookup →": "ガイド検索 →",

@@ -491,8 +491,7 @@ export const ZH: Record<string, string> = {
   "No terrain": "无场地",
 
   // ── landing ────────────────────────────────────────────────────────────────
-  "Matchup planning for Pokémon doubles · bring 6 · pick 4":
-    "宝可梦双打对阵规划 · 带六选四",
+  "Matchup planning for Pokémon doubles": "宝可梦双打对阵规划",
   "See turn one coming.": "预见第一回合。",
   "Try New Match Ups!": "开始新的对阵！",
   "guide lookup →": "指南查询 →",
