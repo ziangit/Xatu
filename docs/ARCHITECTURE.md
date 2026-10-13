@@ -203,7 +203,7 @@ shrink-0` so a long page title can't wrap the nav onto two lines.
   otherwise in the nav** (both placements user-directed, 2026-08-12). The board puts
   it left of `Reset`; `/matchups` puts it left of `paste JSON` — one place to look for
   "leave here" and "do something here", styled like its neighbours via `className`.
-  `/demo` puts it left of My Team's `＋ import`. `/demo/lookup` has no action row, so
+  `/matchups` puts it with the page's action row. A page with no action row
   it passes `back` to `HeaderNav` and it renders at nav weight. `/` is exempt — it _is_
   home. A page must render exactly **one** back affordance: pass `back` to `HeaderNav`
   **or** place a `BackLink` yourself, never both.
@@ -218,7 +218,7 @@ shrink-0` so a long page title can't wrap the nav onto two lines.
   `HeaderNav` wholesale (`/login`). The icon is a drawn SVG house: the `⌂`
   character renders as a lopsided box in most UI fonts — do not go back to it.
 - `Wordmark heading={false}` on pages whose own `h1` is their content (the
-  board's matchup title, the lookup page's guide title) — one `h1` per page.
+  board's matchup title, a published post's title) — one `h1` per page.
 
 Top bar composition, after "the top bar is crowded as heck" (2026-08-08):
 
@@ -345,7 +345,7 @@ three languages. Re-measure if the hero copy changes — the constant is the
 natural height of the tallest language, today Japanese.
 
 The other pages drift 0–38px (`/feed` 0, `/demo` 17, `/matchups` 18,
-`/demo/lookup` 18, `/login` 38) and are **deliberately left alone**: they flow
+`/login` 38) and are **deliberately left alone**: they flow
 top to bottom with nothing beside the text, so a paragraph one line taller
 moves only what follows it. Sprinkling magic min-heights through list UIs costs
 more than it buys.
@@ -452,7 +452,7 @@ translated frame (`t("Couldn't reach the catalogue — {error}", { error })`).
 Mapping error text we don't control is a trap; a translated frame around an
 English detail is honest.
 
-Author prose — the guide's `gameplan` and `reason` on `/demo/lookup` — stays as
+Author prose — a published post's description and notes — stays as
 written. It is content, not chrome, and a real user's guide would show in
 whatever language they wrote it.
 
@@ -1138,7 +1138,7 @@ as the comma-separated species list that path has always accepted.
 ## Sample teams (`SAMPLE_TEAMS`, 2026-08-13, extended 2026-09-10)
 
 The nineteen built-in teams behind `/demo`'s "use existing" list (`PRESETS` is exactly
-`SAMPLE_TEAMS`) and `/demo/lookup`'s "or try" row. **Two regulations on purpose**: eleven
+`SAMPLE_TEAMS`). **Two regulations on purpose**: eleven
 Champions Reg M-C, from the opening weekend of M-C online tournaments and explicitly
 temporary, plus the eight Reg M-B teams that have been here since 2026-08-13. A
 rotation does not make the previous regulation's teams worthless — people still play
@@ -1337,11 +1337,11 @@ turns is a different activity from composing rosters, and that split is real.
 | `/`                  | landing                                                        |
 | `/matchups`          | every set: list, compose, add opponents, rename, publish, sync |
 | `/board`             | one pairing's turn tree (was `/demo/sim`)                      |
-| `/lookup`            | match an observed team against a guide (was `/demo/lookup`)    |
 | `/feed`, `/g/<slug>` | published posts                                                |
 | `/login`             | account                                                        |
 
-`/demo` is gone. The modules under `app/demo/` stayed put — they are library
+`/demo` is gone, and `/lookup` went with it a few hours later (see
+docs/PRODUCT.md → **Guide lookup**). The modules under `app/demo/` stayed put — they are library
 code, not routes, and moving ~50 import paths is churn with no user-visible
 payoff. A directory under `app/` with no `page.tsx` is not a route.
 

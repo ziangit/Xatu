@@ -1,83 +1,8 @@
-import type { Guide, Rule } from "@/lib/schema";
-import { yoshimapGuide } from "@/lib/schema/fixtures/yoshimap-sand-staraptor";
-
 /**
- * Demo-only data: the acceptance fixture extended with turn 2–3 branches so the
- * demo has something to reveal on every turn. Each added rule is lifted from
- * prose already in the fixture's `reason`/`gameplan` text — the fixture itself
- * stays the untouched Phase 1 acceptance gate.
- */
-
-const demoRulesByPlan: Record<string, Rule[]> = {
-  "plan-default": [
-    {
-      id: "demo-r-chomp-t2",
-      turn: 2,
-      conditions: [{ kind: "opponentSwitchesIn", species: "Garchomp" }],
-      actions: [
-        { species: "Milotic", action: { move: "Icy Wind" } },
-        { species: "Tyranitar", action: { move: "Knock Off" } },
-      ],
-      reason:
-        "The expected pivot. Icy Wind blunts Garchomp's speed while Knock Off " +
-        "takes its Life Orb — momentum stays with you.",
-    },
-    {
-      id: "demo-r-gambit-t3",
-      turn: 3,
-      conditions: [{ kind: "opponentSwitchesIn", species: "Kingambit" }],
-      actions: [{ species: "Milotic", action: { move: "Haze" } }],
-      reason:
-        "Defiant turns your Icy Winds into free attack boosts for Kingambit — " +
-        "Haze resets it before it snowballs.",
-    },
-  ],
-  "plan-sylveon": [
-    {
-      id: "demo-r-tailwind-t2",
-      turn: 2,
-      conditions: [{ kind: "tailwindUp", side: "opponent" }],
-      actions: [
-        { species: "Gholdengo", action: { protect: true } },
-        { species: "Milotic", action: { move: "Icy Wind" } },
-      ],
-      reason:
-        "Stall their Tailwind turns out with Protect and pivots, then set your " +
-        "own speed control.",
-    },
-  ],
-  "plan-tr": [
-    {
-      id: "demo-r-tr-t3",
-      turn: 3,
-      conditions: [{ kind: "trickRoomUp" }],
-      actions: [
-        { species: "Sinistcha", action: { move: "Rage Powder" } },
-        { species: "Milotic", action: { move: "Scald" } },
-      ],
-      reason:
-        "Rage Powder soaks the hits while Scald fishes for burns — Trick Room " +
-        "has at most two turns left at this point.",
-    },
-  ],
-};
-
-export const demoGuide: Guide = {
-  ...yoshimapGuide,
-  matchups: yoshimapGuide.matchups.map((mu) => ({
-    ...mu,
-    plans: mu.plans.map((plan) => ({
-      ...plan,
-      rules: [...plan.rules, ...(demoRulesByPlan[plan.id] ?? [])],
-    })),
-  })),
-};
-
-/**
- * Sample teams offered by the builder’s "use existing" list and the lookup
- * demo’s "or try" row. Two regulations on purpose: M-C is current, but M-B
- * teams are still played and still worth planning against, so the list lets you
- * pick which set you are looking at rather than deciding for you.
+ * Sample teams offered by the builder’s "use existing" list. Two regulations
+ * on purpose: M-C is current, but M-B teams are still played and still worth
+ * planning against, so the list lets you pick which set you are looking at
+ * rather than deciding for you.
  *
  * **Each entry states its own regulation.** Never derive it from `FORMATS[0]`:
  * that is whichever regulation is *current*, so the samples would relabel

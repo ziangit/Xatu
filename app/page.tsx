@@ -418,12 +418,6 @@ export default function LandingPage() {
               >
                 {t("Published matchups")}
               </Link>
-              <Link
-                href="/lookup"
-                className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
-              >
-                {t("guide lookup →")}
-              </Link>
             </div>
           </div>
 

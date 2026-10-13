@@ -27,10 +27,11 @@ Reference for the shape of the content this replaces:
 
 - **Guide editor** — direct-manipulation, battle-screen-shaped (mock team preview, mock
   battlefield). Not a node graph. Autosaves; valid while incomplete; sparse by design.
-- **Reader view** — reads like the article it replaces: accordion of matchups, lead/back
-  as sprites, gameplan paragraph, branches as terse action lines with expandable
-  `reason`, a clickable walkthrough of turn-1 conditions (plain progressive
-  disclosure), prominent copyable team export.
+- **Reader view** — a published set at a short link: the author's description, then
+  each opponent with the turn tree the author built, branches stepping down as
+  alternates rather than reading as a sequence. Lead/back as sprites, notes as
+  written. The earlier mock-up of a condition-by-condition walkthrough over the
+  `lib/schema` guide format was deleted 2026-10-12 (see **Guide lookup** below).
 - **Paste-first sharing** — the guide as JSON text is the canonical artifact; copy to
   clipboard, paste to import. Built before the hosted path.
 - **Hosted publishing** — sign in, publish a group (one of your teams vs many
@@ -43,8 +44,10 @@ Reference for the shape of the content this replaces:
   the author's text description, likes, and a flat comment list. Signed in to post.
   Deliberately not: images, nested replies, following, or trending ranked by views.
 - **Matching** — `matchOpponent(observedSpecies, matchups)`: fuzzy, IDF-weighted,
-  returns top 3 with scores. The future extension's core dependency; barely used in v1
-  but implemented and tested now.
+  returns top 3 with scores. The future extension's core dependency. **It has no UI
+  in v1** — the page that demonstrated it is gone — but it is implemented and
+  unit-tested, which is the point: the extension needs it correct, not visible.
+  `lib/match` and `lib/schema` stay for that reason and are not dead code.
 
 The phases are 1 (schema) → 2 (editor) → 3 (reader + hosting), and **Phase 3 is the
 finished product** — there is no phase after it.
@@ -85,9 +88,16 @@ finished product** — there is no phase after it.
   post, authors can delete their own posts and comments, and the site owner can
   delete anything. If that stops being enough it is a decision to revisit, not
   a gap to quietly fill.
-- **Quiz mode.** Dropped from the plan entirely. The reader's clickable walkthrough is
-  a plain progressive-disclosure component — no `quiz` prop, no hidden-answer
-  abstraction, nothing reserved for a mode we aren't building.
+- **Quiz mode.** Dropped from the plan entirely. No `quiz` prop, no hidden-answer
+  abstraction, nothing reserved for a mode we aren't building. The condition
+  walkthrough that this rule used to be written against no longer exists either.
+- **Guide lookup** — deleted 2026-10-12 at the user's request. Paste an opposing
+  team, match it against a guide, step through the stored plan. It only ever
+  searched **one hardcoded fixture guide** with two matchups, was linked from a
+  single place, and was the only surface using the `lib/schema` guide format —
+  which the board, publishing and the feed do not use. A reader-side lookup over
+  _real_ published guides is a different feature; if it is ever wanted, build it
+  against what people actually publish, not against a fixture.
 - **The browser extension.** Separate project, later. But the schema, the paste format,
   and the matching function are all shared with it, so get those right.
 

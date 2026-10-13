@@ -505,52 +505,9 @@ export const JA: Record<string, string> = {
     "自分用の編集できるコピーを作ります。このページは変わりません。",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
-  "by {author} · {regulation}": "作成者 {author} · {regulation}",
-  "change team": "パーティを変更",
-  "Opposing team": "相手パーティ",
-  "Paste a Showdown team export or a pokepast.es link…":
-    "Showdown のパーティエクスポート、または pokepast.es のリンクを貼り付け…",
-  "Look up": "調べる",
-  "or try": "または試す",
-  "Their six": "相手の6匹",
-  "matchup: {0} · {1}% fit": "マッチアップ：{0} · 一致度 {1}%",
-  "no matchup in this guide fits": "このガイドに合うマッチアップはありません",
-  "Your line": "自分の展開",
-  "slot|lead": "先発",
-  "picked because they have {0}": "相手に {0} がいるための選出",
-  "Toggle what you see": "見えている状況を選ぶ",
-  "nothing stored for this turn — play the plan above":
-    "このターンの記録はありません——上のプラン通りに",
-  "no specific call stored": "具体的な指示は記録されていません",
-  "The author didn't store a plan for this exact team.":
-    "作成者はこのパーティ向けのプランを記録していません。",
-  "That doesn't parse as a Showdown team export.":
-    "Showdown のパーティエクスポートとして解釈できません。",
   // Condition and action phrasing (built outside JSX).
-  "They lead {species}": "相手が {species} を先発",
-  "{species} switches in": "{species} が交代で出てくる",
-  "{species} uses {move}": "{species} が {move} を使う",
-  "They use {move}": "相手が {move} を使う",
-  "{species} Mega Evolves": "{species} がメガシンカ",
-  "They Mega Evolve": "相手がメガシンカ",
-  "{species} Terastallizes": "{species} がテラスタル",
-  "They Terastallize": "相手がテラスタル",
-  "Sun is up": "晴れ",
-  "Rain is up": "雨",
-  "Sandstorm is up": "砂嵐",
-  "Snow is up": "雪",
   "No weather": "天候なし",
-  "Electric Terrain is up": "エレキフィールド",
-  "Grassy Terrain is up": "グラスフィールド",
-  "Misty Terrain is up": "ミストフィールド",
-  "Psychic Terrain is up": "サイコフィールド",
   "No terrain": "フィールドなし",
-  "Your Tailwind is up": "自分側においかぜ",
-  "Their Tailwind is up": "相手側においかぜ",
-  "Trick Room is up": "トリックルーム",
-  "Your {species} is down": "自分の {species} がひんし",
-  "{species}: {move}": "{species}：{move}",
-  "{species} → {target}": "{species} → {target}",
 
   // ── landing ────────────────────────────────────────────────────────────────
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":

@@ -1,5 +1,10 @@
 # Session handoff
 
+> Updated 2026-10-12: **guide lookup is deleted** (user's call) — it searched
+> one hardcoded fixture guide and was the last surface using the `lib/schema`
+> guide format. `lib/match` and `lib/schema` stay: the extension needs them.
+> Six routes left.
+>
 > Updated 2026-10-12: **a published post can be taken down** — from the post
 > itself, or with the set. Fixed on the way: re-publishing a set used to mint a
 > _second_ public post. docs/ARCHITECTURE.md → **"Taking a post down"**.
@@ -123,6 +128,32 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: guide lookup, deleted
+
+User asked what it did, then: _"we can delete this feature"_.
+
+What it was: paste an opposing team, `matchOpponent` ranks it against a guide's
+matchups, `selectPlan` picks the plan, turn toggles reveal the author's calls.
+What it actually searched: **one hardcoded fixture** (`demoGuide`, built from
+`lib/schema/fixtures/yoshimap-sand-staraptor`) with **two** matchups. Not your
+sets, not published posts, not the feed. 535 lines, linked from one place, and
+the only surface still using the **`lib/schema` guide format** — which the
+board, publishing and the feed do not use, a divergence open since 2026-08-06.
+
+Gone with it: the page, the landing link, `demoGuide` / `demoRulesByPlan` in
+`demo-data.ts`, and **39 dictionary entries per language** (302 each now).
+
+**Kept, deliberately:** `lib/match/matchOpponent`, `lib/schema`, and the
+yoshimap fixture. PRODUCT.md calls matching the extension's core dependency and
+says to get it right; three test files use the fixture. The library is not dead
+code, it is code with no UI — PRODUCT.md now says so in those words rather than
+the old "barely used in v1", which stopped being true.
+
+Routes are now **`/`, `/matchups`, `/board`, `/feed`, `/g/<slug>`, `/login`**.
+
+If a reader-side lookup is ever wanted, build it against **real published
+guides**, not a fixture. That is a different feature and worth doing properly.
 
 ## 2026-10-12: unpublish, and one post per set
 

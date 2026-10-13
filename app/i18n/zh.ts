@@ -473,52 +473,9 @@ export const ZH: Record<string, string> = {
     "生成一份你自己的可编辑副本，本页面不会改变。",
   // The guide's own prose (gameplan, reason, matchup names) is the author's
   // content, not chrome, and is deliberately left as written.
-  "by {author} · {regulation}": "作者 {author} · {regulation}",
-  "change team": "更换队伍",
-  "Opposing team": "对手队伍",
-  "Paste a Showdown team export or a pokepast.es link…":
-    "粘贴 Showdown 队伍导出文本或 pokepast.es 链接…",
-  "Look up": "查询",
-  "or try": "或者试试",
-  "Their six": "对手的六只",
-  "matchup: {0} · {1}% fit": "对阵：{0} · 匹配度 {1}%",
-  "no matchup in this guide fits": "这份指南里没有匹配的对阵",
-  "Your line": "你的走法",
-  "slot|lead": "首发",
-  "picked because they have {0}": "这样选是因为对面有 {0}",
-  "Toggle what you see": "勾选你看到的情况",
-  "nothing stored for this turn — play the plan above":
-    "这一回合没有记录——按上面的计划打",
-  "no specific call stored": "没有记录具体操作",
-  "The author didn't store a plan for this exact team.":
-    "作者没有针对这支队伍记录计划。",
-  "That doesn't parse as a Showdown team export.":
-    "这段文本不是 Showdown 队伍导出格式。",
   // Condition and action phrasing (built outside JSX).
-  "They lead {species}": "对手首发 {species}",
-  "{species} switches in": "{species} 换上场",
-  "{species} uses {move}": "{species} 使用 {move}",
-  "They use {move}": "对手使用 {move}",
-  "{species} Mega Evolves": "{species} Mega 进化",
-  "They Mega Evolve": "对手 Mega 进化",
-  "{species} Terastallizes": "{species} 太晶化",
-  "They Terastallize": "对手太晶化",
-  "Sun is up": "晴天状态",
-  "Rain is up": "下雨状态",
-  "Sandstorm is up": "沙暴状态",
-  "Snow is up": "下雪状态",
   "No weather": "无天气",
-  "Electric Terrain is up": "电气场地",
-  "Grassy Terrain is up": "青草场地",
-  "Misty Terrain is up": "薄雾场地",
-  "Psychic Terrain is up": "精神场地",
   "No terrain": "无场地",
-  "Your Tailwind is up": "我方顺风生效",
-  "Their Tailwind is up": "对手顺风生效",
-  "Trick Room is up": "欺骗空间生效",
-  "Your {species} is down": "我方 {species} 已倒下",
-  "{species}: {move}": "{species}：{move}",
-  "{species} → {target}": "{species} → {target}",
 
   // ── landing ────────────────────────────────────────────────────────────────
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":
