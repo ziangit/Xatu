@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
@@ -15,6 +15,7 @@ import {
   switchedInSpecies,
 } from "../demo/board";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
+import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
 import { upsertCloudMatchup } from "../demo/cloud";
 import {
   decodeWorkflowGroup,
@@ -627,13 +628,8 @@ function SideBoard({
   );
 }
 
-interface Edge {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  branch: boolean;
-}
+// `Edge`, the measurement and the SVG live in `../demo/turn-edges`, so the
+// published reader draws the same arrows instead of none.
 
 /** Dex metadata per move: type (for color) and targeting shape. */
 interface MoveMeta {
@@ -671,7 +667,6 @@ export default function SimPage() {
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
   const [expandedNotes, setExpandedNotes] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -688,8 +683,7 @@ export default function SimPage() {
   const [megaFormeOf, setMegaFormeOf] = useState<
     ((species: string, item?: string) => string | null) | null
   >(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const { wrapRef, setCardRef, edges } = useTurnEdges(nodes, expandedNotes);
 
   // The dex supplies metadata only — a move's type (for Showdown colors) and
   // targeting shape (so spread/self moves skip the target prompt), and whether
@@ -771,46 +765,6 @@ export default function SimPage() {
       cancelled = true;
     };
   }, []);
-
-  // Measure card positions after layout and draw parent → child edges.
-  useEffect(() => {
-    const measure = () => {
-      const wrap = wrapRef.current;
-      if (!wrap) return;
-      const origin = wrap.getBoundingClientRect();
-      const rect = (id: string) => {
-        const el = cardRefs.current.get(id);
-        return el ? el.getBoundingClientRect() : null;
-      };
-      const found: Edge[] = [];
-      const firstChild = new Map<string, string>();
-      for (const n of nodes) {
-        if (n.parentId && !firstChild.has(n.parentId)) {
-          firstChild.set(n.parentId, n.id);
-        }
-      }
-      for (const n of nodes) {
-        if (!n.parentId) continue;
-        const from = rect(n.parentId);
-        const to = rect(n.id);
-        if (!from || !to) continue;
-        found.push({
-          x1: from.right - origin.left,
-          y1: from.top - origin.top + from.height / 2,
-          x2: to.left - origin.left,
-          y2: to.top - origin.top + to.height / 2,
-          branch: firstChild.get(n.parentId) !== n.id,
-        });
-      }
-      setEdges(found);
-    };
-    const raf = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", measure);
-    };
-  }, [nodes, expandedNotes]);
 
   if (!ready) return null;
   if (!setup) {
@@ -1435,48 +1389,7 @@ export default function SimPage() {
 
         <div className="mt-4 overflow-x-auto pb-4">
           <div ref={wrapRef} className="relative w-max">
-            <svg className="pointer-events-none absolute inset-0 h-full w-full">
-              <defs>
-                <marker
-                  id="arrow-main"
-                  markerWidth="8"
-                  markerHeight="8"
-                  refX="6.5"
-                  refY="4"
-                  orient="auto"
-                >
-                  <path d="M1 1 L7 4 L1 7 Z" fill="#b3ada4" />
-                </marker>
-                <marker
-                  id="arrow-branch"
-                  markerWidth="8"
-                  markerHeight="8"
-                  refX="6.5"
-                  refY="4"
-                  orient="auto"
-                >
-                  <path d="M1 1 L7 4 L1 7 Z" fill="#d97706" />
-                </marker>
-              </defs>
-              {edges.map((e, i) => {
-                const dx = Math.max(24, (e.x2 - e.x1) * 0.5);
-                const color = e.branch ? "#d97706" : "#b3ada4";
-                return (
-                  <g key={i}>
-                    <circle cx={e.x1} cy={e.y1} r={3} fill={color} />
-                    <path
-                      d={`M ${e.x1} ${e.y1} C ${e.x1 + dx} ${e.y1}, ${e.x2 - dx} ${e.y2}, ${e.x2 - 7} ${e.y2}`}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={1.75}
-                      strokeLinecap="round"
-                      strokeDasharray={e.branch ? "5 4" : undefined}
-                      markerEnd={`url(#${e.branch ? "arrow-branch" : "arrow-main"})`}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
+            <EdgeLayer edges={edges} />
             <div
               className="grid gap-x-10 gap-y-4"
               style={{
@@ -1505,8 +1418,7 @@ export default function SimPage() {
                   <div
                     key={node.id}
                     ref={(el) => {
-                      if (el) cardRefs.current.set(node.id, el);
-                      else cardRefs.current.delete(node.id);
+                      setCardRef(node.id)(el);
                     }}
                     // Cards arrive left-to-right so the tree reads as a
                     // sequence; the delay is capped so nothing feels slow.

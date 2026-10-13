@@ -226,3 +226,35 @@ body {
 :lang(ja) .text-\[10px\] {
   font-size: 11px;
 }
+
+/**
+ * Horizontal scroll cue for the published board.
+ *
+ * A turn tree is up to three 520px cards, so on anything narrower than ~1,650px
+ * the last one is off the edge — and a card cut in half with no scrollbar (macOS
+ * hides them) reads as broken rather than scrollable.
+ *
+ * No JavaScript: `background-attachment: local` pins the two cover layers to the
+ * *content*, so they slide out of view as you scroll, while the two shadow
+ * layers stay with the frame. The shadow is therefore visible only on a side
+ * that still has content past it.
+ */
+.scroll-x-hint {
+  background-image:
+    linear-gradient(to right, #fafaf8 45%, rgba(250, 250, 248, 0)),
+    linear-gradient(to left, #fafaf8 45%, rgba(250, 250, 248, 0)),
+    linear-gradient(to right, rgba(68, 64, 60, 0.06), rgba(68, 64, 60, 0)),
+    linear-gradient(to left, rgba(68, 64, 60, 0.06), rgba(68, 64, 60, 0));
+  background-position:
+    left center,
+    right center,
+    left center,
+    right center;
+  background-repeat: no-repeat;
+  background-size:
+    32px 100%,
+    32px 100%,
+    20px 100%,
+    20px 100%;
+  background-attachment: local, local, scroll, scroll;
+}

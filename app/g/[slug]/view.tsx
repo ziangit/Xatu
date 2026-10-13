@@ -51,7 +51,11 @@ export function PublishedView({ slug }: { slug: string }) {
 
   return (
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      {/* Wider than the usual max-w-5xl: a turn card is 520px, so two columns
+          plus the gap need ~1,100 and were being clipped at the right edge,
+          which reads as broken rather than scrollable. The prose below keeps
+          its own narrow measure. */}
+      <main className="mx-auto max-w-6xl px-6 py-12">
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <Wordmark />
           <HeaderNav back="/">

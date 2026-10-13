@@ -157,6 +157,39 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-13: the reader draws the board's arrows
+
+User, comparing the published page with the editor: _"is it style different of
+missing anything? at least the arrow missing, I want it to look good"_. Right on
+all three counts.
+
+The reader had shipped **without the arrows on purpose** — the comment in
+`board-view.tsx` argued that measuring laid-out cards was too much machinery
+for a public page. That reasoning was wrong: without them the cards are a row
+of boxes and which one follows which is guesswork. The structure _is_ the
+content.
+
+- **`app/demo/turn-edges.tsx`** now holds the `Edge` shape, the measurement and
+  the SVG, and **both** renderers use it — the same move as `layoutRows`. It
+  also took ~90 lines out of the 1,759-line board page.
+- `useTurnEdges` takes a **layout key**: anything that changes a card's height
+  moves every edge touching it, and the editor's measure effect depended on
+  `expandedNotes` for exactly that reason. Missing it would have left stale
+  arrows whenever a note was opened.
+- Marker ids are **per-instance** (`useId`). The reader renders one board per
+  opponent, and duplicate `id`s in one document are invalid even where browsers
+  forgive them.
+- **The `vs` label** between the two sides was missing too — the hairline was
+  there, so the divider read as a layout accident.
+- **Cards were being clipped.** At `max-w-5xl` even two 520px turn columns
+  overflowed, so the second card was cut in half. The page is `max-w-6xl` now,
+  and a CSS-only `.scroll-x-hint` (the `background-attachment: local` trick, no
+  JS) fades at whichever edge still has content — three turns cannot fit on any
+  normal screen and a card cut off with no scrollbar reads as broken.
+
+Verified: 3 arrows and 4 distinct markers on the reader, the editor still draws
+its own after the extraction, console clean on both.
+
 ## 2026-10-13: Showdown-style sign-up, and a real per-IP cap
 
 User: _"Just use the pokemon showdown style register and login, and set up rate

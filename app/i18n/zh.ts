@@ -438,6 +438,7 @@ export const ZH: Record<string, string> = {
   "⑂ branch": "⑂ 分支",
   remove: "移除",
   "Opposing Team": "对手队伍",
+  vs: "对",
   "slot|Front": "前排",
   "slot|Back": "后备",
   // Board pickers and slot tooltips.

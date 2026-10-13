@@ -474,6 +474,7 @@ export const JA: Record<string, string> = {
   "⑂ branch": "⑂ 分岐",
   remove: "削除",
   "Opposing Team": "相手パーティ",
+  vs: "対",
   "slot|Front": "場",
   "slot|Back": "後発",
   // Board pickers and slot tooltips.

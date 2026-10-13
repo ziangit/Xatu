@@ -1232,6 +1232,20 @@ handlers in them at all. The editor's `SideBoard` takes eleven callbacks;
 threading "none of these" through every one would make the editor worse to serve
 the reader. There is nothing to disable, so nothing can be forgotten.
 
+**The reader draws the editor's arrows.** It shipped without them, on the
+grounds that measuring laid-out cards was too much machinery for a public page.
+That was wrong: without the arrows the cards are a row of boxes and which one
+follows which is guesswork — the structure _is_ the content here. The
+measurement, the `Edge` shape and the SVG now live in
+`app/demo/turn-edges.tsx` and both renderers use them, which also took ~90
+lines out of the board page.
+
+Two details that bite: `useTurnEdges` takes a **layout key** because anything
+that changes a card's height moves every edge touching it (the editor passes
+its expanded-notes set), and the SVG's marker ids are **per-instance** via
+`useId` because the reader renders one board per opponent and duplicate ids in
+one document are invalid even where browsers forgive them.
+
 **But the two renderers must agree about what the board means.** They did not,
 and it shipped: the tree layout lived inside `app/demo/sim/page.tsx`, so the
 reader grew its own flat version and drew two _alternates_ of the same turn in

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
 import { isAlternate, layoutRows, switchedInSpecies } from "../demo/board";
+import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
 import { parseTargetRef } from "../demo/workflow-io";
 import { useT } from "../i18n/provider";
 import type { SideState, TurnNode } from "../demo/storage";
@@ -16,10 +17,12 @@ import type { SideState, TurnNode } from "../demo/storage";
  * reader. Nothing here has a handler, which is also what makes read-only
  * structural — there are no affordances to disable, so none can be missed.
  *
- * It does not draw the sim page's SVG edges. Those are measured from laid-out
- * cards at runtime, and a page that has to survive a phone is the wrong place
- * for that. Turns read left to right with a caret between them: the same
- * information, none of the machinery.
+ * It **does** draw the editor's arrows, through the shared `turn-edges` layer.
+ * An earlier version left them out on the grounds that measuring laid-out
+ * cards was too much machinery for a public page — but without them the cards
+ * are just a row of boxes and which one follows which is guesswork. They are
+ * decoration only in the sense that the page is still readable while they
+ * load; they carry the structure.
  */
 
 function Slot({ species }: { species?: string }) {
@@ -148,6 +151,7 @@ export function BoardView({
     };
   }, [nodes]);
 
+  const { wrapRef, setCardRef, edges } = useTurnEdges(nodes);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const rows = layoutRows(nodes);
   const parentOf = (n: TurnNode, side: "my" | "opp") =>
@@ -157,70 +161,84 @@ export function BoardView({
   const maxTurn = Math.max(...nodes.map((n) => n.turn), 1);
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div
-        className="inline-grid items-start gap-x-6 gap-y-3"
-        style={{ gridTemplateColumns: `repeat(${maxTurn}, max-content)` }}
-      >
-        {Array.from({ length: maxTurn }, (_, i) => (
-          <p
-            key={`h${i}`}
-            className="text-[10px] font-semibold uppercase tracking-widest text-stone-400"
-            style={{ gridColumn: i + 1, gridRow: 1 }}
-          >
-            {i === 0 ? t("Turn 0 · team preview") : t("Turn {n}", { n: i })}
-          </p>
-        ))}
-        {nodes.map((node) => {
-          const parent = node.parentId ? byId.get(node.parentId) : null;
-          const alt = isAlternate(node, nodes);
-          return (
-            <div
-              key={node.id}
-              // Same grid placement as the editor: column by turn, row from
-              // `layoutRows`. A branch steps down instead of reading as the
-              // next turn, which is what a flat row got wrong.
-              style={{
-                gridColumn: node.turn,
-                gridRow: (rows.get(node.id) ?? 0) + 2,
-              }}
-              className="w-[520px] self-start rounded-lg border border-stone-200 bg-white p-3"
+    <div className="scroll-x-hint overflow-x-auto pb-2">
+      <div ref={wrapRef} className="relative inline-block">
+        <EdgeLayer edges={edges} />
+        <div
+          className="relative inline-grid items-start gap-x-10 gap-y-3"
+          style={{ gridTemplateColumns: `repeat(${maxTurn}, max-content)` }}
+        >
+          {Array.from({ length: maxTurn }, (_, i) => (
+            <p
+              key={`h${i}`}
+              className="text-[10px] font-semibold uppercase tracking-widest text-stone-400"
+              style={{ gridColumn: i + 1, gridRow: 1 }}
             >
-              {alt && (
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
-                  {parent
-                    ? t("⑂ alternate turn {n} · after turn {p}", {
-                        n: node.turn - 1,
-                        p: parent.turn - 1,
-                      })
-                    : t("⑂ alternate turn {n}", { n: node.turn - 1 })}
-                </p>
-              )}
-              <div className="flex gap-3">
-                <Side
-                  title={t("My Team")}
-                  roster={myRoster}
-                  state={node.my}
-                  parent={parentOf(node, "my")}
-                  moveColor={(m) => colors[m]}
-                />
-                <span aria-hidden="true" className="w-px bg-stone-100" />
-                <Side
-                  title={t("Opposing Team")}
-                  roster={oppRoster}
-                  state={node.opp}
-                  parent={parentOf(node, "opp")}
-                  moveColor={(m) => colors[m]}
-                />
+              {i === 0 ? t("Turn 0 · team preview") : t("Turn {n}", { n: i })}
+            </p>
+          ))}
+          {nodes.map((node) => {
+            const parent = node.parentId ? byId.get(node.parentId) : null;
+            const alt = isAlternate(node, nodes);
+            return (
+              <div
+                key={node.id}
+                ref={setCardRef(node.id)}
+                // Same grid placement as the editor: column by turn, row from
+                // `layoutRows`. A branch steps down instead of reading as the
+                // next turn, which is what a flat row got wrong.
+                style={{
+                  gridColumn: node.turn,
+                  gridRow: (rows.get(node.id) ?? 0) + 2,
+                }}
+                className="w-[520px] self-start rounded-lg border border-stone-200 bg-white p-3"
+              >
+                {alt && (
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
+                    {parent
+                      ? t("⑂ alternate turn {n} · after turn {p}", {
+                          n: node.turn - 1,
+                          p: parent.turn - 1,
+                        })
+                      : t("⑂ alternate turn {n}", { n: node.turn - 1 })}
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <Side
+                    title={t("My Team")}
+                    roster={myRoster}
+                    state={node.my}
+                    parent={parentOf(node, "my")}
+                    moveColor={(m) => colors[m]}
+                  />
+                  {/* The hairline and "vs" the editor draws between the sides —
+                    without the label the divider reads as a layout accident. */}
+                  <span className="flex shrink-0 items-center">
+                    <span
+                      aria-hidden="true"
+                      className="h-full w-px bg-stone-100"
+                    />
+                    <span className="-mx-2 bg-white px-1 text-[9px] uppercase tracking-widest text-stone-300">
+                      {t("vs")}
+                    </span>
+                  </span>
+                  <Side
+                    title={t("Opposing Team")}
+                    roster={oppRoster}
+                    state={node.opp}
+                    parent={parentOf(node, "opp")}
+                    moveColor={(m) => colors[m]}
+                  />
+                </div>
+                {node.note && (
+                  <p className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
+                    {node.note}
+                  </p>
+                )}
               </div>
-              {node.note && (
-                <p className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
-                  {node.note}
-                </p>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
