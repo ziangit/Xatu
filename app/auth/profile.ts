@@ -25,39 +25,11 @@ import { getSupabase } from "./client";
  * nothing else to leak.
  */
 
-/** Mirrors `profiles_username_shape` in supabase/profiles.sql — keep both. */
-const SHAPE = /^[A-Za-z0-9][A-Za-z0-9_-]{2,19}$/;
-
-/**
- * Names that would let someone pose as the site, plus `trainer` — the stem of
- * the auto-assigned fallback (`trainer-0c286a`), so a bare "trainer" can't be
- * mistaken for one. Keep in step with `v_reserved` in
- * supabase/initial-username.sql.
- */
-const RESERVED = new Set([
-  "xatu",
-  "admin",
-  "administrator",
-  "moderator",
-  "mod",
-  "support",
-  "official",
-  "system",
-  "root",
-  "trainer",
-]);
-
-export type UsernameProblem = "too-short" | "too-long" | "charset" | "reserved";
-
-/** Null when the name is usable. Pure, so it is unit-tested. */
-export function checkUsername(raw: string): UsernameProblem | null {
-  const name = raw.trim();
-  if (name.length < 3) return "too-short";
-  if (name.length > 20) return "too-long";
-  if (!SHAPE.test(name)) return "charset";
-  if (RESERVED.has(name.toLowerCase())) return "reserved";
-  return null;
-}
+// The username rules live in `./handle`, which is framework-free and shared
+// with the signup route — the login handle and the display name are the same
+// string, so they cannot be allowed to disagree about what is valid.
+export { checkUsername, type UsernameProblem } from "./handle";
+import { checkUsername, type UsernameProblem } from "./handle";
 
 export type SaveResult =
   | { ok: true; username: string }

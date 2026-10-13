@@ -1,5 +1,12 @@
 # Session handoff
 
+> Updated 2026-10-13: **sign-up is username + password, Showdown style** — no
+> email field anywhere, because email sign-up was genuinely broken (2 mails an
+> hour, project-wide). Accounts are stored under a synthetic `@xatu.invalid`
+> address. **No password reset**, by that bargain. Plus the per-IP cap that was
+> impossible before: **3 accounts per address per day**, enforced in our own
+> signup route — the only thing in the flow that sees an IP.
+>
 > Updated 2026-10-12: landing copy — the user's own hero wording, and the third
 > blurb now covers **publishing** instead of claiming "no account, no upload",
 > which stopped being true when accounts and the feed shipped.
@@ -149,6 +156,49 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-13: Showdown-style sign-up, and a real per-IP cap
+
+User: _"Just use the pokemon showdown style register and login, and set up rate
+limiter for user ip (like max 3 accounts a day), is it hard?"_ Not hard — the
+model was verified before estimating: a user at `showdownstyle955@xatu.invalid`
+was created, **signed in with password through the anon key**, and the existing
+signup trigger already named them correctly from `user_metadata.name`.
+
+Why email had to go, with evidence: no custom SMTP is configured, so Supabase's
+built-in mailer applies at **2 emails per hour project-wide**, and a live
+`POST /auth/v1/signup` returned `over_email_send_rate_limit`. The form on the
+screen could not have worked for a third visitor in any hour.
+
+Rules in docs/ARCHITECTURE.md → **"Username sign-up, and the only place we can
+see an IP"**. The three things worth not rediscovering:
+
+- **`login_address()` returns only `@xatu.invalid`.** Without that guard, a
+  public username → email function would be an **email directory** for every
+  Google account. It exists at all because usernames are renameable, so sign-in
+  cannot derive the address.
+- **Sign-up goes through our route handler; sign-in does not.** That is the
+  only point that sees an IP — which is why I said a per-IP cap was impossible
+  two days ago, and it is true for every other path. The password crosses our
+  server once, at creation, and is never logged or stored.
+- **`claim_signup_slot()` needs a shared secret** because the IP is a
+  parameter: otherwise anyone could lock out someone else's address. It lives
+  in `app_secrets` (RLS on, no policies) since Supabase does not grant
+  `ALTER DATABASE` for a settings-based secret. `SIGNUP_GUARD_SECRET` is in
+  `.env.local` **and Vercel** — the route fails closed without it.
+
+**The accepted cost: no password reset.** No mailbox, nothing to send. Said on
+the signup form itself, with Google offered as the alternative. Google accounts
+keep a real address and their own recovery.
+
+Verified live: 3 sign-ups from one address succeed and the 4th is `429
+ip-limit`; a different address is unaffected; too-short, reserved and weak
+passwords are refused. In a browser: no email field anywhere, sign-up lands
+signed in, sign-out and sign-in by username works, a wrong password says
+"Wrong username or password" while an unknown name says "No account with that
+username", and the signed-in line shows the **display** username rather than
+the lower-cased synthetic stem. Every throwaway account and IP record was
+deleted afterwards — the project is back to one real account.
 
 ## 2026-10-12: the three landing blurbs, rewritten as benefits
 

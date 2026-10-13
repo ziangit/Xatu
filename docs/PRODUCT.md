@@ -68,6 +68,13 @@ finished product** — there is no phase after it.
   2026-10-11, both at the user's request. Accounts exist (Google +
   email/password via Supabase Auth) to sync private teams and matchup boards,
   and the tool stays fully usable signed out (local-first).
+  Sign-up is **username + password, Showdown style** (amended 2026-10-13): no
+  email field anywhere, because the built-in mailer caps confirmations at 2 an
+  hour and an email path that fails on the third person is worse than no email
+  path. An account is stored under a synthetic `name@xatu.invalid` address the
+  user never sees. **The cost is accepted: there is no password reset** — there
+  is no mailbox to send one to, exactly as on Showdown. Google sign-in keeps a
+  real address and its own recovery, and is the recommended route.
   **Publishing and commenting now require signing in**, which replaces the
   earlier "anonymous publish + edit token" plan — ownership is just `user_id`
   under the same RLS the private tables use, so there are no edit tokens and no

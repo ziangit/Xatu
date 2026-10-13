@@ -6,6 +6,7 @@ import { getSupabase, supabaseConfigured } from "./client";
 import { checkUsername, loadMyUsername, saveMyUsername } from "./profile";
 import { InlineRename } from "../ui";
 import { useT } from "../i18n/provider";
+import { isHandleAddress } from "./handle";
 
 /**
  * Header account control: "sign in" when signed out, an initial-avatar menu
@@ -195,11 +196,13 @@ export function AccountLink() {
                     : t("Needed before you can publish or comment.")}
                 </p>
               )}
+              {/* Only a real address is worth showing. A username account's
+                  is synthetic, and the username is already the line above. */}
               <p
                 className="mt-1.5 truncate text-[10px] text-stone-400"
-                title={email}
+                title={isHandleAddress(email) ? undefined : email}
               >
-                {email}
+                {isHandleAddress(email) ? "" : email}
               </p>
             </div>
             <Link

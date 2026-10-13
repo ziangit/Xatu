@@ -119,11 +119,21 @@ export const JA: Record<string, string> = {
   or: "または",
   email: "メールアドレス",
   password: "パスワード",
+  username: "ユーザー名",
+  "No account with that username.": "そのユーザー名のアカウントはありません。",
+  "Wrong username or password.": "ユーザー名かパスワードが違います。",
+  "Account created — sign in with it.":
+    "アカウントを作成しました——それでログインしてください。",
+  "That’s 3 accounts from this connection today — try again tomorrow.":
+    "この接続からは本日 3 アカウント目です——明日またお試しください。",
+  "Passwords are 8 characters or more.": "パスワードは8文字以上です。",
+  "Couldn’t create that account — try again.":
+    "アカウントを作成できませんでした——もう一度お試しください。",
+  "No email, so no password reset — keep it somewhere safe, or use Google instead.":
+    "メールアドレスがないため、パスワードの再設定はできません——大切に保管するか、Google をご利用ください。",
   "password (8+ characters)": "パスワード（8文字以上）",
   "New here? {0}": "はじめてですか？{0}",
   "Already have an account? {0}": "すでにアカウントをお持ちですか？{0}",
-  "Almost there — check your email for a confirmation link, then sign in.":
-    "あと少しです——メールに届いた確認リンクを開いてから、ログインしてください。",
 
   // ── counted nouns ──────────────────────────────────────────────────────────
   // Both English forms are separate keys; Japanese maps them to one string and

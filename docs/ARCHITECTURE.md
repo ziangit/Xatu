@@ -1519,6 +1519,49 @@ Two implementation notes:
   `react-hooks/exhaustive-deps` reported it immediately — a real signal, not
   noise, and worth knowing before refactoring anything else out of `refresh`.
 
+## Username sign-up, and the only place we can see an IP (2026-10-13)
+
+Email/password sign-up was removed because **it did not work**: no custom SMTP
+is configured, so Supabase's built-in mailer applies — 2 emails per hour
+project-wide — and a live `POST /auth/v1/signup` returned
+`over_email_send_rate_limit`. A path that fails for the third person of the
+hour is worse than no path.
+
+**Supabase has no username provider**; password auth _is_ the email provider.
+So an account is stored under `<lowercased username>@xatu.invalid` — `.invalid`
+is reserved by RFC 2606, can never resolve, and is never shown or typed.
+`app/auth/handle.ts` derives it and is shared by the route handler and the
+browser, so the address a sign-up creates and the one a sign-in looks for
+cannot drift.
+
+Three things that are not obvious:
+
+- **Sign-in looks the address up, it does not derive it.** `login_address()` is
+  `security definer` and returns **only** `@xatu.invalid` addresses. Usernames
+  are renameable, so a derived address would stop matching after a rename — and
+  without the domain guard a public function mapping username → email would
+  turn the username list into an **email directory** for Google accounts.
+- **Sign-up goes through `app/api/signup/route.ts`, sign-in does not.** That
+  handler is the only point in the whole flow that sees the client IP; the
+  browser otherwise talks to Supabase directly, which is why a per-IP cap was
+  impossible before. The password passes through it once, at account creation,
+  and is never logged or stored.
+- **`claim_signup_slot()` takes a shared secret.** The IP is a _parameter_, so
+  without one anyone could call the RPC with someone else's address and lock
+  them out of signing up. The app has no service-role key by rule, so the
+  secret (`SIGNUP_GUARD_SECRET`, also set in Vercel) is how the route proves it
+  is the route. It lives in `app_secrets`, which is RLS-on-with-no-policies —
+  a database-level setting would be tidier but Supabase does not grant
+  `ALTER DATABASE`.
+
+`mailer_autoconfirm` is now **true**. With no email field that is not a
+weakening of sign-up, but it does mean Google is the only provider with a
+verified identity, and it is why **there is no password reset** — stated on the
+form itself rather than discovered later.
+
+Cap verified live: three sign-ups from one address succeed, the fourth returns
+`429 ip-limit`, and a different address is unaffected.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by

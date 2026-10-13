@@ -109,11 +109,19 @@ export const ZH: Record<string, string> = {
   or: "或",
   email: "邮箱",
   password: "密码",
+  username: "用户名",
+  "No account with that username.": "没有这个用户名的账号。",
+  "Wrong username or password.": "用户名或密码不对。",
+  "Account created — sign in with it.": "账号已创建——用它登录吧。",
+  "That’s 3 accounts from this connection today — try again tomorrow.":
+    "今天这个网络已经注册了 3 个账号——明天再试。",
+  "Passwords are 8 characters or more.": "密码至少 8 个字符。",
+  "Couldn’t create that account — try again.": "账号创建失败——请重试。",
+  "No email, so no password reset — keep it somewhere safe, or use Google instead.":
+    "没有邮箱，也就没有找回密码——请妥善保管，或者改用 Google 登录。",
   "password (8+ characters)": "密码（至少 8 位）",
   "New here? {0}": "第一次来？{0}",
   "Already have an account? {0}": "已经有账号了？{0}",
-  "Almost there — check your email for a confirmation link, then sign in.":
-    "就差一步——请到邮箱查收确认链接，然后再登录。",
 
   // ── counted nouns ──────────────────────────────────────────────────────────
   // Both English forms are separate keys; Chinese maps them to one string.

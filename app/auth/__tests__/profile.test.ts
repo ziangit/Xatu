@@ -86,11 +86,13 @@ describe("the shape rule matches the database", () => {
       "utf8",
     );
     const inSql = /username ~ '(\^[^']+)'/.exec(sql)?.[1];
+    // SHAPE moved to `handle.ts` when the username became the login handle
+    // as well as the display name — one rule, two callers.
     const inCode = /const SHAPE = \/([^/]+)\//.exec(
-      readFileSync(join(import.meta.dirname, "..", "profile.ts"), "utf8"),
+      readFileSync(join(import.meta.dirname, "..", "handle.ts"), "utf8"),
     )?.[1];
     expect(inSql, "no regex found in profiles.sql").toBeTruthy();
-    expect(inCode, "no SHAPE found in profile.ts").toBeTruthy();
+    expect(inCode, "no SHAPE found in handle.ts").toBeTruthy();
     expect(inCode).toBe(inSql);
   });
 });
