@@ -313,6 +313,26 @@ require at least one visible `a[href="/"]`.
 
 ## Interface language — English ⇄ 中文 ⇄ 日本語 (2026-08-15, Japanese 2026-08-16)
 
+### Header order is what keeps the toggle still (2026-10-12)
+
+The toggle's own box is a fixed 74×18 in every language — that was settled in
+August. What still moved it was **what comes after it**. `HeaderNav` ends with
+`[links] → LangToggle → AccountLink`, and both of those trailing items are
+fixed width (the account slot is `w-14`), so the toggle sits a constant
+distance from the right edge no matter how long the links are.
+
+The landing page hand-rolls its header and had the order
+`LangToggle → AccountLink → link`. With a variable-width link **after** the
+toggle — "my matchups →" is 89px in English, 64 in Chinese, 112 in Japanese —
+the whole right-aligned cluster re-flowed and the toggle slid **48px**, under
+the cursor that had just clicked it.
+
+Fixed by matching `HeaderNav`'s order, not by reserving a width: nothing
+variable may sit to the right of the toggle. Verified across `/`, `/matchups`,
+`/feed`, `/login` and `/g/<slug>` — the toggle is pixel-identical in all three
+languages on every one. `/login` was already correct, since the toggle ends its
+nav.
+
 ### Reserving height so the toggle doesn't move the page (2026-10-12)
 
 The cookie removes the _flash_ on load; it does nothing about the fact that the

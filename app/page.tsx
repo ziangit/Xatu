@@ -344,15 +344,22 @@ export default function LandingPage() {
           <span className="font-display text-lg font-bold tracking-tight">
             xatu
           </span>
+          {/* Same order as `HeaderNav`: links, then the toggle, then the
+              account slot. Both of those are fixed width, so the toggle sits a
+              constant distance from the right edge and does not slide when the
+              language changes. With the link *after* the toggle — as this was
+              — "my matchups →" is 89px in English, 64 in Chinese and 112 in
+              Japanese, and the toggle moved 48px under the cursor that had
+              just clicked it. */}
           <span className="flex items-center gap-4">
-            <LangToggle />
-            <AccountLink />
             <Link
               href="/matchups"
               className="text-xs text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
             >
               {t("my matchups →")}
             </Link>
+            <LangToggle />
+            <AccountLink />
           </span>
         </header>
 

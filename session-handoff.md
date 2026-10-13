@@ -1,5 +1,9 @@
 # Session handoff
 
+> Updated 2026-10-12: the **language toggle no longer slides** when you use it.
+> Nothing variable may sit to its right — the landing header had a link there
+> and the toggle moved 48px. docs/ARCHITECTURE.md → **"Header order"**.
+>
 > Updated 2026-10-12: `/matchups` **syncs by itself** — `upload all`, the
 > per-row `upload` and the `browser`/`account` badges are gone, because every
 > write path already mirrored and the buttons were just plumbing on display.
@@ -141,6 +145,29 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: the toggle slid when you clicked it
+
+User: _"when switching language there is a slight shift of the upper part"_.
+
+The toggle's own box has been a fixed 74×18 in every language since August, so
+the cause was elsewhere: **what sat to its right**. `HeaderNav` ends with
+`links → LangToggle → AccountLink`, and both trailing items are fixed width
+(the account slot is `w-14`), which is why `/matchups` measured 917,52 in all
+three languages. The landing page hand-rolls its header and had the link
+_after_ the toggle — "my matchups →" is 89 / 64 / 112px — so the right-aligned
+cluster re-flowed and the toggle moved **48px** (940 / 965 / 917).
+
+Fixed by matching `HeaderNav`'s order rather than reserving a width. **The rule:
+nothing variable may sit to the right of the toggle.** Verified on all five
+pages that carry one — pixel-identical in all three languages everywhere.
+`/login` was already right, since the toggle ends its nav.
+
+Also worth recording, because it has now bitten me three times in a row: a
+**403 on `/auth/v1/user` in a CDP check is usually my own test profile** holding
+a session for a throwaway account I deleted. Confirm with a fresh
+`--user-data-dir` before reporting it as a bug — a clean profile here showed
+zero failed requests.
 
 ## 2026-10-12: four buttons cut, by making sync automatic
 
