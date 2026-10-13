@@ -27,14 +27,14 @@ export function SpeciesToken({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-1 text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+        className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-600 transition-colors hover:border-stone-500 hover:text-stone-900"
       >
-        {t("+ sprite")}
+        {t("+ Pokémon sprite")}
       </button>
     );
 
   return (
-    <div className="mt-1 rounded border border-stone-200 bg-white p-2">
+    <div className="rounded border border-stone-200 bg-white p-2">
       <div className="flex items-center gap-2">
         <input
           value={query}

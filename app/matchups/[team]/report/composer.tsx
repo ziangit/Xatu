@@ -10,8 +10,9 @@ import {
 } from "../../../nav";
 import { useLang } from "../../../i18n/provider";
 import { InlineConfirm, useCopy } from "../../../ui";
-import { MonIcon } from "../../../demo/components";
 import { TeamSprites } from "../../../demo/team-picker";
+import { BoardView } from "../../../g/board-view";
+import { ReportProse } from "../../../g/report-prose";
 import { groupByMyTeam, loadMatchups } from "../../../demo/storage";
 import type { SavedMatchup, StoredTeam } from "../../../demo/storage";
 import {
@@ -20,7 +21,7 @@ import {
   unpublishGroup,
   type MyPublished,
 } from "../../../demo/publish";
-import { parseReportText, reportKey, type Report } from "../../../demo/report";
+import { reportKey, type Report } from "../../../demo/report";
 import { SpeciesToken } from "./species-token";
 
 /**
@@ -130,7 +131,10 @@ export function ReportComposer({ teamId }: { teamId: string }) {
 
   return (
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
-      <main className="mx-auto max-w-3xl px-6 py-12">
+      {/* As wide as the published page, because it now shows the same
+          boards. It was max-w-3xl with one-line matchup rows and that is not
+          what you are composing. */}
+      <main className="mx-auto max-w-6xl px-6 py-12">
         <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
           <div>
             <Wordmark />
@@ -198,10 +202,10 @@ export function ReportComposer({ teamId }: { teamId: string }) {
               )}
             </p>
 
-            <div className="mt-3 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+            <div className="mt-3">
               {boards.map((board) => (
-                <div key={board.id}>
-                  <div className="px-3">
+                <section key={board.id} className="mt-6">
+                  <div className="rounded-lg border border-dashed border-stone-300 bg-white/60 px-3 py-1">
                     {gap(before[reportKey(board.setup.opp)] ?? "", (v) =>
                       setBefore((prev) => ({
                         ...prev,
@@ -209,21 +213,27 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                       })),
                     )}
                   </div>
-                  <div className="flex items-center gap-2 bg-[#fcfcfa] px-3 py-2">
-                    <span className="shrink-0 text-[10px] text-stone-300">
-                      {t("vs")}
-                    </span>
-                    <TeamSprites team={board.setup.opp} scale={0.5} />
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-stone-700">
-                      {board.setup.opp.name}
-                    </span>
+                  {/* The matchup exactly as the published page draws it —
+                      read-only. Composing against one-line rows meant not
+                      seeing what you were writing around. Editing a board is
+                      the board's job, not this page's. */}
+                  <h2 className="mt-4 flex items-center gap-2 text-sm font-bold text-stone-800">
+                    <TeamSprites team={board.setup.opp} scale={0.7} />
+                    {t("vs. {team}", { team: board.setup.opp.name })}
+                  </h2>
+                  <div className="pointer-events-none mt-3 select-none opacity-95">
+                    <BoardView
+                      myRoster={board.setup.my.parsed.map((m) => m.species)}
+                      oppRoster={board.setup.opp.parsed.map((m) => m.species)}
+                      nodes={board.nodes}
+                    />
                   </div>
-                </div>
+                </section>
               ))}
-              <div className="px-3">{gap(outro, setOutro)}</div>
+              <div className="mt-6 rounded-lg border border-dashed border-stone-300 bg-white/60 px-3 py-1">
+                {gap(outro, setOutro)}
+              </div>
             </div>
-
-            <Preview before={before} outro={outro} boards={boards} />
 
             <div className="mt-8 flex items-center gap-3 border-t border-stone-200 pt-5">
               <button
@@ -317,7 +327,13 @@ export function ReportComposer({ teamId }: { teamId: string }) {
   );
 }
 
-/** A gap you can write in. Collapsed to a hint until it has text or focus. */
+/**
+ * A gap you can write in.
+ *
+ * Closed, it shows the prose as the published page will draw it — sprites and
+ * all — so the page you are editing looks like the page you are making. Click
+ * it to edit.
+ */
 function TextSlot({
   value,
   onChange,
@@ -326,71 +342,46 @@ function TextSlot({
   onChange: (v: string) => void;
 }) {
   const { t } = useLang();
-  const [open, setOpen] = useState(Boolean(value));
-  if (!open && !value)
+  const [open, setOpen] = useState(false);
+
+  if (!open)
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full py-1.5 text-left text-[11px] text-stone-300 hover:text-stone-600"
+        className="w-full py-2 text-left"
+        title={t("edit this text")}
       >
-        {t("+ add text here")}
+        {value.trim() ? (
+          <ReportProse text={value} className="mb-0" />
+        ) : (
+          <span className="text-[11px] text-stone-300 hover:text-stone-600">
+            {t("+ add text here")}
+          </span>
+        )}
       </button>
     );
+
   return (
     <div className="py-2">
       <textarea
         value={value}
-        autoFocus={!value}
+        autoFocus
         onChange={(e) => onChange(e.target.value)}
-        onBlur={() => !value.trim() && setOpen(false)}
         rows={3}
         placeholder={t("Why this matchup goes the way it does…")}
-        className="w-full resize-y rounded border border-stone-200 bg-[#fcfcfa] px-2.5 py-2 text-xs leading-relaxed text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
+        className="w-full resize-y rounded border border-stone-200 bg-[#fcfcfa] px-2.5 py-2 text-sm leading-relaxed text-stone-800 placeholder:text-stone-300 focus:border-stone-400 focus:outline-none"
       />
-      <SpeciesToken onInsert={(token) => onChange(`${value}${token}`)} />
-    </div>
-  );
-}
-
-/** What the prose will actually look like, sprites and all. */
-function Preview({
-  before,
-  outro,
-  boards,
-}: {
-  before: Record<string, string>;
-  outro: string;
-  boards: SavedMatchup[];
-}) {
-  const { t } = useLang();
-  const written = [
-    ...boards.map((b) => before[reportKey(b.setup.opp)] ?? ""),
-    outro,
-  ].filter((s) => s.trim());
-  if (written.length === 0) return null;
-  return (
-    <section className="mt-6">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-        {t("Preview")}
-      </p>
-      <div className="mt-2 space-y-2 rounded-lg border border-stone-200 bg-white p-3">
-        {written.map((text, i) => (
-          <p
-            key={i}
-            className="whitespace-pre-wrap text-xs leading-relaxed text-stone-700"
-          >
-            {parseReportText(text).map((seg, j) =>
-              seg.kind === "mon" ? (
-                <span key={j} className="inline-block align-middle">
-                  <MonIcon species={seg.species} scale={0.6} />
-                </span>
-              ) : (
-                <span key={j}>{seg.text}</span>
-              ),
-            )}
-          </p>
-        ))}
+      <div className="mt-1.5 flex items-center gap-3">
+        {/* A button, not the hairline link it was — and it only ever appeared
+            once a slot was already open, so there was nowhere to *find* it. */}
+        <SpeciesToken onInsert={(token) => onChange(`${value}${token}`)} />
+        <button
+          onClick={() => setOpen(false)}
+          className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-800 hover:underline"
+        >
+          {t("done")}
+        </button>
       </div>
-    </section>
+    </div>
   );
 }
