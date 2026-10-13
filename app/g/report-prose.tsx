@@ -18,6 +18,12 @@ import { parseReportText } from "../demo/report";
  * 40px source, and a report uses a sprite as an illustration — captioning a
  * set, heading a section — rather than as a chip in a list. Native size means
  * no resampling at all, which is what keeps pixel art crisp.
+ *
+ * It renders as **a white card, the same material as a turn card**. The page
+ * has exactly two surfaces — white is content, cream is chrome — so prose laid
+ * straight onto the cream read as unplaced, which a pasted Showdown export
+ * made obvious. Carrying no vertical margin of its own is deliberate: the
+ * caller owns the spacing, and the composer stacks these with no gap.
  */
 export function ReportProse({
   text,
@@ -29,7 +35,7 @@ export function ReportProse({
   if (!text?.trim()) return null;
   return (
     <div
-      className={`mb-4 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-stone-700 ${className}`}
+      className={`max-w-2xl whitespace-pre-wrap rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm leading-relaxed text-stone-700 ${className}`}
     >
       {parseReportText(text).map((seg, i) =>
         seg.kind === "mon" ? (

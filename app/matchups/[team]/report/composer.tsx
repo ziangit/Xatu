@@ -122,9 +122,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
 
   /** One writable gap, keyed by the matchup it sits above. */
   const gap = (value: string, set: (v: string) => void) => (
-    <div className="py-1">
-      <TextSlot value={value} onChange={set} />
-    </div>
+    <TextSlot value={value} onChange={set} />
   );
 
   if (!ready) return null;
@@ -205,14 +203,12 @@ export function ReportComposer({ teamId }: { teamId: string }) {
             <div className="mt-3">
               {boards.map((board) => (
                 <section key={board.id} className="mt-6">
-                  <div className="rounded-lg border border-dashed border-stone-300 bg-white/60 px-3 py-1">
-                    {gap(before[reportKey(board.setup.opp)] ?? "", (v) =>
-                      setBefore((prev) => ({
-                        ...prev,
-                        [reportKey(board.setup.opp)]: v,
-                      })),
-                    )}
-                  </div>
+                  {gap(before[reportKey(board.setup.opp)] ?? "", (v) =>
+                    setBefore((prev) => ({
+                      ...prev,
+                      [reportKey(board.setup.opp)]: v,
+                    })),
+                  )}
                   {/* The matchup exactly as the published page draws it —
                       read-only. Composing against one-line rows meant not
                       seeing what you were writing around. Editing a board is
@@ -230,9 +226,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                   </div>
                 </section>
               ))}
-              <div className="mt-6 rounded-lg border border-dashed border-stone-300 bg-white/60 px-3 py-1">
-                {gap(outro, setOutro)}
-              </div>
+              <div className="mt-6">{gap(outro, setOutro)}</div>
             </div>
 
             <div className="mt-8 flex items-center gap-3 border-t border-stone-200 pt-5">
@@ -330,9 +324,11 @@ export function ReportComposer({ teamId }: { teamId: string }) {
 /**
  * A gap you can write in.
  *
- * Closed, it shows the prose as the published page will draw it — sprites and
- * all — so the page you are editing looks like the page you are making. Click
- * it to edit.
+ * Closed with text in it, it *is* the published card — same white box, same
+ * sprites — so the page you are editing looks like the page you are making.
+ * Only an empty or open slot wears the dashed draft frame, because that frame
+ * says "this is scaffolding" and a finished paragraph is not. Wrapping the
+ * closed state in one as well drew a box around a box.
  */
 function TextSlot({
   value,
@@ -348,13 +344,18 @@ function TextSlot({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full py-2 text-left"
+        className="block w-full text-left"
         title={t("edit this text")}
       >
         {value.trim() ? (
-          <ReportProse text={value} className="mb-0" />
+          <ReportProse
+            text={value}
+            className="transition-colors hover:border-stone-400"
+          />
         ) : (
-          <span className="text-[11px] text-stone-300 hover:text-stone-600">
+          // Same measure as the card it becomes, so a slot doesn't jump width
+          // the moment you write in it.
+          <span className="block max-w-2xl rounded-lg border border-dashed border-stone-300 bg-white/60 px-4 py-2.5 text-[11px] text-stone-400 transition-colors hover:border-stone-500 hover:text-stone-700">
             {t("+ add text here")}
           </span>
         )}
@@ -362,7 +363,7 @@ function TextSlot({
     );
 
   return (
-    <div className="py-2">
+    <div className="max-w-2xl rounded-lg border border-dashed border-stone-300 bg-white/60 p-2.5">
       <textarea
         value={value}
         autoFocus

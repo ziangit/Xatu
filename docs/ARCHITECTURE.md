@@ -1646,6 +1646,15 @@ report uses a sprite as an illustration, captioning a set or heading a section,
 rather than as a chip in a list. Native size means no resampling, which is what
 keeps pixel art crisp. Still hotlinked from Showdown, so nothing is committed.
 
+**Report prose is a white card, the same material as a turn card.** The page
+has exactly two surfaces — white is content, cream is chrome — so prose laid
+straight onto the cream read as unplaced, which a pasted Showdown export made
+obvious. `ReportProse` carries no vertical margin of its own; the caller owns
+the spacing. The composer's three slot states (empty, open, filled) all sit at
+`max-w-2xl`, so a slot never changes width as you fill it, and the **filled**
+one is the published card itself rather than a card inside the dashed draft
+frame — that frame says "scaffolding", which a finished paragraph is not.
+
 **It is not a block list.** The ask was one thing — text between two matchups —
 so the shape is a text slot keyed by the matchup below it, plus one at the end:
 `{ before: { <key>: string }, outro?: string }`. Nothing reorders, so there is
