@@ -88,6 +88,38 @@
 > URL-config item is DONE** (user, 2026-08-13) — ignore the older section that
 > still calls it open.
 
+## 2026-10-12: the landing hero was showing an illegal play
+
+User, of the hero turn-tree: _"did you change this image? excadrill is using
+highhorse power on aerodactyl, and milotic did nothing on the second part"_.
+
+**Not changed by this session** — `git log -S` puts the moves in `f6b7595`
+(the original landing page, 2026-08-07), with the only later touch being the
+2026-08-15 translation pass, which changed labels. But the report was right,
+and there were **three** errors, all checked against `@pkmn/dex` rather than
+from memory:
+
+| was                                    | problem                                                                                                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Excadrill High Horsepower → Aerodactyl | Ground vs Rock/**Flying** is **0x**. The play does nothing.                                                                                                 |
+| Gholdengo Make It Rain → Charizard     | Make It Rain is `allAdjacentFoes`; the board never offers a target for a spread move, so the arrow contradicted the product. 0.5x into Fire/Flying as well. |
+| Milotic, no move                       | Standing idle while its partner acted.                                                                                                                      |
+
+Now: High Horsepower → **Kingambit** (Dark/Steel, 2x), Make It Rain with **no
+arrow** (correct as a spread: 0.5x Charizard, 2x Sylveon), and Milotic on
+**Icy Wind** — the speed control it is actually brought for, which is also the
+thing turn-one planning is about. All four moves confirmed learnable in gen 9.
+The chips also stopped hardcoding type hexes and read `TYPE_COLORS` now, so a
+chip can no longer drift from the board's palette.
+
+**No test guards this, deliberately.** Catching the type error would mean
+computing effectiveness, which is the first hard constraint in CLAUDE.md. And
+that is the honest situation: xatu never verifies a numeric or type claim for
+its authors either — "faithfully display what the author wrote" is the whole
+boundary. The hero is editorial content and needs an eye, not a check. Worth
+remembering that the audience is competitive players who spot a 0x play
+instantly, so the marketing surface has to be as correct as a real guide.
+
 ## 2026-10-12: first principles — the builder merged into /matchups
 
 User: _"Let us work on the 'first principal' to simplify the project. First

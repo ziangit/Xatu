@@ -6,7 +6,7 @@ import { AccountLink } from "./auth/AccountLink";
 import { supabaseConfigured } from "./auth/client";
 import { loadFeed, type FeedPost } from "./demo/forum";
 import { PostCard } from "./feed/post-card";
-import { MonIcon } from "./demo/components";
+import { MonIcon, TYPE_COLORS } from "./demo/components";
 import { useT } from "./i18n/provider";
 import { LangToggle } from "./i18n/toggle";
 
@@ -267,14 +267,25 @@ function HeroTree() {
         </div>
         <div className="mt-1.5 space-y-1">
           <div>
-            <MoveChip attacker="Tyranitar" move="Rock Slide" color="#B6A136" />
+            {/* Rock Slide is allAdjacentFoes, so it carries no target arrow —
+                the board skips the target step for spread moves and the hero
+                has to agree with it. */}
+            <MoveChip
+              attacker="Tyranitar"
+              move="Rock Slide"
+              color={TYPE_COLORS.Rock}
+            />
           </div>
           <div>
+            {/* Kingambit, not Aerodactyl. Ground vs Rock/Flying is 0x — the
+                hero shipped a play that does literally nothing, which is the
+                one kind of mistake this audience spots instantly. Dark/Steel
+                takes it at 2x. */}
             <MoveChip
               attacker="Excadrill"
               move="High Horsepower"
-              color="#E2BF65"
-              target="Aerodactyl"
+              color={TYPE_COLORS.Ground}
+              target="Kingambit"
             />
           </div>
         </div>
@@ -292,13 +303,30 @@ function HeroTree() {
           <span className="px-0.5 text-[9px] text-stone-300">vs</span>
           <IconRow species={["Charizard", "Sylveon"]} scale={0.75} />
         </div>
-        <div className="mt-1.5">
-          <MoveChip
-            attacker="Gholdengo"
-            move="Make It Rain"
-            color="#B7B7CE"
-            target="Charizard"
-          />
+        <div className="mt-1.5 space-y-1">
+          <div>
+            {/* Make It Rain is allAdjacentFoes too, so the target arrow it
+                used to carry was wrong twice over — the board would never
+                offer one, and Steel into Fire/Flying is 0.5x anyway. As a
+                spread it reads correctly: resisted by Charizard, 2x on
+                Sylveon. */}
+            <MoveChip
+              attacker="Gholdengo"
+              move="Make It Rain"
+              color={TYPE_COLORS.Steel}
+            />
+          </div>
+          <div>
+            {/* Milotic used to stand there doing nothing while its partner
+                moved. Icy Wind is the speed control it is actually brought
+                for, and turn-one speed control is the thing this product is
+                for planning. */}
+            <MoveChip
+              attacker="Milotic"
+              move="Icy Wind"
+              color={TYPE_COLORS.Ice}
+            />
+          </div>
         </div>
       </TreeCard>
     </div>
