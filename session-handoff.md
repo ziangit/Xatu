@@ -157,6 +157,33 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-13: "account sync failed" — a matchup id is per-account
+
+User, on the board: _"what does this mean"_ — an amber line reading _"saved to
+this browser, but the account sync failed: new row violates row-level security
+policy (USING expression) for table matchups"_.
+
+**What it meant**: they had signed in as a second account (`lonietzzz`, created
+that morning) in a browser whose localStorage still held boards saved as
+`megazchomp`. Confirmed on the live project — the board in the screenshot is
+row `f8b77cba`, owned by `6ec2edce` (megazchomp). `matchups.id` is generated in
+the browser but was the table's entire primary key, so the second account's
+upsert resolved to an UPDATE of the first account's row and the owner-only
+policy refused it. The policy was right; the schema was asking the wrong
+question.
+
+Key is now `(user_id, id)` on `matchups` and `teams`, and
+`upsertCloudMatchup` passes `onConflict: "user_id,id"`. Rules in
+docs/ARCHITECTURE.md → **"A matchup id belongs to an account, not to the
+world"**. Verified with two real accounts: both hold a row with the same id,
+the original is untouched, and deleting one account removes only its copy.
+
+**And the raw Postgres text should never have been on screen.** The visible
+line now reads "saved to this browser — couldn't reach your account", with the
+raw message kept in the `title`. Nobody can act on "violates row-level security
+policy (USING expression)", and it buried the part that mattered: the board is
+safe locally.
+
 ## 2026-10-13: the reader draws the board's arrows
 
 User, comparing the published page with the editor: _"is it style different of

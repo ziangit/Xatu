@@ -1314,10 +1314,12 @@ export default function SimPage() {
               className="truncate text-amber-700"
               title={t("account sync failed: {error}", { error: cloudState })}
             >
-              {t(
-                "saved to this browser, but the account sync failed: {error}",
-                { error: cloudState },
-              )}
+              {/* The raw message stays in `title` for debugging, but it is
+                  Postgres text — the one users actually hit read "new row
+                  violates row-level security policy", which tells them
+                  nothing. The board is safe either way, and that is the part
+                  worth saying. */}
+              {t("saved to this browser — couldn’t reach your account")}
             </p>
           ) : savedAt && matchup ? (
             <p className="truncate text-stone-400">

@@ -453,6 +453,8 @@ export const JA: Record<string, string> = {
     "⑂ は同じターンの別の展開を記録します",
   "turn 2 is the last": "ターン2までです",
   "account sync failed: {error}": "アカウントへの同期に失敗しました：{error}",
+  "saved to this browser — couldn’t reach your account":
+    "このブラウザには保存しました——アカウントには同期できませんでした",
   "saved to this browser, but the account sync failed: {error}":
     "このブラウザには保存しましたが、アカウントへの同期に失敗しました：{error}",
   "saved as “{name}” · {time}": "「{name}」として保存 · {time}",

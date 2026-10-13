@@ -418,6 +418,8 @@ export const ZH: Record<string, string> = {
     "⑂ 记录同一回合的另一种走法",
   "turn 2 is the last": "最多到第 2 回合",
   "account sync failed: {error}": "账号同步失败：{error}",
+  "saved to this browser — couldn’t reach your account":
+    "已保存到这个浏览器——但没能同步到你的账号",
   "saved to this browser, but the account sync failed: {error}":
     "已保存到此浏览器，但账号同步失败：{error}",
   "saved as “{name}” · {time}": "已保存为“{name}” · {time}",

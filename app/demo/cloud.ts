@@ -20,10 +20,10 @@ function isMatchup(payload: unknown): payload is SavedMatchup {
   const p = payload as SavedMatchup;
   return Boolean(
     p &&
-      typeof p === "object" &&
-      p.setup?.my?.parsed &&
-      p.setup?.opp?.parsed &&
-      Array.isArray(p.nodes),
+    typeof p === "object" &&
+    p.setup?.my?.parsed &&
+    p.setup?.opp?.parsed &&
+    Array.isArray(p.nodes),
   );
 }
 
@@ -68,12 +68,19 @@ export async function upsertCloudMatchup(
 ): Promise<"off" | "ok" | string> {
   const supabase = await userClient();
   if (!supabase) return "off";
-  const { error } = await supabase.from("matchups").upsert({
-    id: matchup.id,
-    name: matchup.name,
-    payload: matchup,
-    saved_at: matchup.savedAt,
-  });
+  // `onConflict` must name the real key. A matchup id is unique per *account*
+  // (see supabase/per-account-matchups.sql), so conflicting on `id` alone
+  // would try to update a row belonging to whoever used this browser last —
+  // which the owner-only policy then refuses, as it should.
+  const { error } = await supabase.from("matchups").upsert(
+    {
+      id: matchup.id,
+      name: matchup.name,
+      payload: matchup,
+      saved_at: matchup.savedAt,
+    },
+    { onConflict: "user_id,id" },
+  );
   return error ? error.message : "ok";
 }
 

@@ -1576,6 +1576,36 @@ form itself rather than discovered later.
 Cap verified live: three sign-ups from one address succeed, the fourth returns
 `429 ip-limit`, and a different address is unaffected.
 
+## A matchup id belongs to an account, not to the world (2026-10-13)
+
+Reported from the board: _"saved to this browser, but the account sync failed:
+new row violates row-level security policy (USING expression) for table
+matchups"_. The policy was right and the schema was asking the wrong question.
+
+`matchups.id` is generated in the **browser** (`crypto.randomUUID()` per board)
+but was the table's whole primary key. So: sign in as A, save boards, sign in
+as B in the same browser — localStorage still holds A's boards, B's save
+upserts on an `id` that is already A's row, the upsert resolves to an UPDATE,
+and the owner-only policy refuses it. Exactly as it should: B must not
+overwrite A. But the board _is_ B's locally, and syncing it should have made
+B's own row.
+
+The key is now **`(user_id, id)`** on both `matchups` and `teams`, matching
+`published_groups (user_id, team_id)`. `upsertCloudMatchup` passes
+`onConflict: "user_id,id"` — naming only `id` there would reintroduce the
+bug. `deleteCloudMatchup` still filters on `id` alone, which stays correct
+because RLS already scopes every statement to the caller.
+
+Verified against the live project with two real accounts: both now hold a row
+with the same id, the original is untouched, and deleting one account removes
+only its copy.
+
+**The error text never should have reached the screen.** The visible line now
+says "saved to this browser — couldn't reach your account"; the Postgres
+message stays in the `title`. A user cannot act on "violates row-level security
+policy (USING expression)", and the part that matters — the board is safe
+locally — was buried behind it.
+
 ## Key decisions
 
 - Direct-manipulation editor shaped like the battle screen, grouped/collapsed **by
