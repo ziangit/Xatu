@@ -1,5 +1,9 @@
 # Session handoff
 
+> Updated 2026-10-12: landing copy — the user's own hero wording, and the third
+> blurb now covers **publishing** instead of claiming "no account, no upload",
+> which stopped being true when accounts and the feed shipped.
+>
 > Updated 2026-10-12: the **language toggle no longer slides** when you use it.
 > Nothing variable may sit to its right — the landing header had a link there
 > and the toggle moved 48px. docs/ARCHITECTURE.md → **"Header order"**.
@@ -145,6 +149,39 @@ its authors either — "faithfully display what the author wrote" is the whole
 boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
+
+## 2026-10-12: landing copy catches up with publishing
+
+User supplied new hero wording ("more human like") and asked what the landing
+page should say now that published matchups exist.
+
+- **Hero paragraph** replaced with theirs verbatim. Note the pasted "Branch the
+  turn" blurb was byte-identical to what was already live, so only the hero
+  changed. Both Chinese and Japanese were re-translated, not just re-keyed —
+  **the key IS the English sentence**, so editing English orphans the old entry.
+- **The third blurb was wrong, not just thin.** "Teams and matchup boards save
+  to a local library — _no account, no upload_" stopped being true the day
+  accounts shipped, and nothing on the page explained publishing at all. It is
+  now "Yours, then everyone's": local-first → sync → publish → fork, which is
+  the whole arc in two sentences and keeps the no-account promise that
+  CLAUDE.md treats as load-bearing.
+
+**Two layout traps the copy change sprang**, both caught by re-measuring rather
+than by eye:
+
+- The hero paragraph's three-line reserve went **inert** — English now needs
+  four. Removed rather than raised: the column's `lg:min-h` is what actually
+  pins the section, and raising the paragraph instead would have pushed the
+  Japanese column past it.
+- The Japanese blurb ran to **five** lines, so that section was 247px against
+  226 elsewhere. Tightened the translation rather than reserving a fifth line —
+  five lines is too much text for a landing blurb in any language.
+- The column reserve went 22.75rem → **24rem**. At 22.75 the tallest language
+  fitted with **0px to spare**, so the next copy edit would have broken the
+  equal-height property silently. Reserves want headroom, not a snug fit.
+
+All four sections and the total page height are identical in all three
+languages again (1531px).
 
 ## 2026-10-12: the toggle slid when you clicked it
 

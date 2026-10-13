@@ -494,19 +494,19 @@ export const ZH: Record<string, string> = {
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":
     "宝可梦双打对阵规划 · 带六选四",
   "See turn one coming.": "预见第一回合。",
-  "xatu turns the “vs. common archetypes” section of a team report into a turn-by-turn map — which four you bring, who leads, and what the first two turns look like. Named after the bird that sees the future.":
-    "xatu 把队伍报告里“对阵常见套路”那一节，变成一张逐回合的地图——你带哪四只、谁首发、前两回合怎么走。名字取自那只能看见未来的鸟。",
   "Try New Match Ups!": "开始新的对阵！",
   "guide lookup →": "指南查询 →",
+  "xatu turns the “vs. common teams” part of a team report into a turn-by-turn map: what you lead, what your opponent reacts, what diverges next turn. Named after the bird that sees past and future at the same time.":
+    "xatu 把队伍报告里“对阵常见队伍”那一部分，变成一张逐回合的地图：你怎么首发、对手怎么应、下一回合在哪里分岔。名字取自那只同时看得见过去与未来的鸟。",
+  "Yours, then everyone’s": "先是你的，然后是大家的",
+  "Teams and boards save in your browser — no account needed. Sign in to sync them, publish one for a short link that previews your six, and readers can fork it without touching your copy.":
+    "队伍和战术板都存在你的浏览器里——不需要账号。登录就能同步；发布之后会得到一个短链接，预览里带着你的六只，别人可以复制一份去改，而不会动到你的原件。",
   "Branch the turn, not the essay": "要分支回合，而不是分段落",
   "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.":
     "对手换一组首发，是同一回合的另一种走法，而不是新的一段文字。只记你真正会走的两三条线——没写的分支就是不存在。",
   "Paste in, paste out": "粘贴导入，粘贴导出",
   "Import a pokepast.es link, a Showdown export, or a bare list of species. Moves come with their real type colors, and spread moves already know they aim themselves.":
     "支持 pokepast.es 链接、Showdown 导出文本，或者只写宝可梦名字。招式自带真实属性配色，范围招式也知道自己不用选目标。",
-  "Yours, in your browser": "你的数据，存在你的浏览器",
-  "Teams and matchup boards save to a local library — no account, no upload. Reopen any pairing right where you left it.":
-    "队伍和战术板都存在本地——不需要账号，不用上传。任何一组对阵都能从上次停下的地方接着看。",
   "The whole gameplan, portable": "完整战术，随身携带",
   "A finished matchup tree is a few hundred bytes of JSON. Copy it out of the builder, post it under your team report, paste it back in — same board.":
     "一棵完整的对阵树只有几百字节 JSON。从构建器里复制出来，贴在你的队伍报告下面，再粘回来——还是同一块战术板。",

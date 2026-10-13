@@ -375,9 +375,10 @@ export default function LandingPage() {
               sideways by 50px. 500px is what English already measured, so
               English is unchanged and the other two come to it.
 
-              If you edit this copy, re-measure: the number is the natural
-              height of the tallest language, and today that is Japanese. */}
-          <div className="w-full lg:min-h-[22.75rem] lg:w-[31.25rem]">
+              If you edit this copy, re-measure. The number carries headroom
+              over the tallest language on purpose — it sat flush once, and a
+              one-line copy change would then have broken the section silently. */}
+          <div className="w-full lg:min-h-[24rem] lg:w-[31.25rem]">
             <p
               className="land-rise text-[10px] font-semibold uppercase tracking-widest text-stone-400"
               style={{ animationDelay: "0.05s" }}
@@ -396,13 +397,16 @@ export default function LandingPage() {
               {t("See turn one coming.")}
             </h1>
             <p
-              // Three lines reserved (3 x leading-relaxed = 4.875em), same
-              // reason as the headline: 中 uses two.
-              className="land-rise mt-5 min-h-[4.875em] max-w-md text-sm leading-relaxed text-stone-500"
+              // No height reserved here on purpose. It used to hold three
+              // lines; the copy grew to four in English, so the reserve was
+              // inert. The column's `lg:min-h` below is what keeps the section
+              // the same height in every language, and it puts the slack below
+              // the buttons where it reads as padding.
+              className="land-rise mt-5 max-w-md text-sm leading-relaxed text-stone-500"
               style={{ animationDelay: "0.2s" }}
             >
               {t(
-                "xatu turns the “vs. common archetypes” section of a team report into a turn-by-turn map — which four you bring, who leads, and what the first two turns look like. Named after the bird that sees the future.",
+                "xatu turns the “vs. common teams” part of a team report into a turn-by-turn map: what you lead, what your opponent reacts, what diverges next turn. Named after the bird that sees past and future at the same time.",
               )}
             </p>
             <div
@@ -462,11 +466,11 @@ export default function LandingPage() {
           </div>
           <div>
             <h2 className="text-sm font-semibold">
-              {t("Yours, in your browser")}
+              {t("Yours, then everyone’s")}
             </h2>
             <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
-                "Teams and matchup boards save to a local library — no account, no upload. Reopen any pairing right where you left it.",
+                "Teams and boards save in your browser — no account needed. Sign in to sync them, publish one for a short link that previews your six, and readers can fork it without touching your copy.",
               )}
             </p>
           </div>

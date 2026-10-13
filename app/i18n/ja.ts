@@ -528,19 +528,19 @@ export const JA: Record<string, string> = {
   "Matchup planning for Pokémon doubles · bring 6 · pick 4":
     "ポケモンダブルバトルのマッチアップ設計 · 6匹持ち込み · 4匹選出",
   "See turn one coming.": "1ターン目を、見通す。",
-  "xatu turns the “vs. common archetypes” section of a team report into a turn-by-turn map — which four you bring, who leads, and what the first two turns look like. Named after the bird that sees the future.":
-    "xatu は、構築記事の「よくある構築への立ち回り」の部分を、ターンごとの地図に変えます——どの4匹を選出し、誰を先発にして、最初の2ターンがどう進むのか。未来を見通す鳥から名前を取りました。",
   "Try New Match Ups!": "新しいマッチアップを作る！",
   "guide lookup →": "ガイド検索 →",
+  "xatu turns the “vs. common teams” part of a team report into a turn-by-turn map: what you lead, what your opponent reacts, what diverges next turn. Named after the bird that sees past and future at the same time.":
+    "xatu はパーティ報告の「よく当たるパーティ対策」の部分を、逐ターンの地図に変えます——どう先発し、相手がどう応じ、次のターンでどこが分岐するか。過去と未来を同時に見る鳥から名前を取りました。",
+  "Yours, then everyone’s": "まずは自分のもの、それからみんなのもの",
+  "Teams and boards save in your browser — no account needed. Sign in to sync them, publish one for a short link that previews your six, and readers can fork it without touching your copy.":
+    "パーティも戦術板もブラウザに保存——アカウント不要。ログインで同期、公開すれば6匹入りの短いリンクが手に入り、読んだ人は自分用に複製できます（原本はそのまま）。",
   "Branch the turn, not the essay": "分岐させるのはターン、文章ではない",
   "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.":
     "相手の先発が変われば、それは同じターンの別展開であって、新しい段落ではありません。実際に選ぶ2〜3本の展開だけを描いてください——書かれていない分岐は、存在しません。",
   "Paste in, paste out": "貼り付けて入れ、貼り付けて出す",
   "Import a pokepast.es link, a Showdown export, or a bare list of species. Moves come with their real type colors, and spread moves already know they aim themselves.":
     "pokepast.es のリンク、Showdown のエクスポート、ポケモン名の一覧だけでも読み込めます。技には実際のタイプ色が付き、全体技は対象を自分で決めることを最初から知っています。",
-  "Yours, in your browser": "あなたのデータは、あなたのブラウザに",
-  "Teams and matchup boards save to a local library — no account, no upload. Reopen any pairing right where you left it.":
-    "パーティもマッチアップのボードもローカルに保存されます——アカウントも、アップロードも不要。どの組み合わせも、中断したところから開き直せます。",
   "The whole gameplan, portable": "戦略まるごと、持ち運べる",
   "A finished matchup tree is a few hundred bytes of JSON. Copy it out of the builder, post it under your team report, paste it back in — same board.":
     "完成したマッチアップツリーは数百バイトの JSON です。ビルダーからコピーして構築記事に貼り、また貼り戻せば——同じボードが戻ります。",
