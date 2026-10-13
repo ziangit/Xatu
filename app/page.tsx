@@ -450,27 +450,27 @@ export default function LandingPage() {
             </h2>
             <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
-                "A different opposing lead is an alternate of the same turn, not a new paragraph. Map the two or three lines you actually play — unwritten branches simply don’t exist.",
+                "A different opposing lead is an alternate of the same turn, not a new paragraph. You are free to create a new branch or proceed to the next turn.",
               )}
             </p>
           </div>
           <div>
             <h2 className="text-sm font-semibold">
-              {t("Paste in, paste out")}
+              {t("Team build & game preparation")}
             </h2>
             <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
-                "Import a pokepast.es link, a Showdown export, or a bare list of species. Moves come with their real type colors, and spread moves already know they aim themselves.",
+                "Worrying about the trending meta or your tournament opponent? Practice here so you don’t need to play 50 games on ladder.",
               )}
             </p>
           </div>
           <div>
             <h2 className="text-sm font-semibold">
-              {t("Yours, then everyone’s")}
+              {t("Team report & sharing")}
             </h2>
             <p className="mt-2 min-h-[6.5em] text-[13px] leading-relaxed text-stone-500">
               {t(
-                "Teams and boards save in your browser — no account needed. Sign in to sync them, publish one for a short link that previews your six, and readers can fork it without touching your copy.",
+                "If you don’t want to write a 10,000-word team report, maybe one graph is enough.",
               )}
             </p>
           </div>

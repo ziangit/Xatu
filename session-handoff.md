@@ -150,6 +150,34 @@ boundary. The hero is editorial content and needs an eye, not a check. Worth
 remembering that the audience is competitive players who spot a 0x play
 instantly, so the marketing surface has to be as correct as a real guide.
 
+## 2026-10-12: the three landing blurbs, rewritten as benefits
+
+User-supplied copy, reframing the feature row from mechanics to outcomes:
+branching stays, then **"Team build & game preparation"** and **"Team report &
+sharing"**. Applied in all three languages (the key is the English sentence, so
+each is a re-translation, not a re-key). Sections and total height unchanged —
+all three blurbs still fit the four-line reserve in every language.
+
+Two mechanical fixes made without asking: `10000 word long` → `10,000-word`,
+and the headings lower-cased to match their siblings (`Team Build & Game
+preparation` was inconsistent inside itself).
+
+**Three things flagged to the user rather than silently changed**, all worth
+re-reading before the next copy pass:
+
+- **"Practice here so you don't need to play 50 games on ladder."** xatu runs no
+  battle computation — that is the first hard constraint in CLAUDE.md and the
+  reason the eventual extension is uncontroversial. "Practice" can be read as
+  "simulate", and a VGC player who arrives expecting a sim bounces. Shipped as
+  written; the honest version is closer to "plan" or "think it through here".
+- **"maybe one graph is enough"** — PRODUCT.md explicitly rejects a node-graph
+  canvas as "the wrong affordance", so _graph_ is a word the project avoids on
+  purpose. The artifact is a turn tree / map.
+- **Two promises left the page with the old copy**: paste-first import
+  (pokepaste links, Showdown exports) and the no-account local-first guarantee,
+  which CLAUDE.md treats as load-bearing. Neither is stated anywhere on the
+  landing page now.
+
 ## 2026-10-12: landing copy catches up with publishing
 
 User supplied new hero wording ("more human like") and asked what the landing
