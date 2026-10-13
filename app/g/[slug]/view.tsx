@@ -90,6 +90,13 @@ export function PublishedView({ slug }: { slug: string }) {
 
         {state === "ready" && post && (
           <>
+            {/* Above the post, not inside it: controls *over* the page rather
+                than parts of it. The reader's control (fork) stays below. */}
+            <AuthorControls
+              slug={post.slug}
+              authorId={post.userId}
+              teamId={post.teamId}
+            />
             <div className="mt-8">
               <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-500">
                 {post.regulation.replace(/^\[.*?\]\s*/, "")}
@@ -124,7 +131,6 @@ export function PublishedView({ slug }: { slug: string }) {
               {/* Only offered when the document actually decoded — forking
                   something we couldn't read would write a broken group. */}
               {group && <ForkButton slug={post.slug} group={group} />}
-              <AuthorControls slug={post.slug} authorId={post.userId} />
             </div>
 
             {!group && (

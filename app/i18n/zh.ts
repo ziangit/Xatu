@@ -273,7 +273,8 @@ export const ZH: Record<string, string> = {
     "把它从网上撤下吗？这一组仍会留在你的对阵里。",
   "Taken down. The link no longer works for anyone.":
     "已撤下，这个链接对所有人都失效了。",
-  "Only you can see this — it's your post.": "只有你能看到这个——这是你的帖子。",
+  "Your post — only you see these.": "你的帖子——这些只有你能看到。",
+  "edit this post": "编辑这篇帖子",
   "Couldn’t take it down — try again.": "撤下失败——请重试。",
   "Delete this set — {count} — from {places}, and take its published page down?":
     "从{places}删除这一组（{count}），并撤下它已发布的页面？",

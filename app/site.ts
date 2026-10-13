@@ -13,3 +13,9 @@ export const SITE_URL =
     : process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : "http://localhost:7317";
+
+/**
+ * The project's source. One constant, because it is now linked from the header
+ * of every page as well as the landing footer, and two copies would drift.
+ */
+export const GITHUB_URL = "https://github.com/ziangit/Xatu";

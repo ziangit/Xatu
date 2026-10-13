@@ -9,6 +9,8 @@ import { PostCard } from "./feed/post-card";
 import { MonIcon, TYPE_COLORS } from "./demo/components";
 import { useT } from "./i18n/provider";
 import { LangToggle } from "./i18n/toggle";
+import { GitHubLink } from "./nav";
+import { GITHUB_URL } from "./site";
 
 // Landing page. Visual language is the sim board's own — paper ground, stone
 // ink, Simulate red, branch amber — so the page opens straight into the tool
@@ -359,6 +361,7 @@ export default function LandingPage() {
               {t("my matchups →")}
             </Link>
             <LangToggle />
+            <GitHubLink />
             <AccountLink />
           </span>
         </header>
@@ -499,7 +502,7 @@ export default function LandingPage() {
             )}
           </p>
           <a
-            href="https://github.com/ziangit/Xatu"
+            href={GITHUB_URL}
             className="shrink-0 underline-offset-2 hover:text-stone-700 hover:underline"
           >
             {t("github")}

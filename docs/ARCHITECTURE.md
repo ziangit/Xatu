@@ -1686,6 +1686,36 @@ set, which is how every RMT introduces a Pokémon. A sprite written inside a
 sentence stays inline. That rule is what lets one syntax serve both uses
 without a second token.
 
+**Author controls sit above the title, not in the body** (user-directed,
+2026-10-13). `unpublish` and `edit this post` are controls _over_ the page
+rather than parts of it: an author reading their own post should not meet a
+destructive button between the description and the report, and a reader should
+not scroll past a line explaining a button they will never see. **Fork stays in
+the body**, because that one is addressed to the reader. They are not in the
+nav either — the nav is the same on every page and these belong to this one,
+and the header-order rule forbids anything variable to the right of the
+toggle.
+
+**`edit this post` is the composer**, which already updates a published page in
+place; it was only ever reachable by going to `/matchups` and finding the set
+again. It appears **only when the set is in this browser**, because the
+composer reads localStorage — on another device a link to "that set isn't in
+this browser" is worse than no link. `loadPublished` carries `team_id` for
+this; posts from before that column exists carry none and get no edit control.
+
+**The GitHub mark is in the shared header** (`GitHubLink` in `app/nav.tsx`),
+beside the language toggle and the account widget — site chrome, not an action
+on the page. A **mark, not a word**: its box is a fixed 16px in every language,
+which is what lets it sit to the toggle's right without reintroducing the shift
+fixed on 2026-10-12. The word "github" could not.
+
+**It is deliberately absent from `/login`**, which is a `max-w-sm` column whose
+nav already filled the width exactly. Adding 32px overflowed it in English but
+not in Chinese or Japanese, so the toggle moved 18px on a language switch —
+measured, and caught only by comparing against HEAD rather than assuming the
+drift was pre-existing. `/login` already drops the account widget for the same
+"this page is special" reason.
+
 **It is not a block list.** The ask was one thing — text between two matchups —
 so the shape is a text slot keyed by the matchup below it, plus one at the end:
 `{ before: { <key>: string }, outro?: string }`. Nothing reorders, so there is

@@ -164,8 +164,12 @@ export default function LoginPage() {
             >
               {t("matchups")}
             </Link>
-            {/* No AccountLink on this page — it *is* the account page — so the
-                toggle simply ends the bar. */}
+            {/* No AccountLink on this page — it *is* the account page — and no
+                GitHubLink either: this column is `max-w-sm`, and the nav
+                already filled it exactly. Adding 32px overflowed it in English
+                but not in Chinese or Japanese, so the toggle moved 18px when
+                you switched language — the one thing the header order rule
+                exists to prevent. The toggle simply ends the bar. */}
             <LangToggle />
           </nav>
         </header>

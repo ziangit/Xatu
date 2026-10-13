@@ -300,8 +300,9 @@ export const JA: Record<string, string> = {
     "ウェブから取り下げますか？このグループはマイマッチアップに残ります。",
   "Taken down. The link no longer works for anyone.":
     "取り下げました。このリンクは誰からも開けません。",
-  "Only you can see this — it's your post.":
-    "これが見えるのはあなただけです——あなたの投稿です。",
+  "Your post — only you see these.":
+    "あなたの投稿——これらが見えるのはあなただけです。",
+  "edit this post": "この投稿を編集",
   "Couldn’t take it down — try again.":
     "取り下げられませんでした——もう一度お試しください。",
   "Delete this set — {count} — from {places}, and take its published page down?":

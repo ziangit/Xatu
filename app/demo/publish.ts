@@ -57,6 +57,11 @@ export type PublishedGroup = {
   author: string | null;
   /** The author's account id, so the reader can offer them a delete. */
   userId: string;
+  /**
+   * The set this was published from, so the author can be offered an edit.
+   * Null on posts made before the column existed — see `adoptLegacyPost`.
+   */
+  teamId: string | null;
 };
 
 /** Where one of my sets is published, keyed by the set's team id. */
@@ -267,7 +272,7 @@ export async function loadPublished(
   const { data } = await supabase
     .from("published_groups")
     .select(
-      "slug,title,description,document,team_name,regulation,species,opponent_count,report,created_at,updated_at,user_id",
+      "slug,title,description,document,team_name,regulation,species,opponent_count,report,created_at,updated_at,user_id,team_id",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -295,5 +300,6 @@ export async function loadPublished(
     updatedAt: data.updated_at,
     author: profile?.username ?? null,
     userId: data.user_id,
+    teamId: data.team_id ?? null,
   };
 }
