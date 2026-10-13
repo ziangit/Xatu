@@ -99,6 +99,90 @@ export function parseReportText(text: string): Segment[] {
   return out;
 }
 
+/**
+ * A block of report prose: a paragraph, a pasted Showdown set, or a sprite
+ * standing alone on its own line.
+ *
+ * The reason this exists: people paste sets into a report, and a set is not a
+ * paragraph. Rendered as prose it becomes a wall of hard-wrapped lines in a
+ * 1.6 line-height sans — the same text every Pokémon site on earth sets in
+ * monospace. Recognising it is **presentation only**: nothing is parsed out of
+ * it, nothing is verified, and the lines are drawn verbatim. The hard rule in
+ * CLAUDE.md is about battle computation, and noticing that a line starts with
+ * `Ability:` is not that.
+ */
+export type Block =
+  | { kind: "prose"; segments: Segment[] }
+  | { kind: "set"; lines: string[] }
+  | { kind: "art"; species: string };
+
+/** A line that could belong to a Showdown set. */
+const SET_LINE =
+  /^(?:.+ @ .+|(?:Ability|Level|Shiny|Happiness|Tera Type|EVs|IVs|Dynamax Level|Gigantamax):.*|- .+|[A-Z][a-z]+ Nature)$/;
+
+/**
+ * A line that only a set has.
+ *
+ * A run of `- ` lines is a bullet list, which people do write in prose, so a
+ * run qualifies as a set only if something in it could not be anything else.
+ * That is what keeps the detection from swallowing someone's three-point plan.
+ */
+const SET_STRONG =
+  /^(?:.+ @ .+|(?:Ability|Tera Type|EVs|IVs):.*|[A-Z][a-z]+ Nature)$/;
+
+/** The species of a line that is nothing but one sprite token, else null. */
+function loneSpecies(line: string): string | null {
+  const segs = parseReportText(line);
+  const mons = segs.filter((s) => s.kind === "mon");
+  const rest = segs.filter((s) => s.kind === "text" && s.text.trim());
+  return mons.length === 1 && rest.length === 0
+    ? (mons[0] as { species: string }).species
+    : null;
+}
+
+/** Group report prose into paragraphs, pasted sets and standalone sprites. */
+export function parseReportBlocks(text: string): Block[] {
+  const lines = text.split("\n").map((l) => l.replace(/\s+$/, ""));
+  const blocks: Block[] = [];
+  let prose: string[] = [];
+  const flush = () => {
+    const body = prose.join("\n").replace(/^\n+|\n+$/g, "");
+    if (body.trim())
+      blocks.push({ kind: "prose", segments: parseReportText(body) });
+    prose = [];
+  };
+
+  for (let i = 0; i < lines.length;) {
+    const art = loneSpecies(lines[i]);
+    if (art) {
+      flush();
+      blocks.push({ kind: "art", species: art });
+      i += 1;
+      continue;
+    }
+    if (SET_LINE.test(lines[i])) {
+      let j = i;
+      while (
+        j < lines.length &&
+        SET_LINE.test(lines[j]) &&
+        !loneSpecies(lines[j])
+      )
+        j += 1;
+      const run = lines.slice(i, j);
+      if (run.length >= 2 && run.some((l) => SET_STRONG.test(l))) {
+        flush();
+        blocks.push({ kind: "set", lines: run });
+      } else prose.push(...run);
+      i = j;
+      continue;
+    }
+    prose.push(lines[i]);
+    i += 1;
+  }
+  flush();
+  return blocks;
+}
+
 /** The same text with tokens flattened to names, for places that cannot draw
  * a sprite — the Open Graph card, the feed listing, a `title` attribute. */
 export const flattenReportText = (text: string) =>

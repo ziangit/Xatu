@@ -1648,12 +1648,36 @@ keeps pixel art crisp. Still hotlinked from Showdown, so nothing is committed.
 
 **Report prose is a white card, the same material as a turn card.** The page
 has exactly two surfaces — white is content, cream is chrome — so prose laid
-straight onto the cream read as unplaced, which a pasted Showdown export made
-obvious. `ReportProse` carries no vertical margin of its own; the caller owns
-the spacing. The composer's three slot states (empty, open, filled) all sit at
-`max-w-2xl`, so a slot never changes width as you fill it, and the **filled**
-one is the published card itself rather than a card inside the dashed draft
-frame — that frame says "scaffolding", which a finished paragraph is not.
+straight onto the cream read as unplaced. The card is `w-fit max-w-2xl`: a
+six-word note in a 672px box reads as an empty input rather than a sentence.
+`ReportProse` carries no vertical margin of its own; the caller owns the
+spacing. In the composer, the **filled** slot is that published card itself
+rather than a card inside the dashed draft frame — the frame says
+"scaffolding", which a finished paragraph is not. The empty and open states
+keep the wider dashed frame on purpose: one is a target to click, the other is
+somewhere to type, and neither is content.
+
+**A pasted Showdown set is set as a set, not as prose** (`parseReportBlocks`).
+Boxing the prose was not enough on its own — the thing that made a report look
+broken was eight hard-wrapped lines of `Ability:` / `EVs:` / `- Move` in a
+14px sans at 1.6 line-height, which is the one block of text every Pokémon
+site on earth sets in monospace. A run of consecutive set-shaped lines becomes
+a tinted monospace block with the species line as its heading, drawn
+**verbatim** — nothing is parsed out of it and nothing is verified, so the
+no-battle-computation rule is untouched; noticing that a line begins with
+`Ability:` is typography, not a calculation.
+
+Two guards make the detection safe: a run needs **two or more** lines, and at
+least one line that only a set has (`@ item`, `Ability:`, `EVs:`, `IVs:`,
+`Tera Type:`, `… Nature`). Without the second guard a three-point plan written
+as `- lead hard` / `- keep Protect` would turn into a code block; a test says
+so.
+
+**A sprite alone on its line is an illustration, not a word**, so it leaves the
+text flow — and when a set follows it the two render side by side, which is how
+an RMT reads and which fills the dead space a 96px sprite otherwise leaves
+beside it. A sprite written inside a sentence stays inline. That rule is what
+lets one syntax serve both uses without a second token.
 
 **It is not a block list.** The ask was one thing — text between two matchups —
 so the shape is a text slot keyed by the matchup below it, plus one at the end:
