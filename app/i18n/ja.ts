@@ -262,8 +262,8 @@ export const JA: Record<string, string> = {
   "Pick a username first — it’s your byline. Open the account menu.":
     "先にユーザー名を設定してください——署名になります。アカウントメニューから設定できます。",
   "Sign in to publish.": "公開するにはログインしてください。",
-  "That’s 5 new posts today — the daily limit. Editing a post you already published still works.":
-    "本日の新規投稿は 5 件に達しました——1 日の上限です。公開済みの投稿の編集は引き続きできます。",
+  "That’s 10 new posts today — the daily limit. Editing a post you already published still works.":
+    "本日の新規投稿は 10 件に達しました——1 日の上限です。公開済みの投稿の編集は引き続きできます。",
   "That’s 30 comments today — the daily limit.":
     "本日のコメントは 30 件に達しました——1 日の上限です。",
   "Couldn’t post that — try again.":

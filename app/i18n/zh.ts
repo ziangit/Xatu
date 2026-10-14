@@ -237,8 +237,8 @@ export const ZH: Record<string, string> = {
   "Pick a username first — it’s your byline. Open the account menu.":
     "请先设置用户名——它会作为署名。在账号菜单里设置。",
   "Sign in to publish.": "登录后才能发布。",
-  "That’s 5 new posts today — the daily limit. Editing a post you already published still works.":
-    "今天已经发布 5 个新帖子——达到每日上限。已发布的帖子仍然可以继续修改。",
+  "That’s 10 new posts today — the daily limit. Editing a post you already published still works.":
+    "今天已经发布 10 个新帖子——达到每日上限。已发布的帖子仍然可以继续修改。",
   "That’s 30 comments today — the daily limit.":
     "今天已经发表 30 条评论——达到每日上限。",
   "Couldn’t post that — try again.": "这条没能发出去——请重试。",

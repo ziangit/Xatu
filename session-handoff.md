@@ -50,7 +50,8 @@
 >
 > Updated 2026-10-12: **accounts get a username at signup** (Google's profile
 > name, or the email's local part), and **posting is capped** — 5 new posts and
-> 30 comments per account per day, enforced by a Postgres trigger the client
+> 30 comments per account per day (posts raised to 10 on 2026-10-13),
+> enforced by a Postgres trigger the client
 > cannot go around. Registration still has no per-IP cap and cannot have one
 > from here; see docs/ARCHITECTURE.md → **"Abuse limits"**. Top section,
 > newest first.
@@ -743,7 +744,8 @@ would have been handed it), `Jo` and an emoji-only name → the same fallback, a
 convenience; signing up is not. Anything unexpected and the account is created
 without one, and the account menu prompts exactly as before.
 
-**Caps: 5 posts and 30 comments per account per 24h**, in a trigger, counting
+**Caps: 5 posts and 30 comments per account per 24h** _(posts raised to 10 on
+2026-10-13, at the user's request)_, in a trigger, counting
 an append-only `rate_events` log rather than surviving rows — otherwise
 post-five-delete-five-post-five defeats it. Rules and the table in
 docs/ARCHITECTURE.md → **"Abuse limits"**.

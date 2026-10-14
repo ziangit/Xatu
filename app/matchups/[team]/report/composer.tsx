@@ -250,7 +250,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                       ? t("Sign in to publish.")
                       : problem === "rate-limited"
                         ? t(
-                            "That’s 5 new posts today — the daily limit. Editing a post you already published still works.",
+                            "That’s 10 new posts today — the daily limit. Editing a post you already published still works.",
                           )
                         : t("Couldn’t publish — try again.")}
                 </span>

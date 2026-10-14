@@ -1322,7 +1322,7 @@ a request cannot go around:
 
 | action                      | cap      | why                                                                  |
 | --------------------------- | -------- | -------------------------------------------------------------------- |
-| publish a new post          | 5 / 24h  | the user's number                                                    |
+| publish a new post          | 10 / 24h | the user's number (5 until 2026-10-13)                               |
 | comment                     | 30 / 24h | mine — a forum with a post cap and no comment cap still has the hole |
 | like                        | none     | the primary key is `(slug, user_id)`; there is nothing to flood      |
 | re-publish an existing post | free     | it is an UPDATE, so editing never costs quota                        |
@@ -1330,10 +1330,10 @@ a request cannot go around:
 **It counts actions, not surviving rows.** `rate_events` is append-only, and
 RLS is on with **no policies at all**, so nothing reaches it through PostgREST
 in either direction — only the `security definer` trigger writes it. Counting
-live posts instead would let someone publish five, delete five and publish five
-more; the spam went out either way and the deletion is the spammer's own
-clean-up. Verified against the live database: the 6th publish is refused, and
-deleting all five does not refund the quota.
+live posts instead would let someone publish to the cap, delete them all and
+publish to the cap again; the spam went out either way and the deletion is the
+spammer's own clean-up. Verified against the live database: the 11th publish is
+refused with `P0001`, and deleting the first ten does not refund the quota.
 
 A cap raises `P0001`, deliberately distinct from `23505` (a slug collision,
 which is bad luck and worth retrying), so the UI can say "that is today's

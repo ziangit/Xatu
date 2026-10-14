@@ -11,10 +11,10 @@
 -- own: email confirmation (on), its generic per-IP auth rate limits, and
 -- CAPTCHA. See docs/ARCHITECTURE.md -> "Abuse limits".
 
--- Actions, not surviving rows. Counting live posts would let someone post
--- five, delete five and post five more — the spam is sent either way, and the
--- deletion is the spammer's own clean-up. An append-only log is what a cap on
--- *behaviour* needs.
+-- Actions, not surviving rows. Counting live posts would let someone post to
+-- the cap, delete them all and post to the cap again — the spam is sent either
+-- way, and the deletion is the spammer's own clean-up. An append-only log is
+-- what a cap on *behaviour* needs.
 create table if not exists public.rate_events (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -67,7 +67,7 @@ $$;
 drop trigger if exists published_groups_daily_cap on public.published_groups;
 create trigger published_groups_daily_cap
   before insert on public.published_groups
-  for each row execute function public.enforce_daily_cap('5', 'publish');
+  for each row execute function public.enforce_daily_cap('10', 'publish');
 
 -- Re-publishing is an UPDATE to the same slug, so editing a post costs
 -- nothing. Only a new post counts.
