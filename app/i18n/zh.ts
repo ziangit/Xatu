@@ -494,6 +494,11 @@ export const ZH: Record<string, string> = {
   "close move picker": "关闭招式选择",
   "Mega Evolves": "已 Mega 进化",
   "switched in": "换上场",
+  "came in": "替补上场",
+  "{species} — came in after a faint; it can move":
+    "{species} — 倒下后替补上场，可以出招",
+  "{species} came in after a faint — it can move":
+    "{species} 倒下后替补上场——可以出招",
   "+ move": "＋ 招式",
   "▾ note": "▾ 备注",
   "+ note": "＋ 备注",

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
-import { isAlternate, layoutRows, switchedInSpecies } from "../demo/board";
+import { arrivals, isAlternate, layoutRows } from "../demo/board";
 import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
 import { parseTargetRef } from "../demo/workflow-io";
 import { useT } from "../i18n/provider";
@@ -53,7 +53,12 @@ function Side({
 }) {
   const t = useT();
   const placed = new Set([...state.front, ...state.back]);
-  const switchedIn = new Set(switchedInSpecies(state, parent));
+  // A switch was the turn's action and could not also move; a replacement for
+  // something that fainted could. Same rule as the editor, from the same
+  // function — a second renderer that re-derives this will disagree.
+  const { switched, arrived } = arrivals(state, parent);
+  const switchedIn = new Set(switched);
+  const cameIn = new Set(arrived);
   return (
     <div className="min-w-0 flex-1">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
@@ -90,23 +95,27 @@ function Side({
               return (
                 <span key={i} className="flex flex-col items-start gap-0.5">
                   <Slot species={s} />
-                  {s && row === "front" && (move || switchedIn.has(s)) && (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                        bg ? "text-white" : "bg-stone-100 text-stone-500"
-                      }`}
-                      style={bg ? { backgroundColor: bg } : undefined}
-                    >
-                      <MonIcon species={s} scale={0.5} />
-                      {switchedIn.has(s) ? t("switched in") : move}
-                      {move && targetSpecies && (
-                        <>
-                          <span className="opacity-80">→</span>
-                          <MonIcon species={targetSpecies} scale={0.5} />
-                        </>
-                      )}
-                    </span>
-                  )}
+                  {s &&
+                    row === "front" &&
+                    (move || switchedIn.has(s) || cameIn.has(s)) && (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                          bg ? "text-white" : "bg-stone-100 text-stone-500"
+                        }`}
+                        style={bg ? { backgroundColor: bg } : undefined}
+                      >
+                        <MonIcon species={s} scale={0.5} />
+                        {switchedIn.has(s)
+                          ? t("switched in")
+                          : (move ?? t("came in"))}
+                        {move && targetSpecies && (
+                          <>
+                            <span className="opacity-80">→</span>
+                            <MonIcon species={targetSpecies} scale={0.5} />
+                          </>
+                        )}
+                      </span>
+                    )}
                 </span>
               );
             })}

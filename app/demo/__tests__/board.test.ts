@@ -5,7 +5,7 @@ import {
   isAlternate,
   layoutRows,
   stripMove,
-  switchedInSpecies,
+  arrivals,
 } from "../board";
 import type { SideState, TurnNode } from "../storage";
 
@@ -35,27 +35,87 @@ function line(): TurnNode[] {
   ];
 }
 
-describe("switchedInSpecies", () => {
-  it("flags a Pokémon that wasn't in front last turn", () => {
+describe("arrivals", () => {
+  it("calls a voluntary switch a switch — it cannot also move", () => {
     const parent = side({
       front: ["Torkoal", "Lilligant-Hisui"],
       back: ["Tyranitar"],
     });
+    // Torkoal went to the back, so Tyranitar coming up was the turn's action.
     const now = side({
       front: ["Tyranitar", "Lilligant-Hisui"],
       back: ["Torkoal"],
     });
-    expect(switchedInSpecies(now, parent)).toEqual(["Tyranitar"]);
+    expect(arrivals(now, parent)).toEqual({
+      switched: ["Tyranitar"],
+      arrived: [],
+    });
+  });
+
+  it("calls a replacement for a faint an arrival — it can move", () => {
+    const parent = side({
+      front: ["Torkoal", "Lilligant-Hisui"],
+      back: ["Tyranitar"],
+    });
+    // Torkoal fainted; Tyranitar came in between turns and costs no action.
+    const now = side({
+      front: ["Tyranitar", "Lilligant-Hisui"],
+      back: [],
+      fainted: ["Torkoal"],
+    });
+    expect(arrivals(now, parent)).toEqual({
+      switched: [],
+      arrived: ["Tyranitar"],
+    });
+  });
+
+  it("fails open when a faint and a switch happen together", () => {
+    // Torkoal fainted and Lilligant switched out, so the pairing of newcomer
+    // to departure is not recoverable. Both are treated as replacements:
+    // wrongly allowing a move is a line the author can see, wrongly refusing
+    // one leaves no affordance and no explanation.
+    const parent = side({ front: ["Torkoal", "Lilligant-Hisui"] });
+    const now = side({
+      front: ["Tyranitar", "Incineroar"],
+      back: ["Lilligant-Hisui"],
+      fainted: ["Torkoal"],
+    });
+    expect(arrivals(now, parent)).toEqual({
+      switched: [],
+      arrived: ["Tyranitar", "Incineroar"],
+    });
+  });
+
+  it("does not count a faint that was already on the board", () => {
+    // Torkoal fainted earlier and is still listed; this turn is a plain
+    // switch, so the newcomer must not inherit a move it cannot make.
+    const parent = side({
+      front: ["Incineroar", "Lilligant-Hisui"],
+      back: ["Tyranitar"],
+      fainted: ["Torkoal"],
+    });
+    const now = side({
+      front: ["Tyranitar", "Lilligant-Hisui"],
+      back: ["Incineroar"],
+      fainted: ["Torkoal"],
+    });
+    expect(arrivals(now, parent)).toEqual({
+      switched: ["Tyranitar"],
+      arrived: [],
+    });
   });
 
   it("ignores a reorder of the same two", () => {
     const parent = side({ front: ["Torkoal", "Lilligant-Hisui"] });
     const now = side({ front: ["Lilligant-Hisui", "Torkoal"] });
-    expect(switchedInSpecies(now, parent)).toEqual([]);
+    expect(arrivals(now, parent)).toEqual({ switched: [], arrived: [] });
   });
 
   it("has nothing to compare at team preview", () => {
-    expect(switchedInSpecies(side({ front: ["Torkoal"] }), null)).toEqual([]);
+    expect(arrivals(side({ front: ["Torkoal"] }), null)).toEqual({
+      switched: [],
+      arrived: [],
+    });
   });
 });
 

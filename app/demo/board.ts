@@ -25,16 +25,42 @@ export function stripMove(side: SideState, species: string): SideState {
 }
 
 /**
- * Front Pokémon that weren't in front on the previous turn: they switched in,
- * which *is* their action for the turn, so they can't also declare a move. A
- * turn-0 preview has no previous turn and therefore no switches.
+ * Front Pokémon that weren't in front last turn — and **why**, because the two
+ * reasons have opposite consequences.
+ *
+ * - `switched`: it came in on a switch. Switching *is* that turn's action, so
+ *   it cannot also declare a move.
+ * - `arrived`: it came in to replace something that fainted. That choice is
+ *   made between turns and costs no action, so it **can** move.
+ *
+ * This used to be one list — "in front now, wasn't before" — which read every
+ * replacement as a switch and refused it a move. The state needed to tell them
+ * apart was already here: `fainted` is on `SideState` and was simply never
+ * consulted.
+ *
+ * Doubles can do both at once (one slot faints while the other switches out),
+ * and the pairing of newcomer to departure is then not recoverable from the
+ * state. **It fails open**: if anything that left the front fainted, every
+ * newcomer is treated as a replacement. Wrongly allowing a move leaves a line
+ * the author can see is wrong; wrongly forbidding one leaves them with no
+ * affordance and no explanation, which is the bug this fixes. It also keeps
+ * xatu out of the business of enforcing battle rules it cannot fully judge.
+ *
+ * A turn-0 preview has no previous turn, so nobody has arrived.
  */
-export function switchedInSpecies(
+export function arrivals(
   side: SideState,
   parentSide: SideState | null,
-): string[] {
-  if (!parentSide) return [];
-  return side.front.filter((s) => !parentSide.front.includes(s));
+): { switched: string[]; arrived: string[] } {
+  if (!parentSide) return { switched: [], arrived: [] };
+  const newcomers = side.front.filter((s) => !parentSide.front.includes(s));
+  if (newcomers.length === 0) return { switched: [], arrived: [] };
+  const replacing = parentSide.front.some(
+    (s) => !side.front.includes(s) && side.fainted.includes(s),
+  );
+  return replacing
+    ? { switched: [], arrived: newcomers }
+    : { switched: newcomers, arrived: [] };
 }
 
 const sameGroups = (a: SideState, b: SideState) =>

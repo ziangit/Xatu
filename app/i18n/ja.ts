@@ -532,6 +532,11 @@ export const JA: Record<string, string> = {
   "close move picker": "技の選択を閉じる",
   "Mega Evolves": "メガシンカ",
   "switched in": "交代で登場",
+  "came in": "死に出し",
+  "{species} — came in after a faint; it can move":
+    "{species} — 死に出しで登場。行動できます",
+  "{species} came in after a faint — it can move":
+    "{species} は死に出しで登場——行動できます",
   "+ move": "＋ 技",
   "▾ note": "▾ メモ",
   "+ note": "＋ メモ",

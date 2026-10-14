@@ -153,6 +153,25 @@ them up.
   weren't in front on the parent card — so nothing extra is stored. The picker
   refuses moves and Mega for them and the chip reads "switched in"; a switch also
   clears both Pokémon's declared moves.
+- **A newcomer in front is one of two things, and they are opposite.** A
+  Pokémon that **switched in** spent the turn's action doing it and cannot also
+  move; a Pokémon that **came in to replace a faint** was chosen between turns,
+  costs no action, and can move. `arrivals()` returns both sets, and the chip
+  reads "switched in" or "came in" accordingly. Until 2026-10-13 this was one
+  list — "in front now, wasn't before" — so every replacement was read as a
+  switch and refused its move, which is wrong for the commonest branch in a
+  real guide: _what if it faints?_
+- **That rule fails open.** Doubles can faint one slot and switch the other in
+  the same turn, and the pairing of newcomer to departure is not recoverable
+  from the state; when anything that left the front fainted, every newcomer is
+  treated as a replacement. The failure modes are not symmetric — wrongly
+  allowing a move leaves a line the author can look at and see is wrong, while
+  wrongly refusing one leaves them with no affordance and no explanation. It
+  also keeps xatu out of enforcing a battle rule it cannot fully judge, which
+  is a cousin of the no-battle-computation line. Note the check requires the
+  departure to have been in the **parent's front**, so a faint from an earlier
+  turn that is still listed does not make a later plain switch look like a
+  replacement.
 - **Positions carry into the next turn.** A turn starts where the previous one
   ended, so a positional edit cascades to descendants via `cascadePositions` —
   but only into slots that still hold the old occupant, so a downstream

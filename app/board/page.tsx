@@ -13,7 +13,7 @@ import {
   isAlternate,
   layoutRows,
   stripMove,
-  switchedInSpecies,
+  arrivals,
 } from "../demo/board";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
 import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
@@ -410,7 +410,11 @@ function SideBoard({
     const type = moveMetaOf?.(move)?.type ?? null;
     return (type && TYPE_COLORS[type]) || "#a8a29e";
   };
-  const switchedIn = new Set(switchedInSpecies(state, parentState));
+  // `switchedIn` cannot move (switching was its action); `cameIn` replaced
+  // something that fainted, which costs no action, so it can.
+  const { switched, arrived } = arrivals(state, parentState);
+  const switchedIn = new Set(switched);
+  const cameIn = new Set(arrived);
   /** On the field, a Mega-Evolved Pokémon is shown as its Mega forme. */
   const shownAs = (s: string) =>
     (state.mega === s ? megaFormeFor(s) : null) ?? s;
@@ -493,14 +497,18 @@ function SideBoard({
                   title={
                     switchedIn.has(s)
                       ? t("{species} — switched in this turn", { species: s })
-                      : t("{species} — declare a move, Mega, or send back", {
-                          species: s,
-                        })
+                      : cameIn.has(s)
+                        ? t("{species} — came in after a faint; it can move", {
+                            species: s,
+                          })
+                        : t("{species} — declare a move, Mega, or send back", {
+                            species: s,
+                          })
                   }
                   className={`h-[34px] w-[46px] rounded border bg-white pl-0.5 hover:border-stone-500 ${
                     state.mega === s
                       ? "border-violet-400"
-                      : switchedIn.has(s)
+                      : switchedIn.has(s) || cameIn.has(s)
                         ? "border-dashed border-sky-300"
                         : "border-stone-300"
                   }`}
@@ -550,24 +558,28 @@ function SideBoard({
                       ? t("{species} switched in this turn — no move", {
                           species: s,
                         })
-                      : move
-                        ? t("{species}: {detail}", {
-                            species: s,
-                            detail:
-                              (state.mega === s ? t("Mega, ") : "") +
-                              move +
-                              (targetSpecies
-                                ? t(" → {target}", { target: targetSpecies })
-                                : ""),
-                          })
-                        : t("{species} — declare a move or Mega", {
+                      : !move && cameIn.has(s)
+                        ? t("{species} came in after a faint — it can move", {
                             species: s,
                           })
+                        : move
+                          ? t("{species}: {detail}", {
+                              species: s,
+                              detail:
+                                (state.mega === s ? t("Mega, ") : "") +
+                                move +
+                                (targetSpecies
+                                  ? t(" → {target}", { target: targetSpecies })
+                                  : ""),
+                            })
+                          : t("{species} — declare a move or Mega", {
+                              species: s,
+                            })
                   }
                   className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none transition-opacity ${
                     move
                       ? "text-white"
-                      : switchedIn.has(s)
+                      : switchedIn.has(s) || cameIn.has(s)
                         ? "bg-sky-50 text-sky-700 hover:bg-sky-100"
                         : state.mega === s
                           ? "bg-violet-600 text-white hover:opacity-85"
@@ -579,7 +591,9 @@ function SideBoard({
                 >
                   <MonIcon species={shownAs(s)} scale={0.5} />
                   {state.mega === s && <span title={t("Mega Evolves")}>⟡</span>}
-                  {switchedIn.has(s) ? t("switched in") : (move ?? t("+ move"))}
+                  {switchedIn.has(s)
+                    ? t("switched in")
+                    : (move ?? (cameIn.has(s) ? t("came in") : t("+ move")))}
                   {move && targetSpecies && (
                     <>
                       <span className="opacity-80">→</span>
