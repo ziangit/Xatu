@@ -895,6 +895,24 @@ its layout needs **1333×1316** — three panels at 449 + 367 + 449 — so a
 corner "widget" shows Pokémon 1 and half the field, and a usable panel covers
 most of a laptop screen. A tab costs nothing and loses nothing.
 
+**The three set-level controls are one flex item**, not three (2026-10-13).
+`+ add opponent`, `publish set →` and `damage calculator ↗` sit in a wrapping
+row beside the opponent switcher; as separate items that row split them across
+lines — in Japanese the calculator sat on its own line even at 1512px, and in
+English below ~1100px. Wrapped in a `flex` span they move as a group, which is
+what "these three belong together" has to mean in CSS.
+
+**A bare `<span>` wrapper around a link is not a neutral container.** `publish
+set →` was wrapped in one to carry its save-on-leave handler, and an inline
+element's padding does not count toward its height — so that flex item measured
+4px shorter than its siblings and `items-center` pushed its top down 2px. Three
+buttons that never quite shared a line, at every width and in every language,
+which is what the user was seeing. The handler belongs on the link itself:
+`onClickCapture` on the `<Link>` fires before next/link's own `onClick`.
+Verified by typing a note, clicking through, and finding it in storage
+afterwards — that guard is the only thing standing between leaving the board
+and losing written work.
+
 ## Which copy of a team wins (`rememberTeam`, 2026-09-13)
 
 A team can arrive two ways, and they deserve opposite treatment. The caller says
