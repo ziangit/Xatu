@@ -900,6 +900,35 @@ Two consequences elsewhere:
   Order-sensitivity was a latent bug: the same team imported twice in a different
   order became two teams and split its group.
 
+## Leaving the board never loses work (2026-10-13)
+
+A horizontal trackpad swipe on the board used to do two wrong things at once:
+it did not scroll the turn strip, and it navigated **back**, taking unsaved
+notes with it. Both came from the same place — the strip is an `overflow-x`
+container, and once a swipe reaches its edge the gesture chains to the
+browser's own back navigation.
+
+- **`overscroll-x-contain` on the strip** (the editor's and the reader's) keeps
+  the gesture inside it. That alone fixes the scrolling and most of the
+  navigating.
+- **`SaveOnExit` saves on unmount**, which is the one signal every in-app exit
+  produces. This is the part that matters: a swipe-back in the App Router is a
+  **client-side pop**, so the document never unloads and `pagehide` never
+  fires. An earlier cut used only `pagehide` and looked correct under a full
+  page navigation while still losing work on the real gesture — verified by
+  reaching the board through a client-side route and calling `history.back()`.
+- `pagehide` and `visibilitychange` are kept for the cases unmount cannot see:
+  a closed tab, a hard reload, a backgrounded tab on mobile.
+- **Never `beforeunload`.** It puts a native dialog on screen, which this
+  project does not do; the board saves silently instead of asking. That is the
+  same rule as "no 'unsaved changes' dialog, ever".
+- It is **its own component** because the board declares `saveIfDirty` below
+  its early returns, so an effect up where hooks must live cannot reference it.
+  A child renders unconditionally and takes the callback as a prop.
+- It cannot create junk: `saveIfDirty` is a no-op unless `hasUnsavedWork()`,
+  which compares against a fresh board. Verified — opening a board and leaving
+  it untouched adds no row and does not even change a `savedAt`.
+
 ## The damage-calculator link (2026-09-13)
 
 The board's reference row links out to `calc.pokemonshowdown.com`. This is **not**

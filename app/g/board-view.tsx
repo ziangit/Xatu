@@ -170,7 +170,7 @@ export function BoardView({
   const maxTurn = Math.max(...nodes.map((n) => n.turn), 1);
 
   return (
-    <div className="scroll-x-hint overflow-x-auto pb-2">
+    <div className="scroll-x-hint overscroll-x-contain overflow-x-auto pb-2">
       <div ref={wrapRef} className="relative inline-block">
         <EdgeLayer edges={edges} />
         <div

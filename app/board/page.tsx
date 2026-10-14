@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BackLink, HeaderNav, LegalFooter, NavLink, Wordmark } from "../nav";
 import { T } from "../i18n/T";
@@ -662,6 +662,47 @@ const CHOICE_TARGETS = new Set([
   "adjacentAllyOrSelf",
 ]);
 
+/**
+ * Keeps the board when the page goes away in a way the app never sees: a
+ * trackpad swipe-back, the browser's own back button, a closed tab. Every
+ * other exit routes through a click handler that calls `saveIfDirty`; these do
+ * not, so a note typed and not saved was simply gone.
+ *
+ * `pagehide`, never `beforeunload` — that one puts a native dialog on screen,
+ * which this project does not do. It saves silently instead of asking.
+ * `visibilitychange` covers a backgrounded tab, where `pagehide` can be
+ * skipped entirely.
+ *
+ * Its own component because the board declares `saveIfDirty` below its early
+ * returns, so an effect up where the hooks must live cannot see it. A child
+ * renders unconditionally and takes the callback as a prop.
+ */
+function SaveOnExit({ onLeave }: { onLeave: () => void }) {
+  const latest = useRef(onLeave);
+  useEffect(() => {
+    latest.current = onLeave;
+  });
+  useEffect(() => {
+    const keep = () => latest.current();
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") keep();
+    };
+    window.addEventListener("pagehide", keep);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", keep);
+      document.removeEventListener("visibilitychange", onHidden);
+      // Unmount is the one signal every in-app exit produces. A swipe-back is
+      // a *client-side* pop in the App Router, so the document never unloads
+      // and `pagehide` never fires — that was the hole. The listeners above
+      // still matter for a closed tab or a hard reload, where this does not
+      // run.
+      keep();
+    };
+  }, []);
+  return null;
+}
+
 export default function SimPage() {
   const { lang, t } = useLang();
   const [setup, setSetup] = useState<SimSetup | null>(null);
@@ -1153,6 +1194,7 @@ export default function SimPage() {
       <main className="mx-auto max-w-7xl px-6 py-10">
         {/* Three bands, so the site nav, the board's own actions, and the
             matchup switcher never read as one jumbled strip. */}
+        <SaveOnExit onLeave={saveIfDirty} />
         <header className="border-b border-stone-200 pb-4">
           {/* Leaving the board saves it first, exactly like switching
               opponents — the board is the one page where navigating away could
@@ -1455,7 +1497,12 @@ export default function SimPage() {
           </div>
         )}
 
-        <div className="mt-4 overflow-x-auto pb-4">
+        {/* `overscroll-x-contain`: a horizontal trackpad swipe here used to
+            chain to the browser's back gesture the moment the strip hit an
+            edge — so the board wouldn't scroll *and* you left the page, which
+            is how written work went missing. Containing it keeps the gesture
+            in the strip. */}
+        <div className="mt-4 overscroll-x-contain overflow-x-auto pb-4">
           <div ref={wrapRef} className="relative w-max">
             <EdgeLayer edges={edges} />
             <div
