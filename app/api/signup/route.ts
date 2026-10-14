@@ -55,6 +55,20 @@ export async function POST(req: Request) {
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
+  // Taken names are checked **before** the IP slot is claimed. A slot is spent
+  // whether or not an account results, so without this, three attempts at
+  // names someone else already has would lock a new player out for 24 hours —
+  // and "that name is taken" is the most ordinary thing to hit on a first
+  // sign-up. This is not the arbiter: the unique index on `lower(username)`
+  // still decides, so two people racing for one name are still resolved
+  // correctly. It only keeps the common case from costing anything.
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("username")
+    .ilike("username", username)
+    .maybeSingle();
+  if (existing) return Response.json({ error: "taken" }, { status: 409 });
+
   const { data: allowed, error: slotError } = await supabase.rpc(
     "claim_signup_slot",
     { p_ip: ip, p_secret: secret, p_cap: CAP_PER_DAY },

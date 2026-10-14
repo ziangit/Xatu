@@ -14,3 +14,14 @@
 --     "outro":  "text after the last matchup" }
 alter table public.published_groups
   add column if not exists report jsonb;
+
+-- A size cap, like `document` and `description` already carry. Without one
+-- this column was the only unbounded thing an author could write to a public
+-- row: the prose is capped by nothing in the client, and the client is not
+-- where a limit belongs. 200KB is far more than a report of a few paragraphs
+-- per matchup, and well under what would make a page slow to load.
+alter table public.published_groups
+  drop constraint if exists published_groups_report_size;
+alter table public.published_groups
+  add constraint published_groups_report_size
+  check (report is null or char_length(report::text) <= 200000);
