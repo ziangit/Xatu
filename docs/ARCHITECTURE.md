@@ -1315,6 +1315,23 @@ cannot collide.
 
 ## Abuse limits, and what cannot be limited (2026-10-12)
 
+**Local-first has an identity edge, and it is deliberate** (audited
+2026-10-13). Work made while signed out lives in `localStorage`, and
+`/matchups` silently uploads anything browser-only into whichever account is
+signed in. For one person that is the whole point — plan signed out, sign in
+later, it syncs. On a **shared browser profile** it means person B signing in
+after person A adopts A's local sets into B's account, and signing out does not
+clear local data, so A's sets stay visible to whoever uses that browser next.
+
+This is not a database leak — RLS was verified to hold absolutely between
+accounts — it is the local-first promise meeting a shared machine. Changing it
+means either not adopting signed-out work on sign-in (which breaks the promise
+CLAUDE.md calls load-bearing) or clearing localStorage on sign-out (which
+destroys work for the common single-user case). Both are worse than the
+problem. If it ever needs addressing, the right shape is an explicit "this
+browser has work from a signed-out session — keep it or discard it?" prompt on
+first sign-in, not a silent policy change.
+
 **The caps are in the database, not the client.** The browser talks to
 PostgREST directly with the anon key, so a check in React is bypassed by one
 `curl`. `supabase/rate-limits.sql` puts them in a BEFORE INSERT trigger, which

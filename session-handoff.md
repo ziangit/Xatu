@@ -1,5 +1,14 @@
 # Session handoff
 
+> Updated 2026-10-13: **pre-launch audit**. Identity isolation verified against
+> the live database with two real accounts — one account cannot read, update or
+> delete another's teams or matchups, by row counts rather than status codes.
+> Three things fixed on the way: a **critical Next.js RCE** (16.2.12 → 16.4.0),
+> a failed sign-up **burning an IP slot**, and the `report` column being the one
+> **unbounded** thing an author could write to a public row. Two known
+> trade-offs are written up below rather than changed. Top section, newest
+> first.
+
 > Updated 2026-10-13: **sign-up is username + password, Showdown style** — no
 > email field anywhere, because email sign-up was genuinely broken (2 mails an
 > hour, project-wide). Accounts are stored under a synthetic `@xatu.invalid`
