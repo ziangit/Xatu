@@ -1646,12 +1646,21 @@ export default function SimPage() {
                           </div>
                         </div>
                       ) : node.note?.trim() ? (
+                        // A saved note shows **in full**, newlines and all. It
+                        // was `truncate`d to one line, which threw away the
+                        // thing notes are mostly used for — a sentence of plan
+                        // and a damage calc under it — the instant you saved.
+                        // Card heights feed the SVG edge measurement, but
+                        // `toggleNote` changes the layout key, so collapsing
+                        // re-measures.
                         <button
                           onClick={() => toggleNote(node.id)}
-                          className="flex w-full items-baseline gap-1 text-left"
+                          className="flex w-full items-start gap-1 text-left"
                         >
-                          <span className="text-[10px] text-stone-400">▸</span>
-                          <span className="min-w-0 flex-1 truncate text-[11px] text-stone-500 hover:text-stone-700">
+                          <span className="pt-px text-[10px] text-stone-400">
+                            ▸
+                          </span>
+                          <span className="min-w-0 flex-1 whitespace-pre-wrap text-[11px] leading-relaxed text-stone-500 hover:text-stone-700">
                             {node.note}
                           </span>
                         </button>

@@ -231,7 +231,10 @@ export function BoardView({
                   />
                 </div>
                 {node.note && (
-                  <p className="mt-2 border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
+                  // `whitespace-pre-wrap`: a note is written as lines — a
+                  // sentence of plan, a blank line, a damage calc — and
+                  // without it they all run together on the public page.
+                  <p className="mt-2 whitespace-pre-wrap border-t border-stone-100 pt-2 text-[11px] leading-relaxed text-stone-600">
                     {node.note}
                   </p>
                 )}
