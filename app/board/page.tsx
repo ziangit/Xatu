@@ -1202,49 +1202,60 @@ export default function SimPage() {
                     </span>
                   </>
                 )}
-                <Link
-                  href={`/matchups?team=${encodeURIComponent(setup.my.id)}`}
-                  title={t("add another opposing team to plan against {team}", {
-                    team: setup.my.name,
-                  })}
-                  className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
-                >
-                  {t("+ add opponent")}
-                </Link>
-                {/* Publishing acts on the whole **set** — this team against
-                    every opponent — not on the one board you are looking at,
-                    which is why it lives on the set's header. But you are
-                    looking at the thing you want to publish, so the board has
-                    to offer it; the label says "set" so the scope is not a
-                    surprise. Saves first, or the snapshot would miss whatever
-                    is on screen. */}
-                <span onClickCapture={saveIfDirty}>
+                {/* The three stay together as **one** flex item, so the row
+                    wraps them as a group instead of splitting them across
+                    lines. They were three separate items in a wrapping row:
+                    in Japanese the calculator sat on its own line even at
+                    1512px, and in English below ~1100px. */}
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <Link
+                    href={`/matchups?team=${encodeURIComponent(setup.my.id)}`}
+                    title={t(
+                      "add another opposing team to plan against {team}",
+                      { team: setup.my.name },
+                    )}
+                    className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
+                  >
+                    {t("+ add opponent")}
+                  </Link>
+                  {/* Publishing acts on the whole **set** — this team against
+                      every opponent — not on the one board you are looking at,
+                      which is why it lives on the set's header. But you are
+                      looking at the thing you want to publish, so the board has
+                      to offer it; the label says "set" so the scope is not a
+                      surprise. Saves first, or the snapshot would miss whatever
+                      is on screen — and the handler goes on the link itself,
+                      not on a wrapper. A bare `<span>` around it was an inline
+                      flex item, whose padding does not count toward its height,
+                      so it measured 4px shorter than its neighbours and
+                      `items-center` pushed it 2px down: three buttons that
+                      never quite shared a line. */}
                   <Link
                     href={`/matchups/${encodeURIComponent(setup.my.id)}/report`}
+                    onClickCapture={saveIfDirty}
                     title={t(
                       "publish {team} and everything you've planned against",
-                      {
-                        team: setup.my.name,
-                      },
+                      { team: setup.my.name },
                     )}
                     className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 hover:border-stone-500"
                   >
                     {t("publish set →")}
                   </Link>
+                  {/* A button, not the hairline link it started as — nobody saw
+                      that one. Still out of the right-hand row: those act on
+                      this board (Reset, Import, Copy JSON, Save) and this
+                      leaves the site, which the ↗ and the lighter fill both
+                      say. xatu computes no damage; this is a link wearing a
+                      button. */}
+                  <a
+                    href="https://calc.pokemonshowdown.com/champions.html?mode=champions"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 transition-colors hover:border-stone-500 hover:text-stone-800"
+                  >
+                    {t("damage calculator ↗")}
+                  </a>
                 </span>
-                {/* A button, not the hairline link it started as — nobody saw
-                    that one. Still out of the right-hand row: those act on this
-                    board (Reset, Import, Copy JSON, Save) and this leaves the
-                    site, which the ↗ and the lighter fill both say. xatu
-                    computes no damage; this is a link wearing a button. */}
-                <a
-                  href="https://calc.pokemonshowdown.com/champions.html?mode=champions"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 transition-colors hover:border-stone-500 hover:text-stone-800"
-                >
-                  {t("damage calculator ↗")}
-                </a>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
