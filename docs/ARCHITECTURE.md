@@ -164,6 +164,16 @@ them up.
   share a turn — the picker stays open after toggling it) and carried forward,
   since a Mega-Evolved Pokémon stays Mega on the field or the bench. On the board
   it renders as the Mega forme's sprite plus a ⟡ on the chip.
+- **A Mega cascades down the tree, like a positional edit** (`cascadeMega`,
+  2026-10-13). `addNextTurn` copying `mega` into a new child only covers
+  recording the Mega _before_ the next turn exists, and the ordinary order of
+  work is the opposite: lay out the turns, then go back and say what happened.
+  Without the cascade, every turn after the one you Mega'd on kept drawing the
+  pre-Mega sprite. It stops at a descendant that records a _different_ Mega,
+  and below it — the same "a deliberate downstream edit survives" rule
+  `cascadePositions` follows. Clearing a Mega clears the inherited ones, by
+  deleting the key rather than setting it to `undefined`, because the codec
+  writes a group per present field and a stray key is a different document.
 
 Still no battle computation: the dex is consulted only for _whether an item is
 the Mega Stone for its holder_ (`Dex.items.get(item).megaStone`, same class of

@@ -8,6 +8,7 @@ import { useLang, useT } from "../i18n/provider";
 import { htmlLang } from "../i18n/translate";
 import { useCopy } from "../ui";
 import {
+  cascadeMega,
   cascadePositions,
   isAlternate,
   layoutRows,
@@ -894,17 +895,36 @@ export default function SimPage() {
       return stripMove(stripMove({ ...side, front, back }, outgoing), incoming);
     });
 
-  /** Records that a front Pokémon Mega Evolves this turn (it can still move).
-   * One per side per card; picking another replaces it. */
+  /**
+   * Records that a front Pokémon Mega Evolves this turn (it can still move).
+   * One per side per card; picking another replaces it.
+   *
+   * It carries down the tree, like a positional edit: a Pokémon that Mega
+   * Evolves stays Mega, so the turns after this one must draw the Mega forme.
+   * `addNextTurn` copies it into a child at creation, which only covers
+   * recording the Mega *before* the next turn exists — and the usual order of
+   * work is the other way around.
+   */
   const setSideMega = (
     nodeId: string,
     sideKey: "my" | "opp",
     species: string | null,
   ) =>
-    update(nodeId, (n) => ({
-      ...n,
-      [sideKey]: { ...n[sideKey], mega: species ?? undefined },
-    }));
+    setNodes((prev) => {
+      const node = prev.find((n) => n.id === nodeId);
+      if (!node) return prev;
+      const before = node[sideKey].mega;
+      const after = species ?? undefined;
+      if (before === after) return prev;
+      const next = prev.map((n) => {
+        if (n.id !== nodeId) return n;
+        const side = { ...n[sideKey] };
+        if (after) side.mega = after;
+        else delete side.mega;
+        return { ...n, [sideKey]: side };
+      });
+      return cascadeMega(next, nodeId, sideKey, before, after);
+    });
 
   const setSideTarget = (
     nodeId: string,

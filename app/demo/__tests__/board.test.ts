@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cascadeMega,
   cascadePositions,
   isAlternate,
   layoutRows,
@@ -272,5 +273,72 @@ describe("layoutRows / isAlternate", () => {
     const nodes = [node("a", 1, null), node("z", 1, null)];
     expect(isAlternate(nodes[0], nodes)).toBe(false);
     expect(isAlternate(nodes[1], nodes)).toBe(true);
+  });
+});
+
+describe("cascadeMega", () => {
+  const megas = (nodes: ReturnType<typeof line>) =>
+    nodes.map((n) => n.my.mega ?? "-");
+
+  it("carries a Mega into every later turn on the line", () => {
+    // The reported bug: record the Mega on turn 0 when turns 1 and 2 already
+    // exist, and they kept drawing the pre-Mega sprite.
+    const nodes = line();
+    nodes[0].my.mega = "Tyranitar";
+    expect(
+      megas(cascadeMega(nodes, "t0", "my", undefined, "Tyranitar")),
+    ).toEqual(["Tyranitar", "Tyranitar", "Tyranitar"]);
+  });
+
+  it("leaves the other side alone", () => {
+    const nodes = line();
+    nodes[0].my.mega = "Tyranitar";
+    const out = cascadeMega(nodes, "t0", "my", undefined, "Tyranitar");
+    expect(out.map((n) => n.opp.mega ?? "-")).toEqual(["-", "-", "-"]);
+  });
+
+  it("clears later turns when the Mega is un-recorded", () => {
+    let nodes = line();
+    nodes.forEach((n) => (n.my.mega = "Tyranitar"));
+    nodes = cascadeMega(nodes, "t0", "my", "Tyranitar", undefined);
+    expect(megas(nodes)).toEqual(["Tyranitar", "-", "-"]);
+    // and the key is gone, not set to undefined — the codec writes a group per
+    // present field, so a stray key is a different document.
+    expect("mega" in nodes[1].my).toBe(false);
+  });
+
+  it("stops at a turn that records a different Mega, and below it", () => {
+    const nodes = line();
+    nodes[0].my.mega = "Torkoal";
+    nodes[1].my.mega = "Incineroar";
+    nodes[2].my.mega = "Incineroar";
+    expect(megas(cascadeMega(nodes, "t0", "my", undefined, "Torkoal"))).toEqual(
+      ["Torkoal", "Incineroar", "Incineroar"],
+    );
+  });
+
+  it("replaces the inherited Mega when the author picks another", () => {
+    let nodes = line();
+    nodes.forEach((n) => (n.my.mega = "Torkoal"));
+    nodes = cascadeMega(nodes, "t0", "my", "Torkoal", "Tyranitar");
+    expect(megas(nodes)).toEqual(["Torkoal", "Tyranitar", "Tyranitar"]);
+  });
+
+  it("reaches an alternate, which shares the parent", () => {
+    const nodes = line();
+    nodes.push({
+      id: "alt",
+      turn: 2,
+      parentId: "t0",
+      my: side({ front: ["Torkoal"] }),
+      opp: side({ front: ["Aerodactyl"] }),
+    });
+    const out = cascadeMega(nodes, "t0", "my", undefined, "Torkoal");
+    expect(out.find((n) => n.id === "alt")!.my.mega).toBe("Torkoal");
+  });
+
+  it("does nothing when the value did not change", () => {
+    const nodes = line();
+    expect(cascadeMega(nodes, "t0", "my", "Torkoal", "Torkoal")).toBe(nodes);
   });
 });

@@ -135,6 +135,58 @@ export function cascadePositions(
 }
 
 /**
+ * A Mega carries forward down the tree, like positions do.
+ *
+ * A Pokémon that Mega Evolves stays Mega for the rest of the battle, so a
+ * later turn must draw the Mega forme. `addNextTurn` already copies `mega`
+ * into a child at the moment the child is made — but recording the Mega
+ * *after* the next turn exists left every later turn showing the pre-Mega
+ * sprite, which is the ordinary order of work: lay out the turns, then go back
+ * and say what happened.
+ *
+ * It stops where someone has said otherwise. A descendant recording a
+ * different Mega is a deliberate edit and is left alone, along with everything
+ * below it — the same rule `cascadePositions` follows for a slot whose
+ * occupant has already changed.
+ */
+export function cascadeMega(
+  nodes: TurnNode[],
+  changedId: string,
+  sideKey: "my" | "opp",
+  before: string | undefined,
+  after: string | undefined,
+): TurnNode[] {
+  if (before === after) return nodes;
+  let out = nodes;
+  const queue = [changedId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    for (const child of out.filter((n) => n.parentId === id)) {
+      // Diverged: this line has its own answer, so leave it and its children.
+      if (child[sideKey].mega !== before) continue;
+      out = out.map((n) =>
+        n.id === child.id
+          ? {
+              ...n,
+              [sideKey]: { ...n[sideKey], ...(after ? { mega: after } : {}) },
+            }
+          : n,
+      );
+      if (!after) {
+        out = out.map((n) => {
+          if (n.id !== child.id) return n;
+          const side = { ...n[sideKey] };
+          delete side.mega;
+          return { ...n, [sideKey]: side };
+        });
+      }
+      queue.push(child.id);
+    }
+  }
+  return out;
+}
+
+/**
  * Where each node sits vertically when the tree is drawn as turn columns.
  *
  * Leaves take sequential rows in depth-first order; a parent sits on its first
