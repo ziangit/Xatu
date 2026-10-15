@@ -103,9 +103,14 @@ export async function publishGroup(
     team_id: input.my.id,
     title: title.slice(0, 120),
     description: input.description.trim().slice(0, 4000),
+    // Published documents carry the **real sets**, not just rosters: a reader
+    // who forks this should get a usable team, with moves in every picker and
+    // numbers from the calculator. Without that a fork is six names — which is
+    // how forking your own guide produced a worse copy of a team you had.
     document: encodeGroup(
       input.my,
       input.boards.map((b) => ({ opp: b.setup.opp, nodes: b.nodes })),
+      { sets: true },
     ),
     team_name: input.my.name,
     regulation: input.my.format,

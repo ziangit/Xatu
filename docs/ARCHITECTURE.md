@@ -1560,6 +1560,35 @@ things, both tested: forking the same page twice updates one set instead of
 forking two, and two authors who publish the same archetype under the same name
 cannot collide.
 
+## A shared document carries the real sets (2026-10-15)
+
+Published and copied documents carry the **verbatim Showdown export**, not just
+six species names. The 2026-10-11 design already called for this and measured
+the cost (3x raw, 1.8x compressed, irrelevant once hosted); it was simply never
+built, and the gap showed up as: a shared plan opens with "no moves in this
+import" in every picker, the calculator has no EVs so it refuses, and forking
+your own guide hands you a _worse copy of a team you already had_.
+
+**The constraint that makes it safe: sets must never reach the dirty-check
+fingerprint.** `encodeGroup` doubles as the board's "has this changed?" print,
+so putting the export in unconditionally would make every saved board differ
+from its stored copy and re-upload the entire library. It is therefore an
+option — `{ sets: true }` — passed by the three _sharing_ paths (publish, the
+board's Copy JSON, the group's copy JSON) and by nothing else. Exactly the rule
+`g`/`docId` already follows, for exactly the same reason. A test asserts the
+fingerprint is byte-identical with and without a full export.
+
+Two details worth keeping:
+
+- **A team that is already just six names adds no `x`** — bytes for nothing.
+- **An unreadable export costs sets, never members.** `teamFromCompact` parses
+  `x` and falls back to the species list if it fails: the roster is the
+  authority for _who_ is on the team either way.
+
+**Existing published posts keep their old document.** A published page is a
+snapshot, so a post made before this carries rosters until its author presses
+Publish again.
+
 ## Storage ceilings on private matchups (2026-10-15)
 
 **Ceilings, not a product limit.** A planning tool whose value is stored work

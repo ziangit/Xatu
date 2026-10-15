@@ -372,6 +372,7 @@ export default function MatchupsPage() {
     }));
     const doc = encodeGroup(group.team, boards, {
       docId: groupDocId(group.team),
+      sets: true,
     });
     if (await copy(doc)) {
       setCopiedTeamId(group.teamId);

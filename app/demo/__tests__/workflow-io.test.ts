@@ -669,3 +669,58 @@ describe("the calculator never disturbs an existing document", () => {
     expect(back.boards[0].nodes[0].calcs).toBeUndefined();
   });
 });
+
+describe("a shared document carries the real sets", () => {
+  const withSets = () => {
+    const t = team("Sand", MY);
+    t.exportText = MY.map(
+      (sp) =>
+        `${sp} @ Leftovers\nAbility: Pressure\nLevel: 50\nEVs: 32 HP / 32 Atk / 2 Def\nAdamant Nature\n- Protect`,
+    ).join("\n\n");
+    return t;
+  };
+
+  it("leaves the dirty-check fingerprint byte-identical", () => {
+    // encodeGroup is also the board's dirty check. If sets reached it, every
+    // saved board would differ from its stored copy and the whole library
+    // would re-upload — the same trap the v4 version bump had to avoid.
+    const my = withSets();
+    const boards = [{ opp: setup.opp, nodes: [] as TurnNode[] }];
+    expect(encodeGroup(my, boards)).toBe(encodeGroup(team("Sand", MY), boards));
+    expect(JSON.parse(encodeGroup(my, boards)).my.x).toBeUndefined();
+  });
+
+  it("carries the export when sharing, and parses it back", () => {
+    const my = withSets();
+    const boards = [{ opp: setup.opp, nodes: [] as TurnNode[] }];
+    const doc = encodeGroup(my, boards, { sets: true });
+    expect(JSON.parse(doc).my.x).toContain("EVs: 32 HP / 32 Atk / 2 Def");
+    const back = decodeWorkflowGroup(doc);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    // The whole point: moves and EVs survive, so pickers and the calculator
+    // have something to work with.
+    expect(back.my.parsed[0].moves).toEqual(["Protect"]);
+    expect(back.my.exportText).toContain("EVs:");
+  });
+
+  it("adds nothing for a team that is only six names", () => {
+    const bare = team("Sand", MY);
+    const boards = [{ opp: setup.opp, nodes: [] as TurnNode[] }];
+    expect(
+      JSON.parse(encodeGroup(bare, boards, { sets: true })).my.x,
+    ).toBeUndefined();
+  });
+
+  it("keeps the roster when the export is unreadable", () => {
+    const my = team("Sand", MY);
+    my.exportText = "not a Showdown export at all";
+    const doc = encodeGroup(my, [{ opp: setup.opp, nodes: [] }], {
+      sets: true,
+    });
+    const back = decodeWorkflowGroup(doc);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.my.parsed.map((m) => m.species)).toEqual(MY);
+  });
+});

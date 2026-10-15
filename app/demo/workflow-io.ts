@@ -1,4 +1,5 @@
 import { Icons } from "@pkmn/img";
+import { importTeamText } from "@/lib/team";
 import { translate, type Lang, type Params } from "../i18n/translate";
 import type { SideState, SimSetup, StoredTeam, TurnNode } from "./storage";
 import type { FieldState } from "./calc";
@@ -42,6 +43,21 @@ interface CompactTeam {
   n: string; // name
   f: string; // format label
   s: string[]; // six species
+  /**
+   * The verbatim Showdown export, when the document is being **shared**.
+   *
+   * Written only by the copy and publish paths — never by the dirty-check
+   * fingerprint, which must stay byte-identical or every saved board would
+   * differ from its stored copy and the whole library would re-upload. Same
+   * rule as `g`, for the same reason.
+   *
+   * Without it a shared plan arrives as six names: no moves in any picker, no
+   * damage calculations, and a fork of your own guide is a worse copy of a
+   * team you already had. The 2026-10-11 design said documents must carry
+   * movesets and measured the cost — 3x raw, 1.8x compressed — which hosting
+   * made irrelevant.
+   */
+  x?: string;
 }
 
 /** [parentIndex, myState, oppState, note?] — note omitted when empty. */
@@ -195,10 +211,19 @@ function encodeSide(
     .replace(/\|+$/, "");
 }
 
-const compactTeam = (team: StoredTeam, roster: string[]): CompactTeam => ({
+const compactTeam = (
+  team: StoredTeam,
+  roster: string[],
+  sets: boolean,
+): CompactTeam => ({
   n: team.name,
   f: team.format,
   s: roster,
+  // Only when the export says more than the roster already does — a team that
+  // is itself just six names adds nothing but bytes.
+  ...(sets && team.exportText.trim() !== roster.join("\n\n")
+    ? { x: team.exportText }
+    : {}),
 });
 
 function encodeTree(
@@ -250,7 +275,17 @@ function encodeTree(
 export function encodeGroup(
   my: StoredTeam,
   boards: DecodedBoard[],
-  { docId }: { docId?: string } = {},
+  {
+    docId,
+    sets = false,
+  }: {
+    docId?: string;
+    /**
+     * Carry the verbatim Showdown exports. True for copying and publishing,
+     * **false for the dirty-check fingerprint** — see `CompactTeam.x`.
+     */
+    sets?: boolean;
+  } = {},
 ): string {
   const myRoster = my.parsed.map((m) => m.species);
   const hasCalcs = boards.some((b) =>
@@ -267,11 +302,11 @@ export function encodeGroup(
   const group: CompactGroup = {
     v: hasCalcs ? 4 : 3,
     ...(docId ? { g: docId } : {}),
-    my: compactTeam(my, myRoster),
+    my: compactTeam(my, myRoster, sets),
     b: boards.map((board) => {
       const opRoster = board.opp.parsed.map((m) => m.species);
       return {
-        op: compactTeam(board.opp, opRoster),
+        op: compactTeam(board.opp, opRoster, sets),
         t: encodeTree(board.nodes, myRoster, opRoster),
       };
     }),
@@ -457,10 +492,22 @@ function validateTargets(
 
 function teamFromCompact(t: CompactTeam): StoredTeam {
   const species = t.s.slice(0, 6);
-  return {
+  const base = {
     id: crypto.randomUUID(),
     name: typeof t.n === "string" && t.n ? t.n : "Imported team",
     format: typeof t.f === "string" ? t.f : "",
+  };
+  // A shared document may carry the real export. Parse it, and fall back to
+  // the roster if it is unreadable — the species list is the authority for
+  // *who* is on the team either way, so a bad export costs sets, never members.
+  if (typeof t.x === "string" && t.x.trim()) {
+    const parsed = importTeamText(t.x);
+    if (parsed && parsed.parsed.length > 0) {
+      return { ...base, exportText: parsed.exportText, parsed: parsed.parsed };
+    }
+  }
+  return {
+    ...base,
     exportText: species.join("\n\n"),
     parsed: species.map((s) => ({ species: s, moves: [] })),
   };

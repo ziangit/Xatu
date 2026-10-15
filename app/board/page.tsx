@@ -1563,6 +1563,9 @@ export default function SimPage() {
     copy(
       encodeGroup(setup.my, [{ opp: setup.opp, nodes }], {
         docId: groupDocId(setup.my),
+        // Copying is sharing: carry the real sets, so whoever pastes this gets
+        // moves in their pickers and numbers from the calculator.
+        sets: true,
       }),
     );
 
