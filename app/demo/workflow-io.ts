@@ -1,6 +1,7 @@
 import { Icons } from "@pkmn/img";
 import { translate, type Lang, type Params } from "../i18n/translate";
 import type { SideState, SimSetup, StoredTeam, TurnNode } from "./storage";
+import type { FieldState } from "./calc";
 
 /**
  * A warning is emitted as a key plus its parameters, never as a finished
@@ -58,7 +59,8 @@ type CompactCalcs = Record<string, { text: string; print: string }>;
 type CompactNode =
   | [number, string, string]
   | [number, string, string, string]
-  | [number, string, string, string, CompactCalcs];
+  | [number, string, string, string, CompactCalcs]
+  | [number, string, string, string, CompactCalcs, FieldState];
 
 /** Legacy: one pair per document. Still read, no longer written. */
 export interface CompactWorkflow {
@@ -201,8 +203,10 @@ function encodeTree(
     ];
     const note = n.note?.trim() ?? "";
     const calcs = n.calcs && Object.keys(n.calcs).length > 0 ? n.calcs : null;
-    // `note` is emitted as "" when there are calculations but no note, because
-    // positions are the only thing holding the two apart.
+    // Trailing elements are positional, so an earlier one is emitted empty
+    // when a later one is present. A card with none of them encodes exactly as
+    // it did before any of this existed.
+    if (n.field) return [...base, note, calcs ?? {}, n.field];
     if (calcs) return [...base, note, calcs];
     return note ? [...base, note] : base;
   });
@@ -224,7 +228,9 @@ export function encodeGroup(
 ): string {
   const myRoster = my.parsed.map((m) => m.species);
   const hasCalcs = boards.some((b) =>
-    b.nodes.some((n) => n.calcs && Object.keys(n.calcs).length > 0),
+    b.nodes.some(
+      (n) => n.field || (n.calcs && Object.keys(n.calcs).length > 0),
+    ),
   );
   const group: CompactGroup = {
     v: hasCalcs ? 4 : 3,
@@ -436,6 +442,10 @@ const validTeam = (t: CompactTeam | undefined) =>
     t.s.every((s) => typeof s === "string"),
   );
 
+/** Shape-check only — author-stated conditions, never inferred or verified. */
+const validField = (v: unknown): v is FieldState =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+
 /** Shape-check only: the text is opaque and is never parsed. */
 const validCalcs = (v: unknown): v is CompactCalcs =>
   !!v &&
@@ -465,7 +475,7 @@ function decodeTree(
 ): TurnNode[] {
   const ids = t.map(() => crypto.randomUUID());
   const turns: number[] = [];
-  return t.map(([parent, myCode, opCode, note, calcs], i) => {
+  return t.map(([parent, myCode, opCode, note, calcs, field], i) => {
     let parentIdx = -1;
     if (parent > 0 && parent <= i) {
       parentIdx = parent - 1;
@@ -533,6 +543,7 @@ function decodeTree(
       // author's accepted sentence, and a published page is a snapshot — a
       // later change to the maths must not move numbers under its readers.
       ...(validCalcs(calcs) ? { calcs } : {}),
+      ...(validField(field) ? { field } : {}),
     };
   });
 }

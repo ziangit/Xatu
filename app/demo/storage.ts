@@ -81,6 +81,13 @@ export interface TurnNode {
    * board it ships with. Nothing reads the text back as data.
    */
   calcs?: Record<string, import("./calc").CalcNote>;
+  /**
+   * Weather, terrain and screens on this turn — author-stated, never inferred,
+   * exactly like the Mega marker. It belongs to the card because that is what
+   * it describes: if it is raining this turn it is raining for every attack on
+   * it. The calculator reads it; nothing else does.
+   */
+  field?: import("./calc").FieldState;
 }
 
 export interface SimSetup {

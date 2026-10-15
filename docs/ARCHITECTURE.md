@@ -999,10 +999,42 @@ delete the author's calculations. A test holds that.
 text in the same colour mixed 65% toward ink, because a raw Electric yellow at
 10px on white is not text.
 
-**Cost, measured**: one calculation plus `desc()` is **12.6µs**, and a heavy
-set — 10 opponents × 8 cards × 4 attackers, 320 calculations — is **3.7ms**.
-It is a local library, not a service, and only stale entries are recomputed, so
-there is no reason to batch, debounce or cache beyond the fingerprint.
+**The spread reduction applies only when the move actually hits more than
+one.** That is how VGC works — Heat Wave into two is 0.75x each, into a lone
+survivor it is full damage. `@smogon/calc` drives the reduction off `gameType`
+alone, and gameType changes nothing else (a single-target move calculates
+byte-identically either way, verified), so `gameTypeFor(defenders)` is the
+honest lever rather than a hack. Measured: 146-174 into two, 198-234 into one.
+
+**Freshness is decided at the point of display**, by `sideCalcs`, not by
+writing state from an effect. Clearing a move used to leave its calculation
+under an empty chip until the next save — the one thing this feature must never
+do. Filtering on render also keeps it off the render-cascade path that
+`react-hooks/set-state-in-effect` exists to prevent; storage is tidied
+separately by `pruneCalcs` in `save()`.
+
+**Field conditions live on the card** (`TurnNode.field`), not on a
+calculation. If it is raining this turn it is raining for every attack on it,
+and it is worth recording whether or not anything is calculated — author-stated
+state, exactly like the Mega marker, never inferred from the moves. The panel
+offers only what moves a damage number: weather, terrain, the three screens,
+Helping Hand and Friend Guard. Tailwind, Trick Room and Protect belong to a
+turn too, but they change speed or whether a move lands, and putting them here
+would imply xatu models them.
+
+`fieldPrint` normalises an **absent** field and an **empty** one to the same
+string, or clearing the last condition would invalidate every calculation on
+the card for nothing. The fingerprint also carries which side is attacking: a
+screen on the defender's side matters and the same screen on the attacker's
+does not.
+
+**Cost, measured**: one calculation plus `desc()` is **12.6µs** in Node, and a
+heavy set — 10 opponents × 8 cards × 4 attackers, 320 calculations — is
+**3.7ms**. In the browser, switching the calculator on to the first number
+appearing is **26ms**, download included. It is a local library, not a service,
+and only stale entries are recomputed, so there is no reason to batch, debounce
+or cache beyond the fingerprint. For scale: at 12.6µs you would need ~80,000
+calculations to spend a second, and a matchup has at most a few dozen.
 
 **Cost, measured on a production build**: the board loads 629 KB of JS with the
 calculator off and does not fetch the calculator chunk at all; switching it on

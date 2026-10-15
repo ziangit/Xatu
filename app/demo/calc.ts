@@ -32,6 +32,59 @@ import { parseTargetRef } from "./workflow-io";
  * gen-9 calculator would get silently wrong.
  */
 
+/**
+ * Field conditions for one card — weather, terrain and the screens that are up
+ * on each side.
+ *
+ * Stored on the **node**, not on a calculation, because that is what it is: if
+ * it is raining on turn 2 it is raining for every attack on that turn, and it
+ * is worth recording whether or not anything is ever calculated. Author-stated
+ * state, exactly like the Mega marker — xatu does not infer it from the moves.
+ */
+export interface FieldState {
+  weather?: "Sun" | "Rain" | "Sand" | "Snow";
+  terrain?: "Electric" | "Grassy" | "Misty" | "Psychic";
+  /** Screens and the ally buffs, per side. */
+  my?: SideField;
+  opp?: SideField;
+}
+export interface SideField {
+  reflect?: boolean;
+  lightScreen?: boolean;
+  auroraVeil?: boolean;
+  helpingHand?: boolean;
+  friendGuard?: boolean;
+}
+
+/** Stable text for the fingerprint — field conditions change the number. */
+export function fieldPrint(field: FieldState | undefined): string {
+  // An absent field and an empty one describe the same board, so they must
+  // fingerprint identically — otherwise clearing the last condition would
+  // invalidate every calculation on the card for no reason.
+  const f0 = field ?? {};
+  const side = (f: SideField | undefined) =>
+    f
+      ? (
+          [
+            "reflect",
+            "lightScreen",
+            "auroraVeil",
+            "helpingHand",
+            "friendGuard",
+          ] as const
+        )
+          .filter((k) => f[k])
+          .join(",")
+      : "";
+  return [f0.weather ?? "", f0.terrain ?? "", side(f0.my), side(f0.opp)].join(
+    "/",
+  );
+}
+
+/** True when anything is set — the board shows a marker only then. */
+export const hasField = (f: FieldState | undefined) =>
+  !!f && fieldPrint(f) !== "///";
+
 /** A calculation, kept only while `print` still describes the current inputs. */
 export interface CalcNote {
   /** The sentence, exactly as `@smogon/calc`'s `desc()` renders it. */
@@ -120,6 +173,8 @@ export function inputPrint(
   defenderTeam: StoredTeam,
   defenders: readonly string[],
   move: string,
+  field?: FieldState,
+  attackerIsMySide = true,
 ): string {
   const a = setFor(attackerTeam, attacker);
   if (!a || defenders.length === 0) return "";
@@ -129,11 +184,24 @@ export function inputPrint(
     if (!d) return "";
     parts.push(defender, Sets.exportSet(d));
   }
-  // Doubles spread damage is part of the number, so the game type belongs in
-  // the fingerprint even though it never varies today.
-  parts.push("Doubles");
+  // The spread reduction depends on how many targets are actually out, so the
+  // game type is part of the number and therefore part of the fingerprint.
+  parts.push(gameTypeFor(defenders));
+  parts.push(fieldPrint(field), attackerIsMySide ? "m" : "o");
   return hash(parts.join("\u0000"));
 }
+
+/**
+ * A spread move is only reduced when it actually hits more than one Pokémon.
+ *
+ * That is how VGC works: Heat Wave into two targets is 0.75x each, and into a
+ * lone survivor it is full damage. `@smogon/calc` drives the reduction off
+ * `gameType` alone, and gameType changes nothing else — a single-target move
+ * calculates byte-identically either way (verified) — so this is the honest
+ * lever rather than a hack.
+ */
+const gameTypeFor = (defenders: readonly string[]) =>
+  defenders.length > 1 ? "Doubles" : "Singles";
 
 /** True when a stored calculation still describes the board as it stands. */
 export const isFresh = (note: CalcNote | undefined, print: string) =>
@@ -153,6 +221,8 @@ export async function runCalc(
   defenderTeam: StoredTeam,
   defenders: readonly string[],
   move: string,
+  field?: FieldState,
+  attackerIsMySide = true,
 ): Promise<CalcNote | null> {
   const a = setFor(attackerTeam, attacker);
   if (!a || defenders.length === 0) return null;
@@ -171,6 +241,14 @@ export async function runCalc(
       teraType: set?.teraType as never,
     });
 
+  const sideField = (f: SideField | undefined) => ({
+    isReflect: !!f?.reflect,
+    isLightScreen: !!f?.lightScreen,
+    isAuroraVeil: !!f?.auroraVeil,
+    isHelpingHand: !!f?.helpingHand,
+    isFriendGuard: !!f?.friendGuard,
+  });
+
   try {
     const lines: string[] = [];
     for (const defender of defenders) {
@@ -181,9 +259,21 @@ export async function runCalc(
         build(a, attacker),
         build(d, defender),
         new calc.Move(gen, move),
-        // Doubles is not decoration: a spread move is reduced here, which is
-        // most of why these numbers differ from a singles calculator's.
-        new calc.Field({ gameType: "Doubles" }),
+        // The author's stated field, mapped onto the library's shape. The
+        // attacker's own side owns Helping Hand; the defender's owns the
+        // screens and Friend Guard, so the two swap when the opposing side is
+        // the one attacking.
+        new calc.Field({
+          gameType: gameTypeFor(defenders),
+          ...(field?.weather ? { weather: field.weather } : {}),
+          ...(field?.terrain ? { terrain: field.terrain } : {}),
+          attackerSide: sideField(
+            attackerIsMySide ? field?.my : field?.opp,
+          ) as never,
+          defenderSide: sideField(
+            attackerIsMySide ? field?.opp : field?.my,
+          ) as never,
+        }),
       );
       const text = result.desc();
       if (text) lines.push(text);
@@ -193,7 +283,15 @@ export async function runCalc(
     // both numbers rather than whichever one we picked for them.
     return {
       text: lines.join("\n"),
-      print: inputPrint(attackerTeam, attacker, defenderTeam, defenders, move),
+      print: inputPrint(
+        attackerTeam,
+        attacker,
+        defenderTeam,
+        defenders,
+        move,
+        field,
+        attackerIsMySide,
+      ),
     };
   } catch {
     // An unknown move or species is the author's data, not a crash. The board
@@ -249,6 +347,8 @@ export function pruneCalcs(
         defenderTeam,
         subject.defenders,
         subject.move,
+        node.field,
+        side === "my",
       );
       if (isFresh(note, print)) kept[key] = note;
     }

@@ -25,14 +25,17 @@ import {
   parseTargetRef,
 } from "../demo/workflow-io";
 import { applyGroupImport, importSummary } from "../demo/import-group";
+import { FieldPanel } from "../demo/field-panel";
 import {
   calcKey,
   calcSubject,
+  hasField,
   inputPrint,
   isFresh,
   pruneCalcs,
   runCalc,
   type CalcNote,
+  type FieldState,
 } from "../demo/calc";
 import {
   findPairMatchup,
@@ -779,20 +782,83 @@ export default function SimPage() {
    * saved.
    */
   const [calcOn, setCalcOn] = useState(false);
+  /** The card whose field panel is open, if any. */
+  const [fieldFor, setFieldFor] = useState<string | null>(null);
   useEffect(() => {
     // localStorage is browser-only, so the choice arrives after the first
     // render; `queueMicrotask` keeps that out of the effect body, which is the
     // same shape the report composer uses for its own mount read.
     queueMicrotask(() => setCalcOn(loadCalcOn()));
   }, []);
-  /** This side's calculations, keyed by attacker, for the chips to draw. */
+  /**
+   * This side's calculations, keyed by attacker, for the chips to draw.
+   *
+   * **Freshness is decided here, at the point of display.** Clearing a move
+   * used to leave its calculation sitting under an empty chip until the next
+   * save, which is the one thing this feature must never do — show a number
+   * nobody can stand behind. Filtering on render rather than writing state
+   * from an effect also keeps this off the render-cascade path; storage is
+   * tidied separately by `pruneCalcs` in `save()`.
+   */
   const sideCalcs = (node: TurnNode, side: "my" | "opp") => {
     const out: Record<string, CalcNote> = {};
+    if (!setup || !moveMetaOf) return out;
+    const targetKind = (m: string) => moveMetaOf(m)?.target ?? null;
+    const state = node[side];
+    const foe = side === "my" ? node.opp : node.my;
     for (const [key, note] of Object.entries(node.calcs ?? {})) {
-      if (key.startsWith(`${side}:`)) out[key.slice(side.length + 1)] = note;
+      if (!key.startsWith(`${side}:`)) continue;
+      const species = key.slice(side.length + 1);
+      const subject = calcSubject(state, species, targetKind, foe.front);
+      if (!subject) continue;
+      const attackerTeam = side === "my" ? setup.my : setup.opp;
+      const defenderTeam = subject.defendersAreAllies
+        ? attackerTeam
+        : side === "my"
+          ? setup.opp
+          : setup.my;
+      const print = inputPrint(
+        attackerTeam,
+        species,
+        defenderTeam,
+        subject.defenders,
+        subject.move,
+        node.field,
+        side === "my",
+      );
+      if (isFresh(note, print)) out[species] = note;
     }
     return out;
   };
+
+  /** "Sun · Reflect" — what is set, so a saved board says it at a glance. */
+  const fieldSummary = (field: FieldState | undefined) => {
+    const bits: string[] = [];
+    if (field?.weather) bits.push(t(field.weather));
+    if (field?.terrain) bits.push(t(field.terrain));
+    for (const side of ["my", "opp"] as const) {
+      const f = field?.[side];
+      if (!f) continue;
+      if (f.reflect) bits.push(t("Reflect"));
+      if (f.lightScreen) bits.push(t("Light Screen"));
+      if (f.auroraVeil) bits.push(t("Aurora Veil"));
+      if (f.helpingHand) bits.push(t("Helping Hand"));
+      if (f.friendGuard) bits.push(t("Friend Guard"));
+    }
+    return bits.join(" · ");
+  };
+
+  const setField = (nodeId: string, field: FieldState) =>
+    update(nodeId, (n) => {
+      // An empty field is no field: the key is dropped so a card with nothing
+      // set encodes exactly as it did before this existed.
+      if (!hasField(field)) {
+        const next = { ...n };
+        delete next.field;
+        return next;
+      }
+      return { ...n, field };
+    });
 
   const toggleCalc = (on: boolean) => {
     setCalcOn(on);
@@ -822,6 +888,7 @@ export default function SimPage() {
     // indistinguishable from an untargeted one, so wait rather than guess.
     if (!calcOn || !setup || !moveMetaOf) return;
     const targetKind = (m: string) => moveMetaOf(m)?.target ?? null;
+
     let alive = true;
     void (async () => {
       const additions: { id: string; key: string; note: CalcNote }[] = [];
@@ -845,6 +912,8 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
+              node.field,
+              side === "my",
             );
             const key = calcKey(side, species);
             if (isFresh(node.calcs?.[key], print)) continue;
@@ -854,6 +923,8 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
+              node.field,
+              side === "my",
             );
             if (note) additions.push({ id: node.id, key, note });
           }
@@ -881,7 +952,12 @@ export default function SimPage() {
   // The layout key carries the calculator too: a calculation adds a line under
   // a chip, which makes its card taller and every arrow touching it stale.
   const calcLayoutKey = calcOn
-    ? nodes.map((n) => Object.values(n.calcs ?? {}).length).join(",")
+    ? nodes
+        .map(
+          (n) =>
+            `${Object.values(n.calcs ?? {}).length}:${hasField(n.field) ? 1 : 0}`,
+        )
+        .join(",") + `|${fieldFor ?? ""}`
     : "off";
   const { wrapRef, setCardRef, edges } = useTurnEdges(nodes, [
     expandedNotes,
@@ -1929,6 +2005,37 @@ export default function SimPage() {
                         </button>
                       )}
                     </div>
+
+                    {/* Field conditions, only while the calculator is on —
+                        without it there is nothing they would change, and the
+                        card stays as uncluttered as it was. The marker shows
+                        what is set so a glance at a saved board tells you the
+                        numbers were taken under sand. */}
+                    {calcOn && (
+                      <div className="mt-1">
+                        <button
+                          onClick={() =>
+                            setFieldFor(fieldFor === node.id ? null : node.id)
+                          }
+                          className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+                            hasField(node.field)
+                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "text-stone-300 hover:text-stone-600"
+                          }`}
+                        >
+                          {hasField(node.field)
+                            ? fieldSummary(node.field)
+                            : t("+ field")}
+                        </button>
+                        {fieldFor === node.id && (
+                          <FieldPanel
+                            field={node.field}
+                            onChange={(next) => setField(node.id, next)}
+                            onClose={() => setFieldFor(null)}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
                       {(childCount.get(node.id) ?? 0) === 0 &&

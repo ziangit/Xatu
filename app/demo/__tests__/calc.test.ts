@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { calcKey, calcSubject, inputPrint, isFresh, pruneCalcs } from "../calc";
+import {
+  calcKey,
+  calcSubject,
+  fieldPrint,
+  hasField,
+  inputPrint,
+  isFresh,
+  pruneCalcs,
+} from "../calc";
 import type { SideState, StoredTeam, TurnNode } from "../storage";
 
 const team = (name: string, exportText: string): StoredTeam => ({
@@ -193,5 +201,78 @@ describe("pruneCalcs without the dex", () => {
       calcs: { "my:Talonflame": { text: "x", print: "whatever" } },
     };
     expect(pruneCalcs([n], mine(), theirs(), null)[0].calcs).toEqual(n.calcs);
+  });
+});
+
+describe("field conditions", () => {
+  it("an empty field is no field", () => {
+    expect(hasField(undefined)).toBe(false);
+    expect(hasField({})).toBe(false);
+    expect(hasField({ my: {}, opp: {} })).toBe(false);
+    expect(hasField({ weather: "Sun" })).toBe(true);
+    expect(hasField({ opp: { lightScreen: true } })).toBe(true);
+  });
+
+  it("is part of the fingerprint, so changing it restates the number", () => {
+    const print = (field?: Parameters<typeof fieldPrint>[0]) =>
+      inputPrint(
+        mine(),
+        "Talonflame",
+        theirs(),
+        ["Gholdengo"],
+        "Overheat",
+        field,
+      );
+    expect(print()).toBe(print({}));
+    expect(print({ weather: "Sun" })).not.toBe(print());
+    expect(print({ weather: "Sun" })).not.toBe(print({ weather: "Rain" }));
+    expect(print({ opp: { lightScreen: true } })).not.toBe(print());
+  });
+
+  it("tells the two sides apart", () => {
+    // A screen on the defender's side matters; the same screen on the
+    // attacker's does not, so the two must not fingerprint alike.
+    const field = { my: { lightScreen: true } };
+    const asMine = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+      field,
+      true,
+    );
+    const asTheirs = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+      field,
+      false,
+    );
+    expect(asMine).not.toBe(asTheirs);
+  });
+});
+
+describe("spread damage depends on how many are actually out", () => {
+  it("fingerprints one target differently from two", () => {
+    // VGC: a spread move into two targets is reduced, into a lone survivor it
+    // is full damage. The number differs, so the fingerprint must too.
+    const one = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Heat Wave",
+    );
+    const two = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo", "Gholdengo"],
+      "Heat Wave",
+    );
+    expect(one).not.toBe(two);
   });
 });
