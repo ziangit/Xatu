@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calcContext,
   calcKey,
   calcSubject,
   fieldPrint,
@@ -180,14 +181,18 @@ describe("pruneCalcs", () => {
     const n = node({
       [calcKey("my", "Talonflame")]: { text: "hit", print: freshPrint() },
     });
-    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toEqual(n.calcs);
+    expect(pruneCalcs([n], mine(), theirs(), SINGLE, null)[0].calcs).toEqual(
+      n.calcs,
+    );
   });
 
   it("drops one whose fingerprint has gone stale", () => {
     const n = node({
       [calcKey("my", "Talonflame")]: { text: "hit", print: "stale" },
     });
-    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toBeUndefined();
+    expect(
+      pruneCalcs([n], mine(), theirs(), SINGLE, null)[0].calcs,
+    ).toBeUndefined();
   });
 
   it("drops one whose move is gone", () => {
@@ -195,12 +200,14 @@ describe("pruneCalcs", () => {
       [calcKey("my", "Talonflame")]: { text: "hit", print: freshPrint() },
     });
     n.my = side({ front: ["Talonflame"] });
-    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toBeUndefined();
+    expect(
+      pruneCalcs([n], mine(), theirs(), SINGLE, null)[0].calcs,
+    ).toBeUndefined();
   });
 
   it("returns the same array when there is nothing to drop", () => {
     const nodes = [node(undefined)];
-    expect(pruneCalcs(nodes, mine(), theirs(), SINGLE)).toBe(nodes);
+    expect(pruneCalcs(nodes, mine(), theirs(), SINGLE, null)).toBe(nodes);
   });
 });
 
@@ -217,7 +224,9 @@ describe("pruneCalcs without the dex", () => {
       opp: side({ front: ["Gholdengo"] }),
       calcs: { "my:Talonflame": { text: "x", print: "whatever" } },
     };
-    expect(pruneCalcs([n], mine(), theirs(), null)[0].calcs).toEqual(n.calcs);
+    expect(pruneCalcs([n], mine(), theirs(), null, null)[0].calcs).toEqual(
+      n.calcs,
+    );
   });
 });
 
@@ -313,5 +322,52 @@ describe("stat stages and crits are part of the fingerprint", () => {
   it("a crit restates it", () => {
     expect(print({ crit: true })).not.toBe(print());
     expect(print({ crit: false })).toBe(print());
+  });
+});
+
+describe("a recorded Mega is calculated as its Mega forme", () => {
+  const node = {
+    my: side({
+      front: ["Talonflame"],
+      moves: { Talonflame: "Overheat" },
+      targets: { Talonflame: "foe:Gholdengo" },
+      mega: "Talonflame",
+    }),
+    opp: side({ front: ["Gholdengo"], mega: "Gholdengo" }),
+    field: undefined,
+  };
+  const formeOf = (sp: string) => `${sp}-Mega`;
+
+  it("names the forme for the attacker and the defender", () => {
+    const ctx = calcContext(node, "my", "Talonflame", formeOf);
+    expect(ctx.attackerAs).toBe("Talonflame-Mega");
+    expect(ctx.defenderAs).toEqual({ Gholdengo: "Gholdengo-Mega" });
+  });
+
+  it("leaves the forme alone while the dex has not loaded", () => {
+    const ctx = calcContext(node, "my", "Talonflame", null);
+    expect(ctx.attackerAs).toBeUndefined();
+    expect(ctx.defenderAs).toBeUndefined();
+  });
+
+  it("restates the number, since a Mega changes stats and ability", () => {
+    const plain = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+    );
+    const mega = inputPrint(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+      {
+        attackerAs: "Talonflame-Mega",
+      },
+    );
+    expect(mega).not.toBe(plain);
   });
 });

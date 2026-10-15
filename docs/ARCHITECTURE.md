@@ -1040,6 +1040,25 @@ the card for nothing. The fingerprint also carries which side is attacking: a
 screen on the defender's side matters and the same screen on the attacker's
 does not.
 
+**A recorded Mega is calculated as its Mega forme, ability and all.** This was
+wrong for a while and badly: Crabominable-Mega has **157 Attack to the base's
+132**, and the forme **forces its own ability** — Iron Fist, where the set
+declares Hyper Cutter. Calculating the base understated Ice Hammer by about a
+third (178-210 against the true 241-285), and the user spotted it because the
+description did not name Iron Fist.
+
+So when `state.mega` names the attacker or the defender, `calcContext` resolves
+the forme and the build **omits the set's ability**, letting the dex supply the
+forme's own — passing the set's keeps Hyper Cutter on a Mega that does not have
+it. The forme is part of the fingerprint, so recording a Mega restates every
+calculation on the card.
+
+The resolver comes from the lazily-loaded dex and is **nullable**: before it
+arrives, nothing is treated as a Mega rather than guessing. Note this is also
+why `megaFormeOf`'s state declaration sits above the recompute effect — the
+effect inlines its own lookup rather than closing over the component helper,
+which is rebuilt every render and would make the dep list a lie.
+
 **Stat stages belong to the Pokémon; a crit belongs to the attack.** An
 Intimidated Camerupt is at −1 Attack for everything it does, and a +2 defender
 is +2 against everything aimed at it — so stages live in `SideState.boosts`

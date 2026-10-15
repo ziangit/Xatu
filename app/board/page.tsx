@@ -899,6 +899,14 @@ export default function SimPage() {
    * from an effect also keeps this off the render-cascade path; storage is
    * tidied separately by `pruneCalcs` in `save()`.
    */
+  /** The forme a Pokémon is calculated as — its Mega, when one is recorded. */
+  const megaFormeFor = (species: string, side: "my" | "opp") => {
+    if (!setup || !megaFormeOf) return null;
+    const team = side === "my" ? setup.my : setup.opp;
+    const item = team.parsed.find((m) => m.species === species)?.item;
+    return megaFormeOf(species, item) ?? null;
+  };
+
   const sideCalcs = (node: TurnNode, side: "my" | "opp") => {
     const out: Record<string, CalcNote> = {};
     if (!setup || !moveMetaOf) return out;
@@ -922,7 +930,7 @@ export default function SimPage() {
         defenderTeam,
         subject.defenders,
         subject.move,
-        calcContext(node, side, species),
+        calcContext(node, side, species, megaFormeFor),
       );
       if (isFresh(note, print)) out[species] = note;
     }
@@ -1010,6 +1018,9 @@ export default function SimPage() {
   const [moveMetaOf, setMoveMetaOf] = useState<
     ((move: string) => MoveMeta | null) | null
   >(null);
+  const [megaFormeOf, setMegaFormeOf] = useState<
+    ((species: string, item?: string) => string | null) | null
+  >(null);
 
   /**
    * Keep the calculations current while the switch is on.
@@ -1024,6 +1035,13 @@ export default function SimPage() {
     // indistinguishable from an untargeted one, so wait rather than guess.
     if (!calcOn || !setup || !moveMetaOf) return;
     const targetKind = (m: string) => moveMetaOf(m)?.target ?? null;
+    // Inlined rather than closing over the component's helper, which is
+    // rebuilt every render and would make this dep list a lie.
+    const formeOf = (species: string, s: "my" | "opp") => {
+      const team = s === "my" ? setup.my : setup.opp;
+      const item = team.parsed.find((m) => m.species === species)?.item;
+      return megaFormeOf?.(species, item) ?? null;
+    };
 
     let alive = true;
     void (async () => {
@@ -1048,7 +1066,7 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
-              calcContext(node, side, species),
+              calcContext(node, side, species, formeOf),
             );
             const key = calcKey(side, species);
             if (isFresh(node.calcs?.[key], print)) continue;
@@ -1058,7 +1076,7 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
-              calcContext(node, side, species),
+              calcContext(node, side, species, formeOf),
             );
             if (note) additions.push({ id: node.id, key, note });
           }
@@ -1078,11 +1096,8 @@ export default function SimPage() {
     return () => {
       alive = false;
     };
-  }, [calcOn, nodes, setup, moveMetaOf]);
+  }, [calcOn, nodes, setup, moveMetaOf, megaFormeOf]);
   /** species+item → its Mega forme name, once the dex is loaded. */
-  const [megaFormeOf, setMegaFormeOf] = useState<
-    ((species: string, item?: string) => string | null) | null
-  >(null);
   // The layout key carries the calculator too: a calculation adds a line under
   // a chip, which makes its card taller and every arrow touching it stale.
   const calcLayoutKey = calcOn
@@ -1422,6 +1437,7 @@ export default function SimPage() {
       setup.my,
       setup.opp,
       moveMetaOf ? (m) => moveMetaOf(m)?.target ?? null : null,
+      megaFormeFor,
     );
     const entry: SavedMatchup = {
       id: matchup?.id ?? crypto.randomUUID(),

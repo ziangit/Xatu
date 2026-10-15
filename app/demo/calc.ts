@@ -112,6 +112,20 @@ export interface CalcContext {
   defenderBoosts?: Record<string, Boosts>;
   /** A critical hit — a property of *this attack*, unlike the stages. */
   crit?: boolean;
+  /**
+   * The forme to calculate as, when it is not the one in the roster — i.e. a
+   * Mega the author recorded on this card.
+   *
+   * This matters more than it looks: Crabominable-Mega has 157 Attack to the
+   * base's 132, **and the forme forces its own ability** (Iron Fist, where the
+   * set declares Hyper Cutter). Calculating the base forme understated Ice
+   * Hammer by about a third. When a forme is given, the set's ability is
+   * deliberately *not* passed — the dex supplies the forme's own, which is
+   * what the game does.
+   */
+  attackerAs?: string;
+  /** Same, per defender. */
+  defenderAs?: Record<string, string>;
 }
 
 const boostPrint = (b: Boosts | undefined) =>
@@ -231,6 +245,10 @@ export function inputPrint(
     boostPrint(ctx.attackerBoosts),
     defenders.map((d) => boostPrint(ctx.defenderBoosts?.[d])).join(";"),
     ctx.crit ? "crit" : "",
+    // A Mega changes the stats and the ability, so the forme is part of the
+    // number: recording one has to restate every calculation on the card.
+    ctx.attackerAs ?? "",
+    defenders.map((d) => ctx.defenderAs?.[d] ?? "").join(";"),
   );
   return hash(parts.join("\u0000"));
 }
@@ -279,17 +297,23 @@ export async function runCalc(
     set: ReturnType<typeof Sets.importSet>,
     species: string,
     boosts: Boosts | undefined,
-  ) =>
-    new calc.Pokemon(gen, species, {
+    forme?: string,
+  ) => {
+    // A Mega forces its own ability, so the set's is left off and the dex
+    // supplies the forme's — otherwise a Mega Crabominable keeps the Hyper
+    // Cutter its set declares instead of the Iron Fist it actually has.
+    const mega = !!forme && forme !== species;
+    return new calc.Pokemon(gen, mega ? forme : species, {
       level: set?.level ?? 50,
       nature: set?.nature || "Hardy",
       item: set?.item || undefined,
-      ability: set?.ability || undefined,
+      ...(mega ? {} : { ability: set?.ability || undefined }),
       evs: set?.evs ?? {},
       ivs: set?.ivs ?? {},
       teraType: set?.teraType as never,
       ...(hasBoosts(boosts) ? { boosts: boosts as never } : {}),
     });
+  };
 
   const sideField = (f: SideField | undefined) => ({
     isReflect: !!f?.reflect,
@@ -311,8 +335,13 @@ export async function runCalc(
     try {
       result = calc.calculate(
         gen,
-        build(a, attacker, ctx.attackerBoosts),
-        build(d, defender, ctx.defenderBoosts?.[defender]),
+        build(a, attacker, ctx.attackerBoosts, ctx.attackerAs),
+        build(
+          d,
+          defender,
+          ctx.defenderBoosts?.[defender],
+          ctx.defenderAs?.[defender],
+        ),
         new calc.Move(gen, move, crit ? { isCrit: true } : undefined),
         // The author's stated field, mapped onto the library's shape. The
         // attacker's own side owns Helping Hand; the defender's owns the
@@ -379,15 +408,27 @@ export function calcContext(
   node: Pick<TurnNode, "my" | "opp" | "field">,
   side: "my" | "opp",
   attacker: string,
+  /** Mega forme lookup, from the lazily-loaded dex. Null while it loads. */
+  megaFormeOf: ((species: string, side: "my" | "opp") => string | null) | null,
 ): CalcContext {
   const state = node[side];
-  const foe = side === "my" ? node.opp : node.my;
+  const foeSide = side === "my" ? "opp" : "my";
+  const foe = node[foeSide];
+  const defenderAs: Record<string, string> = {};
+  if (megaFormeOf && foe.mega) {
+    const forme = megaFormeOf(foe.mega, foeSide);
+    if (forme) defenderAs[foe.mega] = forme;
+  }
   return {
     field: node.field,
     attackerIsMySide: side === "my",
     attackerBoosts: state.boosts?.[attacker],
     defenderBoosts: foe.boosts,
     crit: !!state.crit?.includes(attacker),
+    ...(megaFormeOf && state.mega === attacker
+      ? { attackerAs: megaFormeOf(attacker, side) ?? undefined }
+      : {}),
+    ...(Object.keys(defenderAs).length > 0 ? { defenderAs } : {}),
   };
 }
 
@@ -410,6 +451,7 @@ export function pruneCalcs(
    * first moments of a page would delete the author's calculations.
    */
   targetKindOf: ((move: string) => string | null) | null,
+  megaFormeOf: ((species: string, side: "my" | "opp") => string | null) | null,
 ): TurnNode[] {
   if (!targetKindOf) return nodes;
   let changed = false;
@@ -438,7 +480,7 @@ export function pruneCalcs(
         defenderTeam,
         subject.defenders,
         subject.move,
-        calcContext(node, side, species),
+        calcContext(node, side, species, megaFormeOf),
       );
       if (isFresh(note, print)) kept[key] = note;
     }
