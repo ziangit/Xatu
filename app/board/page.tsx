@@ -809,7 +809,7 @@ export default function SimPage() {
     for (const [key, note] of Object.entries(node.calcs ?? {})) {
       if (!key.startsWith(`${side}:`)) continue;
       const species = key.slice(side.length + 1);
-      const subject = calcSubject(state, species, targetKind, foe.front);
+      const subject = calcSubject(state, species, targetKind, foe);
       if (!subject) continue;
       const attackerTeam = side === "my" ? setup.my : setup.opp;
       const defenderTeam = subject.defendersAreAllies
@@ -898,7 +898,7 @@ export default function SimPage() {
           for (const species of state.front) {
             if (!species) continue;
             const foe = side === "my" ? node.opp : node.my;
-            const subject = calcSubject(state, species, targetKind, foe.front);
+            const subject = calcSubject(state, species, targetKind, foe);
             if (!subject) continue;
             const attackerTeam = side === "my" ? setup.my : setup.opp;
             const defenderTeam = subject.defendersAreAllies

@@ -135,14 +135,17 @@ export function calcSubject(
   state: SideState,
   species: string,
   targetKindOf: (move: string) => string | null,
-  foeFront: readonly string[],
+  foe: Pick<SideState, "front" | "fainted">,
 ): { move: string; defenders: string[]; defendersAreAllies: boolean } | null {
   const move = state.moves?.[species];
   if (!move) return null;
 
   if (isSpreadMove(targetKindOf(move))) {
-    const defenders = foeFront.filter(
-      (s) => s && !state.fainted.includes(s),
+    // Filtered against the **foe's** fainted list, not the attacker's. Reading
+    // the attacker's was wrong in a way that would only ever show up with a
+    // shared species across the two teams.
+    const defenders = foe.front.filter(
+      (s) => s && !foe.fainted.includes(s),
     ) as string[];
     return defenders.length > 0
       ? { move, defenders, defendersAreAllies: false }
@@ -249,12 +252,17 @@ export async function runCalc(
     isFriendGuard: !!f?.friendGuard,
   });
 
-  try {
-    const lines: string[] = [];
-    for (const defender of defenders) {
-      const d = setFor(defenderTeam, defender);
-      if (!d) return null;
-      const result = calc.calculate(
+  const lines: string[] = [];
+  for (const defender of defenders) {
+    const d = setFor(defenderTeam, defender);
+    if (!d) continue;
+    // `calculate` is safe; **`desc()` throws on a zero-damage result**. So the
+    // two are separated, and the guard is per defender rather than around the
+    // loop — one immune target (Flash Fire into Heat Wave, Ground into a
+    // Flying type) used to delete the other target's line along with its own.
+    let result;
+    try {
+      result = calc.calculate(
         gen,
         build(a, attacker),
         build(d, defender),
@@ -275,29 +283,45 @@ export async function runCalc(
           ) as never,
         }),
       );
-      const text = result.desc();
-      if (text) lines.push(text);
+    } catch {
+      // Unreadable data is the author's, not a crash — skip this defender.
+      continue;
     }
-    if (lines.length === 0) return null;
-    // One line per defender — a spread move hits both, and the author wants
-    // both numbers rather than whichever one we picked for them.
-    return {
-      text: lines.join("\n"),
-      print: inputPrint(
-        attackerTeam,
-        attacker,
-        defenderTeam,
-        defenders,
-        move,
-        field,
-        attackerIsMySide,
-      ),
-    };
-  } catch {
-    // An unknown move or species is the author's data, not a crash. The board
-    // is lenient everywhere else and stays lenient here.
-    return null;
+
+    let text: string | null = null;
+    try {
+      text = result.desc();
+    } catch {
+      text = null;
+    }
+    if (text) {
+      lines.push(text);
+      continue;
+    }
+    // No description means no damage. Say so: "this does nothing to that" is a
+    // real answer and often the whole point of checking. *Why* is the author's
+    // to write — xatu states the result, not the mechanic behind it.
+    const rolls = [result.damage as unknown].flat(3).map(Number);
+    if (rolls.every((n) => !Number.isFinite(n) || n === 0)) {
+      lines.push(`${attacker} ${move} vs. ${defender}: 0`);
+    }
   }
+
+  if (lines.length === 0) return null;
+  // One line per defender — a spread move hits both, and the author wants both
+  // numbers rather than whichever one we picked for them.
+  return {
+    text: lines.join("\n"),
+    print: inputPrint(
+      attackerTeam,
+      attacker,
+      defenderTeam,
+      defenders,
+      move,
+      field,
+      attackerIsMySide,
+    ),
+  };
 }
 
 /**
@@ -333,7 +357,7 @@ export function pruneCalcs(
       if (side !== "my" && side !== "opp") continue;
       const state = side === "my" ? node.my : node.opp;
       const foe = side === "my" ? node.opp : node.my;
-      const subject = calcSubject(state, species, targetKindOf, foe.front);
+      const subject = calcSubject(state, species, targetKindOf, foe);
       if (!subject) continue;
       const attackerTeam = side === "my" ? my : opp;
       const defenderTeam = subject.defendersAreAllies

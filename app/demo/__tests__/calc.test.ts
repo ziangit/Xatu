@@ -47,7 +47,7 @@ const side = (p: Partial<SideState>): SideState => ({
 
 const SINGLE = () => "normal";
 const SPREAD = () => "allAdjacentFoes";
-const FOES = ["Gholdengo", "Rillaboom"];
+const FOES = { front: ["Gholdengo", "Rillaboom"], fainted: [] as string[] };
 
 describe("calcSubject", () => {
   const base = side({ front: ["Talonflame"] });
@@ -91,6 +91,22 @@ describe("calcSubject", () => {
   });
 
   it("does not aim a spread move at something already fainted", () => {
+    // The *foe's* fainted list decides this, not the attacker's — reading the
+    // attacker's was wrong in a way only a shared species would reveal.
+    const s = side({
+      front: ["Talonflame"],
+      moves: { Talonflame: "Heat Wave" },
+    });
+    const downed = {
+      front: ["Gholdengo", "Rillaboom"],
+      fainted: ["Rillaboom"],
+    };
+    expect(calcSubject(s, "Talonflame", SPREAD, downed)?.defenders).toEqual([
+      "Gholdengo",
+    ]);
+  });
+
+  it("ignores the attacker's own fainted list when aiming a spread move", () => {
     const s = side({
       front: ["Talonflame"],
       fainted: ["Rillaboom"],
@@ -98,6 +114,7 @@ describe("calcSubject", () => {
     });
     expect(calcSubject(s, "Talonflame", SPREAD, FOES)?.defenders).toEqual([
       "Gholdengo",
+      "Rillaboom",
     ]);
   });
 });

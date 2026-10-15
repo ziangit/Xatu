@@ -1006,6 +1006,18 @@ alone, and gameType changes nothing else (a single-target move calculates
 byte-identically either way, verified), so `gameTypeFor(defenders)` is the
 honest lever rather than a hack. Measured: 146-174 into two, 198-234 into one.
 
+**`desc()` throws on a zero-damage result** — and an immune target is common
+in VGC (Flash Fire into Heat Wave, Ground into a Flying type, Levitate, Water
+Absorb). The guard is therefore **per defender**, not around the loop, and
+`calculate` is kept outside the `try` because only the description throws. One
+immune target used to delete the other target's line along with its own, which
+is how Heat Wave silently produced nothing on a real board.
+
+When there is no description because nothing was dealt, the line reads
+`<attacker> <move> vs. <defender>: 0`. "This does nothing to that" is a real
+answer and often the point of checking; _why_ is the author's to write, so xatu
+states the result and not the mechanic behind it.
+
 **Freshness is decided at the point of display**, by `sideCalcs`, not by
 writing state from an effect. Clearing a move used to leave its calculation
 under an empty chip until the next save — the one thing this feature must never
