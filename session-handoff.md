@@ -1,5 +1,18 @@
 # Session handoff
 
+> Updated 2026-10-15: **the no-battle-computation rule is amended, narrowly**
+> (user's decision). An **opt-in damage calculator** is allowed — off by
+> default, behind an enable/disable toggle, two versions of the app. Its output
+> is **author text written into a note**; nothing computed is stored, so
+> `encodeGroup`, the paste format, published documents and the extension's
+> input are all unchanged, and existing saved/published guides are untouched.
+> Everything else in that rule stands. **Not built yet** — the amendment came
+> first. Research done: `@smogon/calc` has first-class Champions support
+> (`mechanics/champions`, `Generations.get(0)`), ships the Champions Mega data,
+> and `result.desc()` emits exactly the string people paste today. Champions
+> EVs are **0–32 per stat, 66 total** — verified across 6,377 catalogue sets —
+> and the library models that natively. Top section, newest first.
+
 > Updated 2026-10-13: **pre-launch audit**. Identity isolation verified against
 > the live database with two real accounts — one account cannot read, update or
 > delete another's teams or matchups, by row counts rather than status codes.

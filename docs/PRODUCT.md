@@ -46,6 +46,11 @@ Reference for the shape of the content this replaces:
   **no markdown and no HTML**, because this is a public page on a site with no
   moderation tooling. Nothing is uploaded; sprites are hotlinked from Showdown
   as everywhere else. Matchups keep their own order; there is nothing to drag.
+- **Damage calculator (opt-in, off by default)** — a toggle turns on a calculator
+  pre-filled from the board: xatu already knows which Pokémon are in front and which
+  move was declared, so the work it saves is re-entering both sets somewhere else. It
+  writes its result into the author's note as text and stores nothing computed. With the
+  toggle off, xatu behaves exactly as it did before it existed.
 - **A minimal forum** — a feed of published matchups (newest, most liked), each with
   the author's text description, likes, and a flat comment list. Signed in to post.
   Deliberately not: images, nested replies, following, or trending ranked by views.
@@ -60,11 +65,23 @@ finished product** — there is no phase after it.
 
 ## Non-goals (explicitly out of scope — do not build, do not design in hooks for)
 
-- **Any battle computation.** No damage calculator, no simulation, no speed tiers, no
-  solver, no "recommended play" generation. Numeric claims live inside the author's free
-  text and xatu never parses or verifies them. This keeps xatu's role as "faithfully
-  display what the author wrote," which is both a correctness boundary and the reason the
-  eventual extension is uncontroversial.
+- ~~**Any battle computation.**~~ — amended 2026-10-15, at the user's request, and
+  **narrowly**. No simulation, no speed tiers, no solver, no "recommended play"
+  generation, and nothing xatu computes on its own initiative: all of that stands.
+  The single exception is a **damage calculator the author turns on and invokes**, off
+  by default, behind an enable/disable control — two versions of the app, one with it
+  and one without.
+  It changes nothing about what xatu stores. The calculator's output goes into a note as
+  **author text**, which is where those lines already live today — people paste them in
+  from Showdown's calculator by hand, and the friction being removed is the retyping,
+  not the arithmetic. So xatu still never parses, verifies or re-computes a number in a
+  stored guide, the schema and paste format carry no computed values, and **the eventual
+  extension computes nothing** — which is what kept it uncontroversial and still does.
+  Existing saved and published guides are unaffected: a published page remains a
+  snapshot, and a stored calculation is a record of what the author asserted at the
+  time, not something re-derived on each read.
+  Of the hard constraints, this is the one most likely to be widened by accident. The
+  line is: **the author asks, once, and gets a sentence they could have typed.**
 - **Complete decision trees.** Authors write only the branches they care about, typically
   two or three per matchup, mostly on turns 1–2. Unwritten branches are simply absent.
 - **A node-graph / Blockly-style canvas.** The wrong affordance — it buys expressiveness

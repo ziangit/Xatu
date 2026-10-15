@@ -8,6 +8,7 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
 @session-handoff.md
 
 ## Conventions
+
 - TypeScript throughout; the schema lives in `lib/schema/` with zod runtime validators
   and a `schemaVersion` field. The schema is simultaneously storage format, copy-paste
   sharing format, and the future browser extension's input format — treat changes to it
@@ -20,10 +21,24 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
   exhaustive tests in early phases.
 
 ## Hard constraints (never violate)
-- **No battle computation, ever.** No damage calc, no simulation, no speed tiers, no
-  solver, no recommended plays. Numeric claims live in author free text; xatu never
-  parses or verifies them. Do not "helpfully" add any of this — see the non-goals in
-  docs/PRODUCT.md; they are load-bearing.
+
+- **No battle computation, except one opt-in calculator** (amended 2026-10-15, at the
+  user's request). Still forbidden, and still load-bearing: simulation, speed tiers,
+  solvers, recommended plays, and any computation xatu performs on its own initiative.
+  What is now allowed is a **damage calculator the author switches on and invokes
+  deliberately**, off by default, behind an enable/disable control.
+  **Its output is author text.** The calculator writes a line into a note, exactly as
+  the author would have pasted it from Showdown's calculator today. Nothing computed is
+  ever stored as structured data, so `encodeGroup`, the paste format, the published
+  `document` and the future extension's input are unchanged — they still carry only what
+  the author wrote. xatu never parses, verifies or re-computes a number in a stored
+  guide.
+  **The toggle changes the interface, never the document.** A guide written with the
+  calculator on must read identically with it off. Two versions of the app is the
+  decision; two versions of the data is not. Existing saved and published guides are
+  untouched and are never recomputed — a published page stays a snapshot, so a later
+  change to the maths cannot move numbers under its readers.
+  Do not widen this amendment. See the non-goals in docs/PRODUCT.md.
 - The predicate vocabulary is a **closed set**. Do not add predicates to chase
   expressiveness; prose fields (`reason`, `gameplan`) absorb everything else.
 - Preview-tier vs turn-tier separation: turn-tier conditions may never determine
@@ -42,5 +57,6 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
 - Do not commit sprite or audio assets — hotlink Showdown's sprite CDN.
 
 ## Where to look
+
 - Technical reference & gotchas: docs/ARCHITECTURE.md (read on demand)
 - Original brief: xatu-claude-code-prompt.md (repo root)
