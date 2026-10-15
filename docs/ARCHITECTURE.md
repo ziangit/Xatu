@@ -979,9 +979,30 @@ off hides the lines on your own board; **a published page always shows what its
 author saved**, because that is content they wrote, and a reader's preference
 must not erase it.
 
-**It only calculates a move with a declared target.** Spread moves are not
-calculated: the board deliberately offers no target for them, and inventing one
-would be xatu deciding something the author did not say.
+**A spread move is calculated against the whole opposing front**, one line per
+defender. The board deliberately never asks for a target on a spread move, so
+the first cut — which required one — silently never calculated Heat Wave, which
+is most of doubles. `calcSubject` takes the dex's targeting kind and, for
+`allAdjacentFoes` / `allAdjacent`, uses whoever is in front and not fainted.
+The doubles spread reduction is applied by the library itself because the field
+is `gameType: "Doubles"` (Heat Wave into Rillaboom: 198-234 in singles,
+146-174 in doubles) — which is most of why these numbers differ from a singles
+calculator's.
+
+**`pruneCalcs` and the recompute loop both need that targeting**, and the dex
+is lazily loaded. `targetKindOf` is therefore nullable and **null prunes
+nothing**: without it a spread move looks like an untargeted one, every
+fingerprint would mismatch, and a save in the first moments of a page would
+delete the author's calculations. A test holds that.
+
+**The calculation wears its move's colour** — a left bar in the type colour and
+text in the same colour mixed 65% toward ink, because a raw Electric yellow at
+10px on white is not text.
+
+**Cost, measured**: one calculation plus `desc()` is **12.6µs**, and a heavy
+set — 10 opponents × 8 cards × 4 attackers, 320 calculations — is **3.7ms**.
+It is a local library, not a service, and only stale entries are recomputed, so
+there is no reason to batch, debounce or cache beyond the fingerprint.
 
 **Cost, measured on a production build**: the board loads 629 KB of JS with the
 calculator off and does not fetch the calculator chunk at all; switching it on

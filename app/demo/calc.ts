@@ -66,20 +66,44 @@ function setFor(team: StoredTeam, species: string) {
   return null;
 }
 
-/** What the attacker on this side is doing, if it is calculable at all. */
+/** Target kinds that hit both opposing Pokémon at once. */
+const SPREAD_AT_FOES = new Set(["allAdjacentFoes", "allAdjacent"]);
+export const isSpreadMove = (targetKind: string | null | undefined) =>
+  !!targetKind && SPREAD_AT_FOES.has(targetKind);
+
+/**
+ * What the attacker on this side is doing, if it is calculable at all.
+ *
+ * A spread move has **no declared target** — the board deliberately skips that
+ * step because the game aims it — so its defenders are whoever is in front on
+ * the other side, and doubles' spread reduction is part of each number.
+ */
 export function calcSubject(
   state: SideState,
   species: string,
-): { move: string; target: string; targetsAlly: boolean } | null {
+  targetKindOf: (move: string) => string | null,
+  foeFront: readonly string[],
+): { move: string; defenders: string[]; defendersAreAllies: boolean } | null {
   const move = state.moves?.[species];
+  if (!move) return null;
+
+  if (isSpreadMove(targetKindOf(move))) {
+    const defenders = foeFront.filter(
+      (s) => s && !state.fainted.includes(s),
+    ) as string[];
+    return defenders.length > 0
+      ? { move, defenders, defendersAreAllies: false }
+      : null;
+  }
+
   const ref = state.targets?.[species];
-  if (!move || !ref) return null;
+  if (!ref) return null;
   const parsed = parseTargetRef(ref);
   if (!parsed) return null;
   return {
     move,
-    target: parsed.species,
-    targetsAlly: parsed.kind === "ally",
+    defenders: [parsed.species],
+    defendersAreAllies: parsed.kind === "ally",
   };
 }
 
@@ -94,24 +118,21 @@ export function inputPrint(
   attackerTeam: StoredTeam,
   attacker: string,
   defenderTeam: StoredTeam,
-  defender: string,
+  defenders: readonly string[],
   move: string,
 ): string {
   const a = setFor(attackerTeam, attacker);
-  const d = setFor(defenderTeam, defender);
-  if (!a || !d) return "";
-  return hash(
-    [
-      attacker,
-      Sets.exportSet(a),
-      defender,
-      Sets.exportSet(d),
-      move,
-      // Doubles spread damage is part of the number, so the game type belongs
-      // in the fingerprint even though it never varies today.
-      "Doubles",
-    ].join("\u0000"),
-  );
+  if (!a || defenders.length === 0) return "";
+  const parts = [attacker, Sets.exportSet(a), move];
+  for (const defender of defenders) {
+    const d = setFor(defenderTeam, defender);
+    if (!d) return "";
+    parts.push(defender, Sets.exportSet(d));
+  }
+  // Doubles spread damage is part of the number, so the game type belongs in
+  // the fingerprint even though it never varies today.
+  parts.push("Doubles");
+  return hash(parts.join("\u0000"));
 }
 
 /** True when a stored calculation still describes the board as it stands. */
@@ -130,12 +151,11 @@ export async function runCalc(
   attackerTeam: StoredTeam,
   attacker: string,
   defenderTeam: StoredTeam,
-  defender: string,
+  defenders: readonly string[],
   move: string,
 ): Promise<CalcNote | null> {
   const a = setFor(attackerTeam, attacker);
-  const d = setFor(defenderTeam, defender);
-  if (!a || !d) return null;
+  if (!a || defenders.length === 0) return null;
 
   const calc = await import("@smogon/calc");
   // Generation 0 is Champions — see `MECHANICS[0] = calculateChampions`.
@@ -152,18 +172,28 @@ export async function runCalc(
     });
 
   try {
-    const result = calc.calculate(
-      gen,
-      build(a, attacker),
-      build(d, defender),
-      new calc.Move(gen, move),
-      new calc.Field({ gameType: "Doubles" }),
-    );
-    const text = result.desc();
-    if (!text) return null;
+    const lines: string[] = [];
+    for (const defender of defenders) {
+      const d = setFor(defenderTeam, defender);
+      if (!d) return null;
+      const result = calc.calculate(
+        gen,
+        build(a, attacker),
+        build(d, defender),
+        new calc.Move(gen, move),
+        // Doubles is not decoration: a spread move is reduced here, which is
+        // most of why these numbers differ from a singles calculator's.
+        new calc.Field({ gameType: "Doubles" }),
+      );
+      const text = result.desc();
+      if (text) lines.push(text);
+    }
+    if (lines.length === 0) return null;
+    // One line per defender — a spread move hits both, and the author wants
+    // both numbers rather than whichever one we picked for them.
     return {
-      text,
-      print: inputPrint(attackerTeam, attacker, defenderTeam, defender, move),
+      text: lines.join("\n"),
+      print: inputPrint(attackerTeam, attacker, defenderTeam, defenders, move),
     };
   } catch {
     // An unknown move or species is the author's data, not a crash. The board
@@ -184,7 +214,15 @@ export function pruneCalcs(
   nodes: TurnNode[],
   my: StoredTeam,
   opp: StoredTeam,
+  /**
+   * Move targeting, from the lazily-loaded dex. **Null means "not loaded
+   * yet"**, and then nothing is pruned: without it a spread move looks like a
+   * move with no target, every fingerprint would mismatch, and a save in the
+   * first moments of a page would delete the author's calculations.
+   */
+  targetKindOf: ((move: string) => string | null) | null,
 ): TurnNode[] {
+  if (!targetKindOf) return nodes;
   let changed = false;
   const next = nodes.map((node) => {
     if (!node.calcs) return node;
@@ -196,10 +234,11 @@ export function pruneCalcs(
       ];
       if (side !== "my" && side !== "opp") continue;
       const state = side === "my" ? node.my : node.opp;
-      const subject = calcSubject(state, species);
+      const foe = side === "my" ? node.opp : node.my;
+      const subject = calcSubject(state, species, targetKindOf, foe.front);
       if (!subject) continue;
       const attackerTeam = side === "my" ? my : opp;
-      const defenderTeam = subject.targetsAlly
+      const defenderTeam = subject.defendersAreAllies
         ? attackerTeam
         : side === "my"
           ? opp
@@ -208,7 +247,7 @@ export function pruneCalcs(
         attackerTeam,
         species,
         defenderTeam,
-        subject.target,
+        subject.defenders,
         subject.move,
       );
       if (isFresh(note, print)) kept[key] = note;

@@ -37,29 +37,66 @@ const side = (p: Partial<SideState>): SideState => ({
   ...p,
 });
 
+const SINGLE = () => "normal";
+const SPREAD = () => "allAdjacentFoes";
+const FOES = ["Gholdengo", "Rillaboom"];
+
 describe("calcSubject", () => {
-  it("needs both a move and a declared target", () => {
-    const base = side({ front: ["Talonflame"] });
-    expect(calcSubject(base, "Talonflame")).toBeNull();
-    expect(
-      calcSubject({ ...base, moves: { Talonflame: "Overheat" } }, "Talonflame"),
-    ).toBeNull();
+  const base = side({ front: ["Talonflame"] });
+
+  it("needs a move", () => {
+    expect(calcSubject(base, "Talonflame", SINGLE, FOES)).toBeNull();
+  });
+
+  it("needs a declared target for a single-target move", () => {
+    const m = { ...base, moves: { Talonflame: "Overheat" } };
+    expect(calcSubject(m, "Talonflame", SINGLE, FOES)).toBeNull();
     expect(
       calcSubject(
-        {
-          ...base,
-          moves: { Talonflame: "Overheat" },
-          targets: { Talonflame: "foe:Gholdengo" },
-        },
+        { ...m, targets: { Talonflame: "foe:Gholdengo" } },
         "Talonflame",
+        SINGLE,
+        FOES,
       ),
-    ).toEqual({ move: "Overheat", target: "Gholdengo", targetsAlly: false });
+    ).toEqual({
+      move: "Overheat",
+      defenders: ["Gholdengo"],
+      defendersAreAllies: false,
+    });
+  });
+
+  it("aims a spread move at the whole opposing front, with no target declared", () => {
+    // The board deliberately never asks for a target here, so requiring one
+    // meant Heat Wave was silently never calculated.
+    expect(
+      calcSubject(
+        { ...base, moves: { Talonflame: "Heat Wave" } },
+        "Talonflame",
+        SPREAD,
+        FOES,
+      ),
+    ).toEqual({
+      move: "Heat Wave",
+      defenders: ["Gholdengo", "Rillaboom"],
+      defendersAreAllies: false,
+    });
+  });
+
+  it("does not aim a spread move at something already fainted", () => {
+    const s = side({
+      front: ["Talonflame"],
+      fainted: ["Rillaboom"],
+      moves: { Talonflame: "Heat Wave" },
+    });
+    expect(calcSubject(s, "Talonflame", SPREAD, FOES)?.defenders).toEqual([
+      "Gholdengo",
+    ]);
   });
 });
 
 describe("inputPrint", () => {
   const print = (a = TALON, d = GHOLD, move = "Overheat") =>
-    inputPrint(team("a", a), "Talonflame", team("d", d), "Gholdengo", move);
+    inputPrint(team("a", a), "Talonflame", team("d", d), ["Gholdengo"], move);
 
   it("is stable for unchanged inputs", () => {
     expect(print()).toBe(print());
@@ -88,7 +125,7 @@ describe("inputPrint", () => {
       mine(),
       "Incineroar",
       theirs(),
-      "Gholdengo",
+      ["Gholdengo"],
       "Knock Off",
     );
     expect(p).toBe("");
@@ -104,7 +141,7 @@ describe("pruneCalcs", () => {
       targets: { Talonflame: "foe:Gholdengo" },
     });
   const freshPrint = () =>
-    inputPrint(mine(), "Talonflame", theirs(), "Gholdengo", "Overheat");
+    inputPrint(mine(), "Talonflame", theirs(), ["Gholdengo"], "Overheat");
   const node = (calcs: TurnNode["calcs"]): TurnNode => ({
     id: "n",
     turn: 2,
@@ -118,14 +155,14 @@ describe("pruneCalcs", () => {
     const n = node({
       [calcKey("my", "Talonflame")]: { text: "hit", print: freshPrint() },
     });
-    expect(pruneCalcs([n], mine(), theirs())[0].calcs).toEqual(n.calcs);
+    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toEqual(n.calcs);
   });
 
   it("drops one whose fingerprint has gone stale", () => {
     const n = node({
       [calcKey("my", "Talonflame")]: { text: "hit", print: "stale" },
     });
-    expect(pruneCalcs([n], mine(), theirs())[0].calcs).toBeUndefined();
+    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toBeUndefined();
   });
 
   it("drops one whose move is gone", () => {
@@ -133,11 +170,28 @@ describe("pruneCalcs", () => {
       [calcKey("my", "Talonflame")]: { text: "hit", print: freshPrint() },
     });
     n.my = side({ front: ["Talonflame"] });
-    expect(pruneCalcs([n], mine(), theirs())[0].calcs).toBeUndefined();
+    expect(pruneCalcs([n], mine(), theirs(), SINGLE)[0].calcs).toBeUndefined();
   });
 
   it("returns the same array when there is nothing to drop", () => {
     const nodes = [node(undefined)];
-    expect(pruneCalcs(nodes, mine(), theirs())).toBe(nodes);
+    expect(pruneCalcs(nodes, mine(), theirs(), SINGLE)).toBe(nodes);
+  });
+});
+
+describe("pruneCalcs without the dex", () => {
+  it("prunes nothing, rather than deleting work it cannot judge", () => {
+    // Null targeting means the lazily-loaded dex has not arrived. Treating a
+    // spread move as untargeted would mismatch every fingerprint and wipe the
+    // author's calculations on the next save.
+    const n: TurnNode = {
+      id: "n",
+      turn: 2,
+      parentId: null,
+      my: side({ front: ["Talonflame"], moves: { Talonflame: "Heat Wave" } }),
+      opp: side({ front: ["Gholdengo"] }),
+      calcs: { "my:Talonflame": { text: "x", print: "whatever" } },
+    };
+    expect(pruneCalcs([n], mine(), theirs(), null)[0].calcs).toEqual(n.calcs);
   });
 });

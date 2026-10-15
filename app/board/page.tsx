@@ -650,7 +650,18 @@ function SideBoard({
                     re-derived here, and `pruneCalcs` has already dropped
                     anything whose inputs moved. */}
                 {calcs?.[s] && (
-                  <p className="mb-0.5 mt-0.5 whitespace-pre-wrap pl-1 text-[10px] leading-snug text-stone-500">
+                  <p
+                    className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
+                    style={{
+                      borderColor: move ? moveColor(move) : "#d6d3d1",
+                      // The move's own colour, mixed toward ink so the light
+                      // types (Electric, Ground) stay readable at 10px — a raw
+                      // #F8D030 on white is not text.
+                      color: move
+                        ? `color-mix(in srgb, ${moveColor(move)} 65%, #1c1917)`
+                        : undefined,
+                    }}
+                  >
                     {calcs[s].text}
                   </p>
                 )}
@@ -788,6 +799,16 @@ export default function SimPage() {
     saveCalcOn(on);
   };
 
+  const [movePicker, setMovePicker] = useState<{
+    nodeId: string;
+    side: "my" | "opp";
+    species: string;
+    anchor: { left: number; top: number };
+  } | null>(null);
+  const [moveMetaOf, setMoveMetaOf] = useState<
+    ((move: string) => MoveMeta | null) | null
+  >(null);
+
   /**
    * Keep the calculations current while the switch is on.
    *
@@ -797,7 +818,10 @@ export default function SimPage() {
    * put and simply stop being drawn.
    */
   useEffect(() => {
-    if (!calcOn || !setup) return;
+    // `moveMetaOf` is the lazily-loaded dex. Without it a spread move is
+    // indistinguishable from an untargeted one, so wait rather than guess.
+    if (!calcOn || !setup || !moveMetaOf) return;
+    const targetKind = (m: string) => moveMetaOf(m)?.target ?? null;
     let alive = true;
     void (async () => {
       const additions: { id: string; key: string; note: CalcNote }[] = [];
@@ -806,10 +830,11 @@ export default function SimPage() {
           const state = node[side];
           for (const species of state.front) {
             if (!species) continue;
-            const subject = calcSubject(state, species);
+            const foe = side === "my" ? node.opp : node.my;
+            const subject = calcSubject(state, species, targetKind, foe.front);
             if (!subject) continue;
             const attackerTeam = side === "my" ? setup.my : setup.opp;
-            const defenderTeam = subject.targetsAlly
+            const defenderTeam = subject.defendersAreAllies
               ? attackerTeam
               : side === "my"
                 ? setup.opp
@@ -818,7 +843,7 @@ export default function SimPage() {
               attackerTeam,
               species,
               defenderTeam,
-              subject.target,
+              subject.defenders,
               subject.move,
             );
             const key = calcKey(side, species);
@@ -827,7 +852,7 @@ export default function SimPage() {
               attackerTeam,
               species,
               defenderTeam,
-              subject.target,
+              subject.defenders,
               subject.move,
             );
             if (note) additions.push({ id: node.id, key, note });
@@ -848,16 +873,7 @@ export default function SimPage() {
     return () => {
       alive = false;
     };
-  }, [calcOn, nodes, setup]);
-  const [movePicker, setMovePicker] = useState<{
-    nodeId: string;
-    side: "my" | "opp";
-    species: string;
-    anchor: { left: number; top: number };
-  } | null>(null);
-  const [moveMetaOf, setMoveMetaOf] = useState<
-    ((move: string) => MoveMeta | null) | null
-  >(null);
+  }, [calcOn, nodes, setup, moveMetaOf]);
   /** species+item → its Mega forme name, once the dex is loaded. */
   const [megaFormeOf, setMegaFormeOf] = useState<
     ((species: string, item?: string) => string | null) | null
@@ -1191,7 +1207,12 @@ export default function SimPage() {
     // anything whose inputs have moved is dropped here — before localStorage,
     // before the account mirror, and therefore before anything can publish it.
     // Not lost work: switching the calculator on recomputes it.
-    const pruned = pruneCalcs(toSave, setup.my, setup.opp);
+    const pruned = pruneCalcs(
+      toSave,
+      setup.my,
+      setup.opp,
+      moveMetaOf ? (m) => moveMetaOf(m)?.target ?? null : null,
+    );
     const entry: SavedMatchup = {
       id: matchup?.id ?? crypto.randomUUID(),
       name: matchup?.name ?? `${setup.my.name} vs ${setup.opp.name}`,
