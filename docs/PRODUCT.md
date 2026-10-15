@@ -71,12 +71,17 @@ finished product** — there is no phase after it.
   The single exception is a **damage calculator the author turns on and invokes**, off
   by default, behind an enable/disable control — two versions of the app, one with it
   and one without.
-  It changes nothing about what xatu stores. The calculator's output goes into a note as
-  **author text**, which is where those lines already live today — people paste them in
-  from Showdown's calculator by hand, and the friction being removed is the retyping,
-  not the arithmetic. So xatu still never parses, verifies or re-computes a number in a
-  stored guide, the schema and paste format carry no computed values, and **the eventual
-  extension computes nothing** — which is what kept it uncontroversial and still does.
+  Its output is **an opaque string attached to the move it describes** — the same
+  sentence people paste in from Showdown's calculator by hand today, so the friction
+  being removed is the retyping, not the arithmetic. It is stored and never re-derived
+  on read, and nothing reads it back as data: **the eventual extension computes
+  nothing** and reads positions and moves, not calc strings, which is what kept it
+  uncontroversial and still does.
+  It sits beside the move rather than inside the note because a note cannot know which
+  move it describes, and therefore cannot tell when it has gone stale. A stored
+  calculation is **always true for the sets as they are now**: its inputs are
+  fingerprinted, and one whose set, move or target has changed is dropped rather than
+  shown. xatu would rather show nothing than a number it cannot stand behind.
   Existing saved and published guides are unaffected: a published page remains a
   snapshot, and a stored calculation is a record of what the author asserted at the
   time, not something re-derived on each read.

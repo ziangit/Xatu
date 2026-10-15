@@ -27,12 +27,16 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
   solvers, recommended plays, and any computation xatu performs on its own initiative.
   What is now allowed is a **damage calculator the author switches on and invokes
   deliberately**, off by default, behind an enable/disable control.
-  **Its output is author text.** The calculator writes a line into a note, exactly as
-  the author would have pasted it from Showdown's calculator today. Nothing computed is
-  ever stored as structured data, so `encodeGroup`, the paste format, the published
-  `document` and the future extension's input are unchanged — they still carry only what
-  the author wrote. xatu never parses, verifies or re-computes a number in a stored
-  guide.
+  **Its output is an opaque string attached to the move it describes** — the same
+  sentence the author pastes from Showdown's calculator today. It is stored, never
+  re-derived on read, and never read back as data by anything: the extension reads
+  positions and moves, not calc strings. It lives beside the move rather than in the
+  note for one reason — a note cannot know which move it describes, so it cannot tell
+  when it has gone stale.
+  **A stored calculation is always true for the sets as they are now.** Its inputs are
+  fingerprinted; if a set, move or target changes so the fingerprint no longer matches,
+  the calculation is dropped rather than shown. xatu never displays a number it cannot
+  stand behind, and never verifies or re-computes one that still matches.
   **The toggle changes the interface, never the document.** A guide written with the
   calculator on must read identically with it off. Two versions of the app is the
   decision; two versions of the data is not. Existing saved and published guides are

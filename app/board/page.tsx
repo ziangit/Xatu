@@ -26,11 +26,22 @@ import {
 } from "../demo/workflow-io";
 import { applyGroupImport, importSummary } from "../demo/import-group";
 import {
+  calcKey,
+  calcSubject,
+  inputPrint,
+  isFresh,
+  pruneCalcs,
+  runCalc,
+  type CalcNote,
+} from "../demo/calc";
+import {
   findPairMatchup,
   groupDocId,
   loadActiveMatchupId,
+  loadCalcOn,
   loadMatchups,
   loadSetup,
+  saveCalcOn,
   saveSetup,
   setActiveMatchupId,
   upsertMatchup,
@@ -371,6 +382,7 @@ function SideBoard({
   onToggle,
   onFaint,
   onRemove,
+  calcs,
 }: {
   title: string;
   roster: string[];
@@ -404,6 +416,8 @@ function SideBoard({
   onToggle: (species: string) => void;
   onFaint: (species: string) => void;
   onRemove: (species: string) => void;
+  /** Stored calculations for this side, or null when the calculator is off. */
+  calcs: Record<string, CalcNote> | null;
 }) {
   const t = useT();
   const moveColor = (move: string) => {
@@ -544,84 +558,101 @@ function SideBoard({
                 ? targetRef.species
                 : null;
             return (
-              <div key={s} className="flex h-[22px] items-center">
-                <button
-                  onClick={(e) => {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    onOpenPicker(pickerFor === s ? null : s, {
-                      left: r.left,
-                      top: r.bottom + 4,
-                    });
-                  }}
-                  title={
-                    switchedIn.has(s)
-                      ? t("{species} switched in this turn — no move", {
-                          species: s,
-                        })
-                      : !move && cameIn.has(s)
-                        ? t("{species} came in after a faint — it can move", {
+              <div key={s}>
+                <div className="flex h-[22px] items-center">
+                  <button
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      onOpenPicker(pickerFor === s ? null : s, {
+                        left: r.left,
+                        top: r.bottom + 4,
+                      });
+                    }}
+                    title={
+                      switchedIn.has(s)
+                        ? t("{species} switched in this turn — no move", {
                             species: s,
                           })
-                        : move
-                          ? t("{species}: {detail}", {
-                              species: s,
-                              detail:
-                                (state.mega === s ? t("Mega, ") : "") +
-                                move +
-                                (targetSpecies
-                                  ? t(" → {target}", { target: targetSpecies })
-                                  : ""),
-                            })
-                          : t("{species} — declare a move or Mega", {
+                        : !move && cameIn.has(s)
+                          ? t("{species} came in after a faint — it can move", {
                               species: s,
                             })
-                  }
-                  className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none transition-opacity ${
-                    move
-                      ? "text-white"
-                      : switchedIn.has(s) || cameIn.has(s)
-                        ? "bg-sky-50 text-sky-700 hover:bg-sky-100"
-                        : state.mega === s
-                          ? "bg-violet-600 text-white hover:opacity-85"
-                          : "bg-stone-100 text-stone-400 hover:bg-stone-200"
-                  }`}
-                  style={
-                    move ? { backgroundColor: moveColor(move) } : undefined
-                  }
-                >
-                  <MonIcon species={shownAs(s)} scale={0.5} />
-                  {state.mega === s && <span title={t("Mega Evolves")}>⟡</span>}
-                  {switchedIn.has(s)
-                    ? t("switched in")
-                    : (move ?? (cameIn.has(s) ? t("came in") : t("+ move")))}
-                  {move && targetSpecies && (
-                    <>
-                      <span className="opacity-80">→</span>
-                      <MonIcon species={targetSpecies} scale={0.5} />
-                    </>
+                          : move
+                            ? t("{species}: {detail}", {
+                                species: s,
+                                detail:
+                                  (state.mega === s ? t("Mega, ") : "") +
+                                  move +
+                                  (targetSpecies
+                                    ? t(" → {target}", {
+                                        target: targetSpecies,
+                                      })
+                                    : ""),
+                              })
+                            : t("{species} — declare a move or Mega", {
+                                species: s,
+                              })
+                    }
+                    className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none transition-opacity ${
+                      move
+                        ? "text-white"
+                        : switchedIn.has(s) || cameIn.has(s)
+                          ? "bg-sky-50 text-sky-700 hover:bg-sky-100"
+                          : state.mega === s
+                            ? "bg-violet-600 text-white hover:opacity-85"
+                            : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    }`}
+                    style={
+                      move ? { backgroundColor: moveColor(move) } : undefined
+                    }
+                  >
+                    <MonIcon species={shownAs(s)} scale={0.5} />
+                    {state.mega === s && (
+                      <span title={t("Mega Evolves")}>⟡</span>
+                    )}
+                    {switchedIn.has(s)
+                      ? t("switched in")
+                      : (move ?? (cameIn.has(s) ? t("came in") : t("+ move")))}
+                    {move && targetSpecies && (
+                      <>
+                        <span className="opacity-80">→</span>
+                        <MonIcon species={targetSpecies} scale={0.5} />
+                      </>
+                    )}
+                  </button>
+                  {pickerFor === s && pickerAnchor && (
+                    <MovePicker
+                      key={s}
+                      species={s}
+                      moves={movesFor(s)}
+                      moveColor={moveColor}
+                      moveMetaOf={moveMetaOf}
+                      allyFront={state.front}
+                      foeFront={foeFront}
+                      backChoices={state.back}
+                      switchedIn={switchedIn.has(s)}
+                      megaForme={megaFormeFor(s)}
+                      megaActive={state.mega === s}
+                      anchor={pickerAnchor}
+                      onMove={(m) => onPickMove(s, m)}
+                      onTarget={(ref) => onPickTarget(s, ref)}
+                      onSwitchIn={(incoming) => onSwitchIn(s, incoming)}
+                      onMega={(on) => onMega(on ? s : null)}
+                      onBench={() => onRemove(s)}
+                      onClose={() => onOpenPicker(null)}
+                    />
                   )}
-                </button>
-                {pickerFor === s && pickerAnchor && (
-                  <MovePicker
-                    key={s}
-                    species={s}
-                    moves={movesFor(s)}
-                    moveColor={moveColor}
-                    moveMetaOf={moveMetaOf}
-                    allyFront={state.front}
-                    foeFront={foeFront}
-                    backChoices={state.back}
-                    switchedIn={switchedIn.has(s)}
-                    megaForme={megaFormeFor(s)}
-                    megaActive={state.mega === s}
-                    anchor={pickerAnchor}
-                    onMove={(m) => onPickMove(s, m)}
-                    onTarget={(ref) => onPickTarget(s, ref)}
-                    onSwitchIn={(incoming) => onSwitchIn(s, incoming)}
-                    onMega={(on) => onMega(on ? s : null)}
-                    onBench={() => onRemove(s)}
-                    onClose={() => onOpenPicker(null)}
-                  />
+                </div>
+                {/* Under the move it describes — the association the author
+                    otherwise keeps in their head. Outside the fixed 22px chip
+                    row on purpose: it is a full sentence, and squeezed into a
+                    slot column it wrapped six lines deep. Stored text, never
+                    re-derived here, and `pruneCalcs` has already dropped
+                    anything whose inputs moved. */}
+                {calcs?.[s] && (
+                  <p className="mb-0.5 mt-0.5 whitespace-pre-wrap pl-1 text-[10px] leading-snug text-stone-500">
+                    {calcs[s].text}
+                  </p>
                 )}
               </div>
             );
@@ -726,6 +757,98 @@ export default function SimPage() {
   const [expandedNotes, setExpandedNotes] = useState<ReadonlySet<string>>(
     new Set(),
   );
+  /**
+   * The calculator switch.
+   *
+   * A **per-browser preference about the editor**, not a property of the
+   * document — deliberately. If it lived on the guide, the same published link
+   * would read differently for different people, which is the "two versions of
+   * the data" that CLAUDE.md forbids. Turning it off hides the lines on your
+   * own board while planning; a published page always shows what its author
+   * saved.
+   */
+  const [calcOn, setCalcOn] = useState(false);
+  useEffect(() => {
+    // localStorage is browser-only, so the choice arrives after the first
+    // render; `queueMicrotask` keeps that out of the effect body, which is the
+    // same shape the report composer uses for its own mount read.
+    queueMicrotask(() => setCalcOn(loadCalcOn()));
+  }, []);
+  /** This side's calculations, keyed by attacker, for the chips to draw. */
+  const sideCalcs = (node: TurnNode, side: "my" | "opp") => {
+    const out: Record<string, CalcNote> = {};
+    for (const [key, note] of Object.entries(node.calcs ?? {})) {
+      if (key.startsWith(`${side}:`)) out[key.slice(side.length + 1)] = note;
+    }
+    return out;
+  };
+
+  const toggleCalc = (on: boolean) => {
+    setCalcOn(on);
+    saveCalcOn(on);
+  };
+
+  /**
+   * Keep the calculations current while the switch is on.
+   *
+   * It only ever computes what is missing or stale, and bails without touching
+   * state when there is nothing to do — otherwise this would re-render itself
+   * forever. Turning the switch off computes nothing; the stored results stay
+   * put and simply stop being drawn.
+   */
+  useEffect(() => {
+    if (!calcOn || !setup) return;
+    let alive = true;
+    void (async () => {
+      const additions: { id: string; key: string; note: CalcNote }[] = [];
+      for (const node of nodes) {
+        for (const side of ["my", "opp"] as const) {
+          const state = node[side];
+          for (const species of state.front) {
+            if (!species) continue;
+            const subject = calcSubject(state, species);
+            if (!subject) continue;
+            const attackerTeam = side === "my" ? setup.my : setup.opp;
+            const defenderTeam = subject.targetsAlly
+              ? attackerTeam
+              : side === "my"
+                ? setup.opp
+                : setup.my;
+            const print = inputPrint(
+              attackerTeam,
+              species,
+              defenderTeam,
+              subject.target,
+              subject.move,
+            );
+            const key = calcKey(side, species);
+            if (isFresh(node.calcs?.[key], print)) continue;
+            const note = await runCalc(
+              attackerTeam,
+              species,
+              defenderTeam,
+              subject.target,
+              subject.move,
+            );
+            if (note) additions.push({ id: node.id, key, note });
+          }
+        }
+      }
+      if (!alive || additions.length === 0) return;
+      setNodes((prev) =>
+        prev.map((n) => {
+          const mine = additions.filter((a) => a.id === n.id);
+          if (mine.length === 0) return n;
+          const calcs = { ...n.calcs };
+          for (const a of mine) calcs[a.key] = a.note;
+          return { ...n, calcs };
+        }),
+      );
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [calcOn, nodes, setup]);
   const [movePicker, setMovePicker] = useState<{
     nodeId: string;
     side: "my" | "opp";
@@ -739,7 +862,15 @@ export default function SimPage() {
   const [megaFormeOf, setMegaFormeOf] = useState<
     ((species: string, item?: string) => string | null) | null
   >(null);
-  const { wrapRef, setCardRef, edges } = useTurnEdges(nodes, expandedNotes);
+  // The layout key carries the calculator too: a calculation adds a line under
+  // a chip, which makes its card taller and every arrow touching it stale.
+  const calcLayoutKey = calcOn
+    ? nodes.map((n) => Object.values(n.calcs ?? {}).length).join(",")
+    : "off";
+  const { wrapRef, setCardRef, edges } = useTurnEdges(nodes, [
+    expandedNotes,
+    calcLayoutKey,
+  ]);
 
   // The dex supplies metadata only — a move's type (for Showdown colors) and
   // targeting shape (so spread/self moves skip the target prompt), and whether
@@ -1056,11 +1187,16 @@ export default function SimPage() {
   /** Save upserts this board into the matchup library — each team pair the
    * author works on keeps its own entry instead of overwriting one slot. */
   const save = (toSave: TurnNode[] = nodes) => {
+    // A stored calculation is always true for the sets it ships with, so
+    // anything whose inputs have moved is dropped here — before localStorage,
+    // before the account mirror, and therefore before anything can publish it.
+    // Not lost work: switching the calculator on recomputes it.
+    const pruned = pruneCalcs(toSave, setup.my, setup.opp);
     const entry: SavedMatchup = {
       id: matchup?.id ?? crypto.randomUUID(),
       name: matchup?.name ?? `${setup.my.name} vs ${setup.opp.name}`,
       setup,
-      nodes: toSave,
+      nodes: pruned,
       savedAt: new Date().toISOString(),
     };
     upsertMatchup(entry);
@@ -1329,7 +1465,7 @@ export default function SimPage() {
                     rel="noreferrer noopener"
                     className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-500 transition-colors hover:border-stone-500 hover:text-stone-800"
                   >
-                    {t("damage calculator ↗")}
+                    {t("full calculator ↗")}
                   </a>
                 </span>
               </div>
@@ -1367,6 +1503,22 @@ export default function SimPage() {
                 className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-600 hover:border-stone-500"
               >
                 {copied ? t("Copied ✓") : t("Copy JSON")}
+              </button>
+              {/* Beside Save because that is where the eye already goes, and
+                  coloured by *state* rather than a second red: Save owns the
+                  primary action, and this one is a switch. */}
+              <button
+                onClick={() => toggleCalc(!calcOn)}
+                title={t(
+                  "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.",
+                )}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  calcOn
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-stone-300 bg-white text-stone-600 hover:border-stone-500"
+                }`}
+              >
+                {calcOn ? t("calculator on") : t("calculator off")}
               </button>
               <button
                 onClick={() => save()}
@@ -1566,6 +1718,7 @@ export default function SimPage() {
                         vs
                       </span>
                       <SideBoard
+                        calcs={calcOn ? sideCalcs(node, "my") : null}
                         title={t("My Team")}
                         roster={setup.my.parsed.map((m) => m.species)}
                         movesFor={(s) =>
@@ -1628,6 +1781,7 @@ export default function SimPage() {
                         }
                       />
                       <SideBoard
+                        calcs={calcOn ? sideCalcs(node, "opp") : null}
                         title={t("Opposing Team")}
                         roster={setup.opp.parsed.map((m) => m.species)}
                         movesFor={(s) =>

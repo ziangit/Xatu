@@ -44,12 +44,15 @@ function Side({
   state,
   parent,
   moveColor,
+  calcs,
 }: {
   title: string;
   roster: string[];
   state: SideState;
   parent: SideState | null;
   moveColor: (move: string) => string | undefined;
+  /** This side's stored calculations, keyed by the attacker that made them. */
+  calcs: Record<string, { text: string }>;
 }) {
   const t = useT();
   const placed = new Set([...state.front, ...state.back]);
@@ -116,6 +119,16 @@ function Side({
                         )}
                       </span>
                     )}
+                  {/* The author's calculation, stored as text and never
+                      re-derived — a published page is a snapshot, so a later
+                      change to the maths cannot move its numbers. It always
+                      renders: it is content the author saved, and a reader's
+                      own calculator preference must not erase it. */}
+                  {s && row === "front" && calcs[s] && (
+                    <span className="max-w-[18rem] whitespace-pre-wrap text-[9px] leading-snug text-stone-500">
+                      {calcs[s].text}
+                    </span>
+                  )}
                 </span>
               );
             })}
@@ -124,6 +137,15 @@ function Side({
       ))}
     </div>
   );
+}
+
+/** One side's stored calculations, keyed by the attacker that made them. */
+function sideCalcs(node: TurnNode, side: "my" | "opp") {
+  const out: Record<string, { text: string }> = {};
+  for (const [key, note] of Object.entries(node.calcs ?? {})) {
+    if (key.startsWith(`${side}:`)) out[key.slice(side.length + 1)] = note;
+  }
+  return out;
 }
 
 /** One opponent's plan: its turn cards, left to right. */
@@ -216,6 +238,7 @@ export function BoardView({
                   <Side
                     title={t("My Team")}
                     roster={myRoster}
+                    calcs={sideCalcs(node, "my")}
                     state={node.my}
                     parent={parentOf(node, "my")}
                     moveColor={(m) => colors[m]}
@@ -234,6 +257,7 @@ export function BoardView({
                   <Side
                     title={t("Opposing Team")}
                     roster={oppRoster}
+                    calcs={sideCalcs(node, "opp")}
                     state={node.opp}
                     parent={parentOf(node, "opp")}
                     moveColor={(m) => colors[m]}

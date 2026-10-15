@@ -620,3 +620,52 @@ describe("language never reaches stored data", () => {
     expect(ja.warnings.join(" ")).not.toContain("Card 1");
   });
 });
+
+describe("the calculator never disturbs an existing document", () => {
+  const board = () => ({
+    opp: setup.opp,
+    nodes: [
+      {
+        id: "n0",
+        turn: 1,
+        parentId: null,
+        my: side(["Tyranitar", "Excadrill"], ["Milotic", "Gholdengo"]),
+        opp: side(["Aerodactyl", "Charizard"], ["Garchomp", "Sylveon"]),
+      } as TurnNode,
+    ],
+  });
+
+  it("still writes v3 when no node carries a calculation", () => {
+    // encodeGroup is also the board's dirty-check fingerprint. A version bump
+    // on every board would have marked the whole library dirty and re-uploaded
+    // it, so the version moves only when there is something new to carry.
+    const doc = JSON.parse(encodeGroup(setup.my, [board()]));
+    expect(doc.v).toBe(3);
+  });
+
+  it("writes v4 only once a calculation exists, and round-trips it", () => {
+    const b = board();
+    b.nodes[0].calcs = {
+      "my:Incineroar": { text: "192-228 (101.5 - 120.6%)", print: "abc" },
+    };
+    const encoded = encodeGroup(setup.my, [b]);
+    expect(JSON.parse(encoded).v).toBe(4);
+    const back = decodeWorkflowGroup(encoded);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.boards[0].nodes[0].calcs).toEqual({
+      "my:Incineroar": { text: "192-228 (101.5 - 120.6%)", print: "abc" },
+    });
+  });
+
+  it("ignores a malformed calcs payload instead of rejecting the paste", () => {
+    const b = board();
+    const doc = JSON.parse(encodeGroup(setup.my, [b]));
+    doc.v = 4;
+    doc.b[0].t[0] = [...doc.b[0].t[0].slice(0, 3), "", { bad: 1 }];
+    const back = decodeWorkflowGroup(JSON.stringify(doc));
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.boards[0].nodes[0].calcs).toBeUndefined();
+  });
+});

@@ -493,6 +493,11 @@ export const ZH: Record<string, string> = {
   " → {target}": " → {target}",
   "close move picker": "关闭招式选择",
   "Mega Evolves": "已 Mega 进化",
+  "full calculator ↗": "完整计算器 ↗",
+  "calculator on": "计算器已开",
+  "calculator off": "计算器已关",
+  "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":
+    "伤害计算器——只有开启时 xatu 才会计算，且只计算已指定目标的招式。",
   "switched in": "换上场",
   "came in": "替补上场",
   "{species} — came in after a faint; it can move":

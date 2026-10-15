@@ -73,6 +73,14 @@ export interface TurnNode {
   opp: SideState;
   /** Optional author note for this state — why this line, what to watch for. */
   note?: string;
+  /**
+   * Damage calculations, keyed `my:Species` / `opp:Species` — see
+   * `app/demo/calc.ts`. Present only while the calculator is on and only while
+   * the stored fingerprint still matches the sets; `pruneCalcs` drops the rest
+   * before anything is written, so a stored calculation is always true for the
+   * board it ships with. Nothing reads the text back as data.
+   */
+  calcs?: Record<string, import("./calc").CalcNote>;
 }
 
 export interface SimSetup {
@@ -122,6 +130,27 @@ const KEYS = {
   workflow: "xatu-demo:workflow", // legacy — migrated into `matchups`
   matchups: "xatu-demo:matchups",
   activeMatchup: "xatu-demo:active-matchup",
+  calculator: "xatu-demo:calculator",
+};
+
+/**
+ * The damage calculator switch — a per-browser preference about the editor,
+ * never a property of a guide. See `app/demo/calc.ts`.
+ */
+export const loadCalcOn = (): boolean => {
+  try {
+    return window.localStorage.getItem(KEYS.calculator) === "on";
+  } catch {
+    return false;
+  }
+};
+export const saveCalcOn = (on: boolean) => {
+  try {
+    window.localStorage.setItem(KEYS.calculator, on ? "on" : "off");
+  } catch {
+    // A browser with storage blocked still gets a working calculator, it just
+    // forgets the choice — same tolerance as everything else that reads here.
+  }
 };
 
 function read<T>(key: string): T | null {

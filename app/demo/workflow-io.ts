@@ -44,7 +44,21 @@ interface CompactTeam {
 }
 
 /** [parentIndex, myState, oppState, note?] — note omitted when empty. */
-type CompactNode = [number, string, string] | [number, string, string, string];
+/**
+ * `[parentIndex, myState, oppState, note?, calcs?]`.
+ *
+ * `calcs` (v4) is the opt-in calculator's output, keyed `my:Species`. It is an
+ * object rather than a group inside the side string because a calculation
+ * contains `:` — the move separator — and because free text has always lived
+ * at node level for exactly that reason (`note`). Trailing elements stay
+ * optional, so every v3 document reads unchanged and a board with no
+ * calculations still encodes byte-identically to before.
+ */
+type CompactCalcs = Record<string, { text: string; print: string }>;
+type CompactNode =
+  | [number, string, string]
+  | [number, string, string, string]
+  | [number, string, string, string, CompactCalcs];
 
 /** Legacy: one pair per document. Still read, no longer written. */
 export interface CompactWorkflow {
@@ -56,7 +70,15 @@ export interface CompactWorkflow {
 
 /** One of the author's teams against N opponents — the current format. */
 export interface CompactGroup {
-  v: 3;
+  /**
+   * 4 only when some node carries a calculation; 3 otherwise.
+   *
+   * This function is also the board's dirty-check fingerprint, so bumping the
+   * version unconditionally would have made **every existing board differ from
+   * its stored copy** and re-uploaded the lot. A board with no calculations
+   * encodes exactly as it did before the calculator existed.
+   */
+  v: 3 | 4;
   /**
    * Which group this document *is* — the sharer's own team id, stable across
    * their edits. It answers the one question the rosters can't: a re-paste of
@@ -177,7 +199,12 @@ function encodeTree(
       encodeSide(n.my, myRoster, opRoster, n.opp.front),
       encodeSide(n.opp, opRoster, myRoster, n.my.front),
     ];
-    return n.note?.trim() ? [...base, n.note.trim()] : base;
+    const note = n.note?.trim() ?? "";
+    const calcs = n.calcs && Object.keys(n.calcs).length > 0 ? n.calcs : null;
+    // `note` is emitted as "" when there are calculations but no note, because
+    // positions are the only thing holding the two apart.
+    if (calcs) return [...base, note, calcs];
+    return note ? [...base, note] : base;
   });
 }
 
@@ -196,8 +223,11 @@ export function encodeGroup(
   { docId }: { docId?: string } = {},
 ): string {
   const myRoster = my.parsed.map((m) => m.species);
+  const hasCalcs = boards.some((b) =>
+    b.nodes.some((n) => n.calcs && Object.keys(n.calcs).length > 0),
+  );
   const group: CompactGroup = {
-    v: 3,
+    v: hasCalcs ? 4 : 3,
     ...(docId ? { g: docId } : {}),
     my: compactTeam(my, myRoster),
     b: boards.map((board) => {
@@ -406,6 +436,19 @@ const validTeam = (t: CompactTeam | undefined) =>
     t.s.every((s) => typeof s === "string"),
   );
 
+/** Shape-check only: the text is opaque and is never parsed. */
+const validCalcs = (v: unknown): v is CompactCalcs =>
+  !!v &&
+  typeof v === "object" &&
+  !Array.isArray(v) &&
+  Object.values(v as Record<string, unknown>).every(
+    (n) =>
+      !!n &&
+      typeof n === "object" &&
+      typeof (n as { text?: unknown }).text === "string" &&
+      typeof (n as { print?: unknown }).print === "string",
+  );
+
 const validNode = (el: unknown): el is CompactNode =>
   Array.isArray(el) &&
   typeof el[0] === "number" &&
@@ -422,7 +465,7 @@ function decodeTree(
 ): TurnNode[] {
   const ids = t.map(() => crypto.randomUUID());
   const turns: number[] = [];
-  return t.map(([parent, myCode, opCode, note], i) => {
+  return t.map(([parent, myCode, opCode, note, calcs], i) => {
     let parentIdx = -1;
     if (parent > 0 && parent <= i) {
       parentIdx = parent - 1;
@@ -486,6 +529,10 @@ function decodeTree(
       my,
       opp,
       ...(typeof note === "string" && note ? { note } : {}),
+      // Calculations are carried verbatim and never re-derived. They are the
+      // author's accepted sentence, and a published page is a snapshot — a
+      // later change to the maths must not move numbers under its readers.
+      ...(validCalcs(calcs) ? { calcs } : {}),
     };
   });
 }
@@ -547,7 +594,7 @@ export function decodeWorkflowGroup(
   // A v2 pair is a group of one — normalized here so there's a single path.
   const versioned = data as Partial<CompactGroup> & Partial<CompactWorkflow>;
   let entries: { op: CompactTeam; t: CompactNode[] }[];
-  if (versioned.v === 3) {
+  if (versioned.v === 3 || versioned.v === 4) {
     if (!Array.isArray(versioned.b)) {
       return fail("That isn't a workflow document.");
     }

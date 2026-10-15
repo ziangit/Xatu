@@ -929,6 +929,73 @@ browser's own back navigation.
   which compares against a fresh board. Verified — opening a board and leaving
   it untouched adds no row and does not even change a `savedAt`.
 
+## The opt-in damage calculator (2026-10-15)
+
+Read the amended hard constraint in CLAUDE.md first. The rule is narrow: xatu
+computes a damage roll only while the author has the calculator switched on,
+the result is an opaque string attached to the move it describes, and nothing
+reads that string back as data. Simulation, speed tiers, solvers and
+recommended plays are all still out.
+
+**`@smogon/calc` supports Champions natively**, which is the only reason this
+is a small feature rather than a port. `dist/mechanics/champions.js` is
+`MECHANICS[0]`, so `Generations.get(0)` selects it, and its bundled data knows
+the Champions Megas (`Raichu-Mega-Y`, `Golisopod-Mega`, …). That matters
+because **Champions runs a different stat system** — EVs 0–32 per stat, 66
+total, with no IV or level term (verified across 6,377 catalogue sets, 99.3% of
+them totalling exactly 66). A gen-9 calculator would have returned confident,
+silently wrong numbers. Both of the user's own pasted calculations reproduce
+byte-for-byte.
+
+**Sets come from `exportText`, not from `parsed`.** `ParsedMon` carries no EVs,
+nature or level — those live only in the verbatim export, which is stored
+losslessly for exactly this kind of reason. `@pkmn/sets` parses one block back
+out.
+
+**A stored calculation is always true for the sets it ships with.** Each one
+carries a fingerprint of its inputs, built from the **verbatim set text** so
+that editing any field at all — an EV, a nature, an item — invalidates it
+without this module needing to know which fields matter. `pruneCalcs` runs
+inside `save()`, before localStorage, before the account mirror and therefore
+before anything can publish a number that is no longer true. A dropped
+calculation is not lost work: switching the calculator on recomputes it.
+
+**The version moves only when there is something to carry.** `encodeGroup` is
+also the board's dirty-check fingerprint, so emitting `v: 4` unconditionally
+would have marked every saved board as differing from its stored copy and
+re-uploaded the entire library. A board with no calculations still encodes
+byte-identically to before the feature existed; `v` becomes 4 only when some
+node has one. A test asserts both halves.
+
+**Calculations ride at node level, beside `note`, not inside the side string.**
+`front|back|fainted|moves|mega` is `:`-separated inside the moves group and a
+calculation contains colons. Free text has always lived at node level for that
+reason.
+
+**The switch is a per-browser editor preference**, never a property of a guide.
+On a guide it would mean the same published link reading differently for
+different people — the "two versions of the data" CLAUDE.md forbids. Turning it
+off hides the lines on your own board; **a published page always shows what its
+author saved**, because that is content they wrote, and a reader's preference
+must not erase it.
+
+**It only calculates a move with a declared target.** Spread moves are not
+calculated: the board deliberately offers no target for them, and inventing one
+would be xatu deciding something the author did not say.
+
+**Cost, measured on a production build**: the board loads 629 KB of JS with the
+calculator off and does not fetch the calculator chunk at all; switching it on
+pulls **+118 KB** on demand. `@smogon/calc` is 6.6 MB in `node_modules`, so the
+dynamic `import()` inside `runCalc` is load-bearing — never import it at module
+scope.
+
+**Two UI notes.** The switch sits beside Save because that is where the eye
+already goes, and is coloured by _state_ (tinted when on) rather than being a
+second red primary — Save owns that. And the calculation renders **outside** the
+fixed 22px chip row: squeezed into a slot column it wrapped six lines deep and
+pushed into the opposing side. Card heights feed the arrow measurement, so the
+calculator's presence is part of `useTurnEdges`' layout key.
+
 ## The damage-calculator link (2026-09-13)
 
 The board's reference row links out to `calc.pokemonshowdown.com`. This is **not**

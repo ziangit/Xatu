@@ -531,6 +531,11 @@ export const JA: Record<string, string> = {
   " → {target}": " → {target}",
   "close move picker": "技の選択を閉じる",
   "Mega Evolves": "メガシンカ",
+  "full calculator ↗": "フル計算機 ↗",
+  "calculator on": "計算機オン",
+  "calculator off": "計算機オフ",
+  "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":
+    "ダメージ計算機——オンのときだけ計算し、対象を指定した技のみ計算します。",
   "switched in": "交代で登場",
   "came in": "死に出し",
   "{species} — came in after a faint; it can move":
