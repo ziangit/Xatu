@@ -22,11 +22,10 @@
 
 export const ZH: Record<string, string> = {
   // ── shared chrome ──────────────────────────────────────────────────────────
-  "Published matchups": "已发布的对阵",
+  "Community matchups": "社区对阵",
   published: "已发布",
   Newest: "最新",
   "Most liked": "最多喜欢",
-  "from the community": "来自社区",
   "Publish yours →": "发布你的 →",
   "see all →": "查看全部 →",
   "Nothing published yet.": "还没有发布的内容。",

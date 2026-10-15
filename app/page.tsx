@@ -58,11 +58,11 @@ function IconRow({ species, scale }: { species: string[]; scale: number }) {
  * unconfigured, which `supabaseConfigured()` answers synchronously, so the
  * local-first build has no hole where this would be. And the row has a
  * reserved height above `md`, which earns its keep twice: the fetch lands
- * after first paint, and the card's byline wraps to two lines in English and
- * Japanese but one in Chinese (measured 195 / 180 / 197px), which would
- * otherwise move the section below it.
+ * after first paint, and a card is a couple of pixels taller in Chinese and
+ * Japanese than in English (measured 266 / 268 / 268), which would otherwise
+ * move every section below it when the language changes.
  *
- * 12.5rem covers all three. It cannot cover everything — a card is mostly
+ * 17rem covers all three. It cannot cover everything — a card is mostly
  * somebody's title and description, so a long post makes a tall row in any
  * language. That much is author content, and pinning it is neither possible
  * nor desirable.
@@ -85,11 +85,8 @@ function PublishedStrip() {
     <section className="border-t border-stone-200 py-14">
       <div className="flex items-baseline gap-3">
         <h2 className="font-display text-xl font-bold tracking-tight">
-          {t("Published matchups")}
+          {t("Community matchups")}
         </h2>
-        <span className="hidden text-[10px] font-semibold uppercase tracking-widest text-stone-400 sm:inline">
-          {t("from the community")}
-        </span>
         <span aria-hidden="true" className="h-px flex-1 bg-stone-200" />
         <Link
           href="/feed"
@@ -99,7 +96,7 @@ function PublishedStrip() {
         </Link>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:min-h-[12.5rem] md:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:min-h-[17rem] md:grid-cols-3">
         {posts === null ? (
           // Invisible for 300ms, so a quick response replaces it before it was
           // ever seen — the `.late-fade-in` rule from /matchups.
@@ -430,7 +427,7 @@ export default function LandingPage() {
                 href="/feed"
                 className="rounded-md border border-stone-300 bg-white px-4 py-2.5 text-xs text-stone-600 hover:border-stone-500"
               >
-                {t("Published matchups")}
+                {t("Community matchups")}
               </Link>
             </div>
           </div>

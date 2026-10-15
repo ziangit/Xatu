@@ -58,7 +58,7 @@ export default function FeedPage() {
           <div>
             <Wordmark />
             <p className="mt-1 text-xs text-stone-500">
-              {t("Published matchups")}
+              {t("Community matchups")}
             </p>
           </div>
           <HeaderNav back="/">

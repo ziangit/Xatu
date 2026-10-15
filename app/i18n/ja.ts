@@ -30,11 +30,10 @@
 
 export const JA: Record<string, string> = {
   // ── shared chrome ──────────────────────────────────────────────────────────
-  "Published matchups": "公開されたマッチアップ",
+  "Community matchups": "コミュニティのマッチアップ",
   published: "公開",
   Newest: "新着",
   "Most liked": "人気順",
-  "from the community": "コミュニティから",
   "Publish yours →": "自分のを公開 →",
   "see all →": "すべて見る →",
   "Nothing published yet.": "まだ公開されたものはありません。",
