@@ -1036,6 +1036,19 @@ export default function SimPage() {
       return { ...n, [sideKey]: next };
     });
 
+  /**
+   * One step round the ring of opponents, wrapping at both ends.
+   *
+   * An unsaved board sits outside the group (`groupIdx < 0`), so stepping
+   * from it starts at the first rather than at nothing.
+   */
+  const step = (by: 1 | -1) => {
+    const n = group.length;
+    if (n === 0) return 0;
+    if (groupIdx < 0) return by === 1 ? 0 : n - 1;
+    return (groupIdx + by + n) % n;
+  };
+
   const setField = (nodeId: string, field: FieldState) =>
     update(nodeId, (n) => {
       // An empty field is no field: the key is dropped so a card with nothing
@@ -1656,11 +1669,14 @@ export default function SimPage() {
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {group.length > 1 && (
                   <>
+                    {/* The arrows wrap. At the last opponent the next one is
+                        the first — a set of matchups is a ring you cycle, not
+                        a list with two dead ends, and a disabled control at
+                        the edge just stops you without saying why. */}
                     <button
-                      onClick={() => switchTo(group[groupIdx - 1])}
-                      disabled={groupIdx <= 0}
+                      onClick={() => switchTo(group[step(-1)])}
                       title={t("previous opponent")}
-                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
+                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500"
                     >
                       ‹
                     </button>
@@ -1690,10 +1706,9 @@ export default function SimPage() {
                       ))}
                     </select>
                     <button
-                      onClick={() => switchTo(group[groupIdx + 1])}
-                      disabled={groupIdx < 0 || groupIdx >= group.length - 1}
+                      onClick={() => switchTo(group[step(1)])}
                       title={t("next opponent")}
-                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500 disabled:opacity-30"
+                      className="rounded border border-stone-300 bg-white px-2 py-1 text-xs leading-none text-stone-500 hover:border-stone-500"
                     >
                       ›
                     </button>

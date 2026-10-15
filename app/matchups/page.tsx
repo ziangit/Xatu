@@ -226,6 +226,22 @@ export default function MatchupsPage() {
      * but setters, refs and imports — a component-scope callee makes it an
      * unstable reference and the mount effect's empty dep array a lint error.
      */
+    /**
+     * And pull the other way, which was missing entirely.
+     *
+     * The account is meant to be a mirror, but only half of it was: rows made
+     * on another device stayed cloud-only, visible in *this* list (which
+     * merges) and invisible everywhere that reads storage — most obviously the
+     * board's opponent switcher, which showed 3 of 4 matchups because the
+     * fourth had never been written to this browser.
+     */
+    for (const row of merged) {
+      if (row.inBrowser || !row.inCloud) continue;
+      const stored = upsertMatchup(row.entry);
+      // At the ceiling, stop: the rest stay cloud-only and still list here.
+      if (!stored.ok) break;
+    }
+
     const pending = merged.filter(
       (r) => r.inBrowser && !r.inCloud && !attempted.current.has(r.id),
     );

@@ -1589,6 +1589,25 @@ Two details worth keeping:
 snapshot, so a post made before this carries rosters until its author presses
 Publish again.
 
+## The mirror only worked one way (2026-10-15)
+
+`/matchups` **merged** browser and account rows for display and uploaded
+browser-only ones, but never wrote account-only rows back down. So a matchup
+made on another device listed on that page and was invisible to everything
+that reads storage — most visibly the board's opponent switcher, which builds
+its group from `loadMatchups()` and showed **3 of 4** while the list showed 4.
+The missing one existed in the account and had simply never reached this
+browser.
+
+`refresh` now pulls the other way too, and stops at the storage ceiling rather
+than failing: the remainder stay cloud-only and still list. Same philosophy as
+the upload half — sync is not a decision the reader should make.
+
+**The opponent arrows wrap.** A set of matchups is a ring you cycle, not a list
+with two dead ends; a disabled control at the edge stops you without saying
+why. From an unsaved board (outside the group) stepping forward starts at the
+first rather than at nothing.
+
 ## Storage ceilings on private matchups (2026-10-15)
 
 **Ceilings, not a product limit.** A planning tool whose value is stored work
