@@ -516,6 +516,8 @@ export const ZH: Record<string, string> = {
   "stat|Def": "防御",
   "stat|SpA": "特攻",
   "stat|SpD": "特防",
+  "needs a set for {species} — re-import that team":
+    "需要 {species} 的配置——请重新导入该队伍",
   "calculator on": "计算器已开",
   "calculator off": "计算器已关",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

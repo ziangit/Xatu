@@ -169,6 +169,37 @@ function setFor(team: StoredTeam, species: string) {
   return null;
 }
 
+/**
+ * Does this team actually carry a set for this Pokémon, or only its name?
+ *
+ * A team can arrive as a bare roster — typed into the species picker, or
+ * carried by a pasted document, which stores rosters without sets. Calculating
+ * one of those means inventing a 0-EV, neutral-nature Pokémon the author never
+ * wrote and then stating the result as fact. A real set has at least one of
+ * these; a bare entry has none.
+ */
+export function hasUsableSet(team: StoredTeam, species: string): boolean {
+  const set = setFor(team, species);
+  if (!set) return false;
+  const evs = Object.values(set.evs ?? {}).some((n) => Number(n) > 0);
+  return evs || !!set.nature || !!set.item || !!set.ability;
+}
+
+/** Which participants have no set, so the board can say what it needs. */
+export function missingSets(
+  attackerTeam: StoredTeam,
+  attacker: string,
+  defenderTeam: StoredTeam,
+  defenders: readonly string[],
+): string[] {
+  const out: string[] = [];
+  if (!hasUsableSet(attackerTeam, attacker)) out.push(attacker);
+  for (const d of defenders) {
+    if (!out.includes(d) && !hasUsableSet(defenderTeam, d)) out.push(d);
+  }
+  return out;
+}
+
 /** Target kinds that hit both opposing Pokémon at once. */
 const SPREAD_AT_FOES = new Set(["allAdjacentFoes", "allAdjacent"]);
 export const isSpreadMove = (targetKind: string | null | undefined) =>
@@ -289,6 +320,11 @@ export async function runCalc(
   const attackerIsMySide = ctx.attackerIsMySide !== false;
   const a = setFor(attackerTeam, attacker);
   if (!a || defenders.length === 0) return null;
+  // Refuse rather than invent. A bare roster entry has no EVs, nature or
+  // item, and calculating one would state a number for a set the author never
+  // wrote — the one thing this feature must not do.
+  if (missingSets(attackerTeam, attacker, defenderTeam, defenders).length > 0)
+    return null;
 
   const calc = await import("@smogon/calc");
   // Generation 0 is Champions — see `MECHANICS[0] = calculateChampions`.

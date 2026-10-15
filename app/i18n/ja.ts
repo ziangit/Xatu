@@ -554,6 +554,8 @@ export const JA: Record<string, string> = {
   "stat|Def": "防御",
   "stat|SpA": "特攻",
   "stat|SpD": "特防",
+  "needs a set for {species} — re-import that team":
+    "{species} の構成が必要です——そのパーティを再読み込みしてください",
   "calculator on": "計算機オン",
   "calculator off": "計算機オフ",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

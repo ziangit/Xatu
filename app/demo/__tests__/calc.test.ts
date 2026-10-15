@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   calcContext,
+  hasUsableSet,
+  missingSets,
   calcKey,
   calcSubject,
   fieldPrint,
@@ -369,5 +371,36 @@ describe("a recorded Mega is calculated as its Mega forme", () => {
       },
     );
     expect(mega).not.toBe(plain);
+  });
+});
+
+describe("a roster without sets is not calculated", () => {
+  // A team typed into the species picker, or carried by a pasted document,
+  // stores names only. Calculating one means inventing a 0-EV neutral Pokémon
+  // the author never wrote and then stating the result as fact.
+  const bare = () => team("bare", "Talonflame\n\nGholdengo");
+
+  it("knows a bare entry from a real set", () => {
+    expect(hasUsableSet(mine(), "Talonflame")).toBe(true);
+    expect(hasUsableSet(bare(), "Talonflame")).toBe(false);
+  });
+
+  it("names every participant that is missing one", () => {
+    expect(missingSets(bare(), "Talonflame", theirs(), ["Gholdengo"])).toEqual([
+      "Talonflame",
+    ]);
+    expect(missingSets(mine(), "Talonflame", bare(), ["Gholdengo"])).toEqual([
+      "Gholdengo",
+    ]);
+    expect(missingSets(mine(), "Talonflame", theirs(), ["Gholdengo"])).toEqual(
+      [],
+    );
+  });
+
+  it("counts a set with an item but no EVs as real", () => {
+    // Champions sets always total 66 EVs, but an item or a nature alone is
+    // still an author statement — only a naked species name is not.
+    const itemOnly = team("i", "Talonflame @ Charcoal");
+    expect(hasUsableSet(itemOnly, "Talonflame")).toBe(true);
   });
 });

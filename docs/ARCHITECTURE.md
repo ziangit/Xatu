@@ -1040,6 +1040,20 @@ the card for nothing. The fingerprint also carries which side is attacking: a
 screen on the defender's side matters and the same screen on the attacker's
 does not.
 
+**A team without sets is not calculated at all.** A team can arrive as a bare
+roster — typed into the species picker, or carried by a pasted document, which
+stores rosters without sets. The calculator happily built a 0-EV,
+neutral-nature Pokémon out of one and stated the result as fact: a real board
+showed `Leech Life vs. 0 HP / 0 Def Indeedee-F` while the author's own note,
+written from the real set, said `32 HP / 32+ Def`. Inventing a set and
+asserting a number for it is the exact failure this feature is built to avoid.
+
+`hasUsableSet` calls an entry real when it carries any EV, nature, item or
+ability; a naked species line has none of those. `runCalc` refuses when any
+participant is bare, and the board says **which** Pokémon it needs rather than
+going quiet — "needs a set for Indeedee-F — re-import that team" is fixable,
+silence is not.
+
 **A recorded Mega is calculated as its Mega forme, ability and all.** This was
 wrong for a while and badly: Crabominable-Mega has **157 Attack to the base's
 132**, and the forme **forces its own ability** — Iron Fist, where the set

@@ -33,6 +33,7 @@ import {
   hasField,
   inputPrint,
   isFresh,
+  missingSets,
   pruneCalcs,
   runCalc,
   type Boosts,
@@ -463,6 +464,7 @@ function SideBoard({
   onFaint,
   onRemove,
   calcs,
+  calcHintOf,
   boostsOf,
   critOf,
   onBoost,
@@ -502,6 +504,8 @@ function SideBoard({
   onRemove: (species: string) => void;
   /** Stored calculations for this side, or null when the calculator is off. */
   calcs: Record<string, CalcNote> | null;
+  /** Why a calculation is absent, when it would otherwise be there. */
+  calcHintOf: ((species: string) => string[] | null) | null;
   /** Stat stages and crits, offered only while the calculator is on. */
   boostsOf: ((species: string) => Boosts | undefined) | null;
   critOf: (species: string) => boolean;
@@ -743,6 +747,13 @@ function SideBoard({
                     slot column it wrapped six lines deep. Stored text, never
                     re-derived here, and `pruneCalcs` has already dropped
                     anything whose inputs moved. */}
+                {!calcs?.[s] && calcHintOf?.(s) && (
+                  <p className="mb-0.5 mt-0.5 pl-1.5 text-[10px] leading-snug text-stone-400">
+                    {t("needs a set for {species} — re-import that team", {
+                      species: calcHintOf(s)!.join(", "),
+                    })}
+                  </p>
+                )}
                 {calcs?.[s] && (
                   <p
                     className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
@@ -905,6 +916,36 @@ export default function SimPage() {
     const team = side === "my" ? setup.my : setup.opp;
     const item = team.parsed.find((m) => m.species === species)?.item;
     return megaFormeOf(species, item) ?? null;
+  };
+
+  /**
+   * Why there is no calculation, when there would otherwise be one.
+   *
+   * A team pasted as a document, or typed into the species picker, carries
+   * rosters without sets — and a set with no EVs is not something to calculate
+   * quietly with zeroes. Naming the Pokémon makes it fixable: re-import that
+   * team's Showdown export.
+   */
+  const calcHint = (node: TurnNode, side: "my" | "opp", species: string) => {
+    if (!setup || !moveMetaOf) return null;
+    const targetKind = (m: string) => moveMetaOf(m)?.target ?? null;
+    const state = node[side];
+    const foe = side === "my" ? node.opp : node.my;
+    const subject = calcSubject(state, species, targetKind, foe);
+    if (!subject) return null;
+    const attackerTeam = side === "my" ? setup.my : setup.opp;
+    const defenderTeam = subject.defendersAreAllies
+      ? attackerTeam
+      : side === "my"
+        ? setup.opp
+        : setup.my;
+    const missing = missingSets(
+      attackerTeam,
+      species,
+      defenderTeam,
+      subject.defenders,
+    );
+    return missing.length > 0 ? missing : null;
   };
 
   const sideCalcs = (node: TurnNode, side: "my" | "opp") => {
@@ -1966,6 +2007,9 @@ export default function SimPage() {
                       </span>
                       <SideBoard
                         calcs={calcOn ? sideCalcs(node, "my") : null}
+                        calcHintOf={
+                          calcOn ? (sp) => calcHint(node, "my", sp) : null
+                        }
                         boostsOf={calcOn ? (sp) => node.my.boosts?.[sp] : null}
                         critOf={(sp) => !!node.my.crit?.includes(sp)}
                         onBoost={(sp, stat, stage) =>
@@ -2035,6 +2079,9 @@ export default function SimPage() {
                       />
                       <SideBoard
                         calcs={calcOn ? sideCalcs(node, "opp") : null}
+                        calcHintOf={
+                          calcOn ? (sp) => calcHint(node, "opp", sp) : null
+                        }
                         boostsOf={calcOn ? (sp) => node.opp.boosts?.[sp] : null}
                         critOf={(sp) => !!node.opp.crit?.includes(sp)}
                         onBoost={(sp, stat, stage) =>
