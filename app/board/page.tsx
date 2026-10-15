@@ -47,6 +47,7 @@ import {
   loadCalcOn,
   loadMatchups,
   loadSetup,
+  MAX_MATCHUPS,
   saveCalcOn,
   saveSetup,
   setActiveMatchupId,
@@ -870,6 +871,8 @@ export default function SimPage() {
   );
   /** Cloud copy of the last save: off (signed out), ok, or an error message. */
   const [cloudState, setCloudState] = useState<"off" | "ok" | string>("off");
+  /** Set when the browser itself refused the save — full, or at the ceiling. */
+  const [localSave, setLocalSave] = useState<"full" | "limit" | null>(null);
   /** Every board built with the same team of mine — the opponent switcher. */
   const [group, setGroup] = useState<SavedMatchup[]>([]);
   const [showHelp, setShowHelp] = useState(false);
@@ -1487,7 +1490,8 @@ export default function SimPage() {
       nodes: pruned,
       savedAt: new Date().toISOString(),
     };
-    upsertMatchup(entry);
+    const stored = upsertMatchup(entry);
+    setLocalSave(stored.ok ? null : stored.reason);
     setActiveMatchupId(entry.id);
     setMatchup({ id: entry.id, name: entry.name });
     setSavedAt(entry.savedAt);
@@ -1857,7 +1861,20 @@ export default function SimPage() {
             doesn't push the board down (and the row isn't a blank gap before
             one). Never empty — unsaved is itself worth saying. */}
         <div className="flex h-5 items-center justify-end text-[10px]">
-          {cloudState !== "ok" && cloudState !== "off" ? (
+          {/* The browser refusing the write comes first: an unsaved board is a
+              worse thing to be quiet about than an unsynced one. */}
+          {localSave ? (
+            <p className="truncate text-[#e5484d]">
+              {localSave === "limit"
+                ? t(
+                    "not saved — this browser is holding {n} matchups, its limit. Delete one to make room.",
+                    { n: MAX_MATCHUPS },
+                  )
+                : t(
+                    "not saved — this browser is out of storage. Delete a matchup to make room.",
+                  )}
+            </p>
+          ) : cloudState !== "ok" && cloudState !== "off" ? (
             <p
               className="truncate text-amber-700"
               title={t("account sync failed: {error}", { error: cloudState })}

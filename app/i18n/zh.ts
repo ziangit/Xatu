@@ -518,6 +518,10 @@ export const ZH: Record<string, string> = {
   "stat|SpD": "特防",
   "needs a set for {species} — re-import that team":
     "需要 {species} 的配置——请重新导入该队伍",
+  "not saved — this browser is holding {n} matchups, its limit. Delete one to make room.":
+    "未保存——此浏览器已存 {n} 个对阵，达到上限。删除一个以腾出空间。",
+  "not saved — this browser is out of storage. Delete a matchup to make room.":
+    "未保存——此浏览器存储空间已满。删除一个对阵以腾出空间。",
   "calculator on": "计算器已开",
   "calculator off": "计算器已关",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

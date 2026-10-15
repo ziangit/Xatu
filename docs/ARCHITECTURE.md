@@ -1560,6 +1560,38 @@ things, both tested: forking the same page twice updates one set instead of
 forking two, and two authors who publish the same archetype under the same name
 cannot collide.
 
+## Storage ceilings on private matchups (2026-10-15)
+
+**Ceilings, not a product limit.** A planning tool whose value is stored work
+must never tell someone using it normally that they cannot save, and there is
+no paid tier to upsell into. These numbers exist so a script cannot fill the
+database and one browser cannot quietly blow its localStorage quota.
+
+Sized from measurement: the largest real board is **7.7KB**, the average 4.9KB,
+and the heaviest real account holds **20** matchups.
+
+| ceiling              | value | why                                                                                     |
+| -------------------- | ----- | --------------------------------------------------------------------------------------- |
+| matchups per browser | 300   | ≈2.2MB at the worst observed size, inside a few-MB quota, 15× the heaviest real account |
+| `matchups.payload`   | 256KB | 33× the largest real board; the one column that had no cap at all                       |
+| matchups per account | 2,000 | far past any human use; stops a scripted fill                                           |
+
+**An existing matchup always saves.** Both the local cap and the database
+ceiling apply to _new_ rows only — the board upserts on every save, and
+refusing work already in progress would make the ceiling cost exactly what it
+was meant to protect. The database trigger is `BEFORE INSERT`, never UPDATE.
+
+**The account ceiling counts live rows, not an append-only log** — the opposite
+of the daily post caps. Deleting a post does not un-send spam, but deleting a
+matchup genuinely frees the space this protects, so it gives the room back.
+
+**The real limit is localStorage, and it used to fail silently.** `write()`
+swallowed the quota error with a comment saying the demo tolerated it; the
+symptom was a board that simply did not save. It now returns whether it worked,
+`upsertMatchup` returns `{ok}` or a reason, and the board's status line says
+**"not saved"** in red — ahead of the cloud-sync warning, because an unsaved
+board is worse to be quiet about than an unsynced one.
+
 ## Abuse limits, and what cannot be limited (2026-10-12)
 
 **Local-first has an identity edge, and it is deliberate** (audited

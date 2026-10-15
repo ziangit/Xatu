@@ -178,12 +178,21 @@ function read<T>(key: string): T | null {
   }
 }
 
-function write(key: string, value: unknown) {
-  if (typeof window === "undefined") return;
+/**
+ * Write, and **say whether it worked**.
+ *
+ * This used to swallow the failure, which is the worst thing it could do: a
+ * browser with full storage loses a board and says nothing. The quota is a
+ * real ceiling (a few MB per origin), and the symptom of hitting it is silent
+ * data loss, not an error anyone sees.
+ */
+function write(key: string, value: unknown): boolean {
+  if (typeof window === "undefined") return false;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // storage full/unavailable — demo tolerates silently
+    return false;
   }
 }
 
@@ -379,9 +388,41 @@ export function loadMatchups(): SavedMatchup[] {
   return all;
 }
 
-export function upsertMatchup(matchup: SavedMatchup) {
-  const rest = loadMatchups().filter((m) => m.id !== matchup.id);
-  write(KEYS.matchups, [matchup, ...rest]);
+/**
+ * How many matchups one browser will hold.
+ *
+ * A ceiling against runaway storage, never a product limit. localStorage is a
+ * few megabytes per origin, and the largest board measured is 7.7KB — so 300
+ * is about 2.2MB worst case, with room to spare for teams and settings. For
+ * scale, the heaviest real account holds **20**. Nobody planning real teams
+ * will meet this; a loop that forks a set a thousand times will.
+ */
+export const MAX_MATCHUPS = 300;
+
+export type SaveResult =
+  | { ok: true }
+  /** The browser refused the write — almost always a full quota. */
+  | { ok: false; reason: "full" }
+  /** This browser already holds `MAX_MATCHUPS`, and this one is new. */
+  | { ok: false; reason: "limit" };
+
+/**
+ * Store a matchup, replacing any entry with the same id.
+ *
+ * **An existing matchup is always allowed through**, cap or no cap: the limit
+ * exists to stop storage running away, and refusing to save work already in
+ * progress would make it cost exactly what it was meant to protect. Only a
+ * *new* matchup can be turned away.
+ */
+export function upsertMatchup(matchup: SavedMatchup): SaveResult {
+  const all = loadMatchups();
+  const existing = all.some((m) => m.id === matchup.id);
+  if (!existing && all.length >= MAX_MATCHUPS)
+    return { ok: false, reason: "limit" };
+  const rest = all.filter((m) => m.id !== matchup.id);
+  return write(KEYS.matchups, [matchup, ...rest])
+    ? { ok: true }
+    : { ok: false, reason: "full" };
 }
 
 /**

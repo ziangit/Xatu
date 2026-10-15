@@ -556,6 +556,10 @@ export const JA: Record<string, string> = {
   "stat|SpD": "特防",
   "needs a set for {species} — re-import that team":
     "{species} の構成が必要です——そのパーティを再読み込みしてください",
+  "not saved — this browser is holding {n} matchups, its limit. Delete one to make room.":
+    "保存されていません——このブラウザは {n} 件の対戦を保持しており上限です。1 件削除してください。",
+  "not saved — this browser is out of storage. Delete a matchup to make room.":
+    "保存されていません——このブラウザの保存容量がいっぱいです。対戦を 1 件削除してください。",
   "calculator on": "計算機オン",
   "calculator off": "計算機オフ",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

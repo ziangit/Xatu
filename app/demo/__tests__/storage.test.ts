@@ -9,6 +9,7 @@ import {
   renameTeam,
   saveSetup,
   upsertMatchup,
+  MAX_MATCHUPS,
   type SavedMatchup,
   type StoredTeam,
 } from "../storage";
@@ -288,5 +289,44 @@ describe("forgetTeams", () => {
     forgetTeams([my.id]);
 
     expect(loadSavedTeams().some((x) => x.id === my.id)).toBe(true);
+  });
+});
+
+describe("the storage ceiling", () => {
+  it("lets an existing matchup through even at the limit", () => {
+    // The cap exists to stop storage running away. Refusing to save work
+    // already in progress would make it cost exactly what it protects.
+    const my = team("Fake Out", "Mine");
+    const opp = team("Protect", "Theirs");
+    const filler = Array.from({ length: MAX_MATCHUPS }, (_, i) => ({
+      ...board(my, opp),
+      id: `filler-${i}`,
+    }));
+    window.localStorage.setItem("xatu-demo:matchups", JSON.stringify(filler));
+    expect(upsertMatchup({ ...filler[0], name: "renamed" })).toEqual({
+      ok: true,
+    });
+    expect(upsertMatchup({ ...board(my, opp), id: "brand-new" })).toEqual({
+      ok: false,
+      reason: "limit",
+    });
+  });
+
+  it("reports a refused write instead of losing it quietly", () => {
+    const my = team("Fake Out", "Mine");
+    const opp = team("Protect", "Theirs");
+    window.localStorage.setItem("xatu-demo:matchups", "[]");
+    const real = window.localStorage.setItem;
+    window.localStorage.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    try {
+      expect(upsertMatchup(board(my, opp))).toEqual({
+        ok: false,
+        reason: "full",
+      });
+    } finally {
+      window.localStorage.setItem = real;
+    }
   });
 });
