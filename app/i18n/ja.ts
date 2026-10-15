@@ -613,9 +613,10 @@ export const JA: Record<string, string> = {
   "Team report & sharing": "パーティ報告と共有",
   "If you don’t want to write a 10,000-word team report, maybe one graph is enough.":
     "1万字のパーティ報告を書きたくないなら、図ひとつで足りるかもしれません。",
-  "The whole gameplan, portable": "戦略まるごと、持ち運べる",
-  "A finished matchup tree is a few hundred bytes of JSON. Copy it out of the builder, post it under your team report, paste it back in — same board.":
-    "完成したマッチアップツリーは数百バイトの JSON です。ビルダーからコピーして構築記事に貼り、また貼り戻せば——同じボードが戻ります。",
+  "Start from a paste. Keep it in your browser.":
+    "貼るところから。データはこのブラウザに。",
+  "Import a team from a pokepast.es link or a Showdown export — xatu reads both, exactly as you wrote it. Your teams and boards live in this browser. No account at all until you want one, and then it syncs and publishes.":
+    "pokepast.es のリンクでも Showdown のエクスポートでも、そのまま貼れば書いたとおりに読み込めます。パーティもボードもこのブラウザの中にあります。アカウントは欲しくなるまで一切不要で、作れば同期と公開ができます。",
   "A miniature matchup tree: team preview branching into two turn-one lines":
     "小さなマッチアップツリー：選出画面から1ターン目の2つの展開へ分岐",
   "Turn 0 · team preview": "ターン0 · 選出",

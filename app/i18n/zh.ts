@@ -575,9 +575,10 @@ export const ZH: Record<string, string> = {
   "Team report & sharing": "队伍报告与分享",
   "If you don’t want to write a 10,000-word team report, maybe one graph is enough.":
     "不想写一万字的队伍报告？也许一张图就够了。",
-  "The whole gameplan, portable": "完整战术，随身携带",
-  "A finished matchup tree is a few hundred bytes of JSON. Copy it out of the builder, post it under your team report, paste it back in — same board.":
-    "一棵完整的对阵树只有几百字节 JSON。从构建器里复制出来，贴在你的队伍报告下面，再粘回来——还是同一块战术板。",
+  "Start from a paste. Keep it in your browser.":
+    "从一次粘贴开始，数据留在你的浏览器里。",
+  "Import a team from a pokepast.es link or a Showdown export — xatu reads both, exactly as you wrote it. Your teams and boards live in this browser. No account at all until you want one, and then it syncs and publishes.":
+    "粘贴 pokepast.es 链接或 Showdown 导出文本，xatu 两种都读得懂，并且原样保留。你的队伍和战术板都存在这个浏览器里——在你需要之前完全不用账号，有了账号才会同步和发布。",
   "A miniature matchup tree: team preview branching into two turn-one lines":
     "一棵缩小的对阵树：从选人画面分出两条第一回合的走法",
   "Turn 0 · team preview": "第 0 回合 · 选人",

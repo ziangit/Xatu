@@ -332,8 +332,6 @@ function HeroTree() {
   );
 }
 
-const SAMPLE_JSON = `{"v":2,"my":{"n":"Sand","f":"","s":["Tyranitar","Excadrill","Milotic","Gholdengo","Sinistcha","Staraptor"]},"op":{"n":"Rain","f":"","s":["Aerodactyl","Charizard","Garchomp","Sylveon","Kingambit","Dragonite"]},"t":[[0,"01|23","01|23"],[1,"01|23||0:Rock Slide,1:High Horsepower>f0","04|23"],[1,"32|05","14|30"]]}`;
-
 export default function LandingPage() {
   const t = useT();
   return (
@@ -476,20 +474,25 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* The two promises CLAUDE.md treats as load-bearing and the October
+            copy pass left off the page: paste-first import, and local-first.
+            This space used to hold a sample of the copy/paste document — the
+            feature is still there, on every set and every board, but a wire
+            format is plumbing and does not belong on a landing page. */}
         <section className="border-t border-stone-200 py-14">
           <h2 className="text-sm font-semibold">
-            {t("The whole gameplan, portable")}
+            {t("Start from a paste. Keep it in your browser.")}
           </h2>
+          {/* No height reserve: the paragraph is three lines in all three
+              languages at every width (measured 1512 and 1100), and only the
+              footer sits below it. A 4.5em reserve here measured *inert* —
+              three relaxed lines are already taller than it — which is the
+              same trap the hero paragraph sprang on 2026-10-12. */}
           <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-stone-500">
             {t(
-              "A finished matchup tree is a few hundred bytes of JSON. Copy it out of the builder, post it under your team report, paste it back in — same board.",
+              "Import a team from a pokepast.es link or a Showdown export — xatu reads both, exactly as you wrote it. Your teams and boards live in this browser. No account at all until you want one, and then it syncs and publishes.",
             )}
           </p>
-          <div className="mt-4 overflow-x-auto rounded-lg border border-stone-200 bg-[#f6f5ef] p-4">
-            <code className="whitespace-nowrap font-mono text-[11px] text-stone-500">
-              {SAMPLE_JSON}
-            </code>
-          </div>
         </section>
 
         <footer className="flex flex-col gap-2 border-t border-stone-200 py-8 text-[11px] leading-relaxed text-stone-400 md:flex-row md:items-baseline md:justify-between">
