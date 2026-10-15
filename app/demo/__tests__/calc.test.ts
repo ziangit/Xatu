@@ -232,14 +232,9 @@ describe("field conditions", () => {
 
   it("is part of the fingerprint, so changing it restates the number", () => {
     const print = (field?: Parameters<typeof fieldPrint>[0]) =>
-      inputPrint(
-        mine(),
-        "Talonflame",
-        theirs(),
-        ["Gholdengo"],
-        "Overheat",
+      inputPrint(mine(), "Talonflame", theirs(), ["Gholdengo"], "Overheat", {
         field,
-      );
+      });
     expect(print()).toBe(print({}));
     expect(print({ weather: "Sun" })).not.toBe(print());
     expect(print({ weather: "Sun" })).not.toBe(print({ weather: "Rain" }));
@@ -256,8 +251,7 @@ describe("field conditions", () => {
       theirs(),
       ["Gholdengo"],
       "Overheat",
-      field,
-      true,
+      { field, attackerIsMySide: true },
     );
     const asTheirs = inputPrint(
       mine(),
@@ -265,8 +259,7 @@ describe("field conditions", () => {
       theirs(),
       ["Gholdengo"],
       "Overheat",
-      field,
-      false,
+      { field, attackerIsMySide: false },
     );
     expect(asMine).not.toBe(asTheirs);
   });
@@ -291,5 +284,34 @@ describe("spread damage depends on how many are actually out", () => {
       "Heat Wave",
     );
     expect(one).not.toBe(two);
+  });
+});
+
+describe("stat stages and crits are part of the fingerprint", () => {
+  const print = (ctx = {}) =>
+    inputPrint(mine(), "Talonflame", theirs(), ["Gholdengo"], "Overheat", ctx);
+
+  it("an attacker's stage restates the number", () => {
+    expect(print({ attackerBoosts: { spa: 1 } })).not.toBe(print());
+    expect(print({ attackerBoosts: { spa: 1 } })).not.toBe(
+      print({ attackerBoosts: { spa: -1 } }),
+    );
+  });
+
+  it("a defender's stage restates it too", () => {
+    expect(print({ defenderBoosts: { Gholdengo: { spd: 2 } } })).not.toBe(
+      print(),
+    );
+  });
+
+  it("a stage of zero is the same as no stage", () => {
+    // Stepping up and back down must not leave the card permanently stale.
+    expect(print({ attackerBoosts: { spa: 0 } })).toBe(print());
+    expect(print({ attackerBoosts: {} })).toBe(print());
+  });
+
+  it("a crit restates it", () => {
+    expect(print({ crit: true })).not.toBe(print());
+    expect(print({ crit: false })).toBe(print());
   });
 });

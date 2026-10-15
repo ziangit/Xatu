@@ -85,6 +85,42 @@ export function fieldPrint(field: FieldState | undefined): string {
 export const hasField = (f: FieldState | undefined) =>
   !!f && fieldPrint(f) !== "///";
 
+/**
+ * Stat stages, −6..+6, for the Pokémon they belong to.
+ *
+ * On the **Pokémon**, not on the attack: an Intimidated Camerupt is at −1
+ * Attack for everything it does, and a +2 defender is +2 against everything
+ * aimed at it. Storing it per attack would mean entering the same number
+ * twice and letting the two disagree. Speed is absent on purpose — it changes
+ * no damage, and offering it would imply xatu models turn order, which it
+ * does not.
+ */
+export interface Boosts {
+  atk?: number;
+  def?: number;
+  spa?: number;
+  spd?: number;
+}
+
+/** Everything about a calculation that is not the attacker, move or target. */
+export interface CalcContext {
+  field?: FieldState;
+  /** Which side is attacking — screens and Helping Hand are side-specific. */
+  attackerIsMySide?: boolean;
+  attackerBoosts?: Boosts;
+  /** Keyed by defender species: each one brings its own stages. */
+  defenderBoosts?: Record<string, Boosts>;
+  /** A critical hit — a property of *this attack*, unlike the stages. */
+  crit?: boolean;
+}
+
+const boostPrint = (b: Boosts | undefined) =>
+  b ? `${b.atk ?? 0}/${b.def ?? 0}/${b.spa ?? 0}/${b.spd ?? 0}` : "0/0/0/0";
+
+/** True when a Pokémon has any stage set — the chip shows a marker only then. */
+export const hasBoosts = (b: Boosts | undefined) =>
+  !!b && boostPrint(b) !== "0/0/0/0";
+
 /** A calculation, kept only while `print` still describes the current inputs. */
 export interface CalcNote {
   /** The sentence, exactly as `@smogon/calc`'s `desc()` renders it. */
@@ -176,8 +212,7 @@ export function inputPrint(
   defenderTeam: StoredTeam,
   defenders: readonly string[],
   move: string,
-  field?: FieldState,
-  attackerIsMySide = true,
+  ctx: CalcContext = {},
 ): string {
   const a = setFor(attackerTeam, attacker);
   if (!a || defenders.length === 0) return "";
@@ -190,7 +225,13 @@ export function inputPrint(
   // The spread reduction depends on how many targets are actually out, so the
   // game type is part of the number and therefore part of the fingerprint.
   parts.push(gameTypeFor(defenders));
-  parts.push(fieldPrint(field), attackerIsMySide ? "m" : "o");
+  parts.push(
+    fieldPrint(ctx.field),
+    ctx.attackerIsMySide === false ? "o" : "m",
+    boostPrint(ctx.attackerBoosts),
+    defenders.map((d) => boostPrint(ctx.defenderBoosts?.[d])).join(";"),
+    ctx.crit ? "crit" : "",
+  );
   return hash(parts.join("\u0000"));
 }
 
@@ -224,16 +265,21 @@ export async function runCalc(
   defenderTeam: StoredTeam,
   defenders: readonly string[],
   move: string,
-  field?: FieldState,
-  attackerIsMySide = true,
+  ctx: CalcContext = {},
 ): Promise<CalcNote | null> {
+  const { field, crit } = ctx;
+  const attackerIsMySide = ctx.attackerIsMySide !== false;
   const a = setFor(attackerTeam, attacker);
   if (!a || defenders.length === 0) return null;
 
   const calc = await import("@smogon/calc");
   // Generation 0 is Champions — see `MECHANICS[0] = calculateChampions`.
   const gen = calc.Generations.get(0);
-  const build = (set: ReturnType<typeof Sets.importSet>, species: string) =>
+  const build = (
+    set: ReturnType<typeof Sets.importSet>,
+    species: string,
+    boosts: Boosts | undefined,
+  ) =>
     new calc.Pokemon(gen, species, {
       level: set?.level ?? 50,
       nature: set?.nature || "Hardy",
@@ -242,6 +288,7 @@ export async function runCalc(
       evs: set?.evs ?? {},
       ivs: set?.ivs ?? {},
       teraType: set?.teraType as never,
+      ...(hasBoosts(boosts) ? { boosts: boosts as never } : {}),
     });
 
   const sideField = (f: SideField | undefined) => ({
@@ -264,9 +311,9 @@ export async function runCalc(
     try {
       result = calc.calculate(
         gen,
-        build(a, attacker),
-        build(d, defender),
-        new calc.Move(gen, move),
+        build(a, attacker, ctx.attackerBoosts),
+        build(d, defender, ctx.defenderBoosts?.[defender]),
+        new calc.Move(gen, move, crit ? { isCrit: true } : undefined),
         // The author's stated field, mapped onto the library's shape. The
         // attacker's own side owns Helping Hand; the defender's owns the
         // screens and Friend Guard, so the two swap when the opposing side is
@@ -318,9 +365,29 @@ export async function runCalc(
       defenderTeam,
       defenders,
       move,
-      field,
-      attackerIsMySide,
+      ctx,
     ),
+  };
+}
+
+/**
+ * Everything a calculation needs beyond the attacker, move and targets, read
+ * off the card. One place, so the recompute, the freshness check at display
+ * and the prune before saving can never disagree about what was calculated.
+ */
+export function calcContext(
+  node: Pick<TurnNode, "my" | "opp" | "field">,
+  side: "my" | "opp",
+  attacker: string,
+): CalcContext {
+  const state = node[side];
+  const foe = side === "my" ? node.opp : node.my;
+  return {
+    field: node.field,
+    attackerIsMySide: side === "my",
+    attackerBoosts: state.boosts?.[attacker],
+    defenderBoosts: foe.boosts,
+    crit: !!state.crit?.includes(attacker),
   };
 }
 
@@ -371,8 +438,7 @@ export function pruneCalcs(
         defenderTeam,
         subject.defenders,
         subject.move,
-        node.field,
-        side === "my",
+        calcContext(node, side, species),
       );
       if (isFresh(note, print)) kept[key] = note;
     }

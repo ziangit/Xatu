@@ -28,12 +28,14 @@ import { applyGroupImport, importSummary } from "../demo/import-group";
 import { FieldPanel } from "../demo/field-panel";
 import {
   calcKey,
+  calcContext,
   calcSubject,
   hasField,
   inputPrint,
   isFresh,
   pruneCalcs,
   runCalc,
+  type Boosts,
   type CalcNote,
   type FieldState,
 } from "../demo/calc";
@@ -133,6 +135,11 @@ function MovePicker({
   foeFront,
   backChoices,
   switchedIn,
+  boosts,
+  crit,
+  showBoosts,
+  onBoost,
+  onCrit,
   megaForme,
   megaActive,
   anchor,
@@ -154,6 +161,13 @@ function MovePicker({
   /** This Pokémon came in on this turn — switching in IS its action, so it
    * can't also move or Mega Evolve. */
   switchedIn: boolean;
+  /** Stat stages for this Pokémon, and whether its move crits. Null = the
+   *  calculator is off, so none of it is offered. */
+  boosts: Boosts | undefined;
+  crit: boolean;
+  showBoosts: boolean;
+  onBoost: (stat: keyof Boosts, stage: number) => void;
+  onCrit: (on: boolean) => void;
   /** Its Mega forme, when it holds the matching stone (null otherwise). */
   megaForme: string | null;
   megaActive: boolean;
@@ -287,6 +301,69 @@ function MovePicker({
                 {t("no move — just position")}
               </button>
             )}
+            {/* Stages belong to the Pokémon, so they live in its own picker
+                and apply to everything it does *and* everything done to it —
+                the calculation reads the attacker's offensive stage and the
+                defender's defensive one. A crit belongs to this attack, so it
+                sits with the move. Nothing here is inferred: xatu will not
+                apply Intimidate for you. */}
+            {showBoosts && (
+              <div className="mt-1 border-t border-stone-100 pt-1">
+                <p className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-stone-400">
+                  {t("stat stages")}
+                </p>
+                {(["atk", "def", "spa", "spd"] as const).map((stat) => {
+                  const stage = boosts?.[stat] ?? 0;
+                  return (
+                    <div
+                      key={stat}
+                      className="flex items-center gap-1 px-1.5 py-0.5"
+                    >
+                      <span className="w-7 text-[10px] text-stone-500">
+                        {/* The key must read correctly in English: a missing
+                            translation falls back to the text after `|`. */}
+                        {t(STAT_LABEL[stat])}
+                      </span>
+                      <button
+                        onClick={() => onBoost(stat, stage - 1)}
+                        disabled={stage <= -6}
+                        className="h-4 w-4 rounded border border-stone-200 text-[10px] leading-none text-stone-500 hover:border-stone-400 disabled:opacity-30"
+                      >
+                        −
+                      </button>
+                      <span
+                        className={`w-6 text-center text-[10px] tabular-nums ${
+                          stage > 0
+                            ? "font-semibold text-emerald-700"
+                            : stage < 0
+                              ? "font-semibold text-[#e5484d]"
+                              : "text-stone-400"
+                        }`}
+                      >
+                        {stage > 0 ? `+${stage}` : stage}
+                      </span>
+                      <button
+                        onClick={() => onBoost(stat, stage + 1)}
+                        disabled={stage >= 6}
+                        className="h-4 w-4 rounded border border-stone-200 text-[10px] leading-none text-stone-500 hover:border-stone-400 disabled:opacity-30"
+                      >
+                        +
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => onCrit(!crit)}
+                  className={`mt-0.5 block w-full rounded px-1.5 py-1 text-left text-[11px] transition-colors ${
+                    crit
+                      ? "bg-amber-500 font-semibold text-white hover:opacity-85"
+                      : "text-stone-500 hover:bg-stone-100"
+                  }`}
+                >
+                  {crit ? t("✦ critical hit") : t("critical hit")}
+                </button>
+              </div>
+            )}
             <button
               onClick={() => {
                 onBench();
@@ -386,6 +463,10 @@ function SideBoard({
   onFaint,
   onRemove,
   calcs,
+  boostsOf,
+  critOf,
+  onBoost,
+  onCrit,
 }: {
   title: string;
   roster: string[];
@@ -421,6 +502,11 @@ function SideBoard({
   onRemove: (species: string) => void;
   /** Stored calculations for this side, or null when the calculator is off. */
   calcs: Record<string, CalcNote> | null;
+  /** Stat stages and crits, offered only while the calculator is on. */
+  boostsOf: ((species: string) => Boosts | undefined) | null;
+  critOf: (species: string) => boolean;
+  onBoost: (species: string, stat: keyof Boosts, stage: number) => void;
+  onCrit: (species: string, on: boolean) => void;
 }) {
   const t = useT();
   const moveColor = (move: string) => {
@@ -634,6 +720,11 @@ function SideBoard({
                       foeFront={foeFront}
                       backChoices={state.back}
                       switchedIn={switchedIn.has(s)}
+                      showBoosts={!!boostsOf}
+                      boosts={boostsOf?.(s)}
+                      crit={critOf(s)}
+                      onBoost={(stat, stage) => onBoost(s, stat, stage)}
+                      onCrit={(on) => onCrit(s, on)}
                       megaForme={megaFormeFor(s)}
                       megaActive={state.mega === s}
                       anchor={pickerAnchor}
@@ -699,6 +790,14 @@ interface MoveMeta {
 
 /** Dex targeting kinds that require the author to pick a specific target.
  * Spread moves (Rock Slide), self/side/field moves need no choice. */
+/** Keyed so an untranslated fallback still reads "Atk", not "atk". */
+const STAT_LABEL = {
+  atk: "stat|Atk",
+  def: "stat|Def",
+  spa: "stat|SpA",
+  spd: "stat|SpD",
+} as const;
+
 const CHOICE_TARGETS = new Set([
   "normal",
   "any",
@@ -823,8 +922,7 @@ export default function SimPage() {
         defenderTeam,
         subject.defenders,
         subject.move,
-        node.field,
-        side === "my",
+        calcContext(node, side, species),
       );
       if (isFresh(note, print)) out[species] = note;
     }
@@ -847,6 +945,44 @@ export default function SimPage() {
     }
     return bits.join(" · ");
   };
+
+  /** A stat stage on one Pokémon, this turn. Zero clears it. */
+  const setBoost = (
+    nodeId: string,
+    sideKey: "my" | "opp",
+    species: string,
+    stat: keyof Boosts,
+    stage: number,
+  ) =>
+    update(nodeId, (n) => {
+      const side = n[sideKey];
+      const mine = { ...(side.boosts?.[species] ?? {}) };
+      if (stage === 0) delete mine[stat];
+      else mine[stat] = Math.max(-6, Math.min(6, stage));
+      const boosts = { ...side.boosts };
+      if (Object.keys(mine).length === 0) delete boosts[species];
+      else boosts[species] = mine;
+      const next = { ...side };
+      if (Object.keys(boosts).length === 0) delete next.boosts;
+      else next.boosts = boosts;
+      return { ...n, [sideKey]: next };
+    });
+
+  const setCrit = (
+    nodeId: string,
+    sideKey: "my" | "opp",
+    species: string,
+    on: boolean,
+  ) =>
+    update(nodeId, (n) => {
+      const side = n[sideKey];
+      const crit = (side.crit ?? []).filter((s) => s !== species);
+      if (on) crit.push(species);
+      const next = { ...side };
+      if (crit.length === 0) delete next.crit;
+      else next.crit = crit;
+      return { ...n, [sideKey]: next };
+    });
 
   const setField = (nodeId: string, field: FieldState) =>
     update(nodeId, (n) => {
@@ -912,8 +1048,7 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
-              node.field,
-              side === "my",
+              calcContext(node, side, species),
             );
             const key = calcKey(side, species);
             if (isFresh(node.calcs?.[key], print)) continue;
@@ -923,8 +1058,7 @@ export default function SimPage() {
               defenderTeam,
               subject.defenders,
               subject.move,
-              node.field,
-              side === "my",
+              calcContext(node, side, species),
             );
             if (note) additions.push({ id: node.id, key, note });
           }
@@ -1611,8 +1745,8 @@ export default function SimPage() {
                 )}
                 className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
                   calcOn
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    : "border-stone-300 bg-white text-stone-600 hover:border-stone-500"
+                    ? "border-emerald-700 bg-emerald-700 text-white hover:opacity-85"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400"
                 }`}
               >
                 {calcOn ? t("calculator on") : t("calculator off")}
@@ -1816,6 +1950,12 @@ export default function SimPage() {
                       </span>
                       <SideBoard
                         calcs={calcOn ? sideCalcs(node, "my") : null}
+                        boostsOf={calcOn ? (sp) => node.my.boosts?.[sp] : null}
+                        critOf={(sp) => !!node.my.crit?.includes(sp)}
+                        onBoost={(sp, stat, stage) =>
+                          setBoost(node.id, "my", sp, stat, stage)
+                        }
+                        onCrit={(sp, on) => setCrit(node.id, "my", sp, on)}
                         title={t("My Team")}
                         roster={setup.my.parsed.map((m) => m.species)}
                         movesFor={(s) =>
@@ -1879,6 +2019,12 @@ export default function SimPage() {
                       />
                       <SideBoard
                         calcs={calcOn ? sideCalcs(node, "opp") : null}
+                        boostsOf={calcOn ? (sp) => node.opp.boosts?.[sp] : null}
+                        critOf={(sp) => !!node.opp.crit?.includes(sp)}
+                        onBoost={(sp, stat, stage) =>
+                          setBoost(node.id, "opp", sp, stat, stage)
+                        }
+                        onCrit={(sp, on) => setCrit(node.id, "opp", sp, on)}
                         title={t("Opposing Team")}
                         roster={setup.opp.parsed.map((m) => m.species)}
                         movesFor={(s) =>

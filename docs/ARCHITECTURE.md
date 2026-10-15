@@ -1040,6 +1040,30 @@ the card for nothing. The fingerprint also carries which side is attacking: a
 screen on the defender's side matters and the same screen on the attacker's
 does not.
 
+**Stat stages belong to the Pokémon; a crit belongs to the attack.** An
+Intimidated Camerupt is at −1 Attack for everything it does, and a +2 defender
+is +2 against everything aimed at it — so stages live in `SideState.boosts`
+keyed by species, set from that Pokémon's own picker, and the calculation reads
+the attacker's offensive stage and the **defender's** defensive one without the
+author entering the same number twice. A critical hit is a property of this
+move on this turn, so it rides with the attacker in `SideState.crit`.
+
+Speed is deliberately absent from the stepper: it changes no damage, and
+offering it would imply xatu models turn order. And **Intimidate is not applied
+for you**, common as it is — reading a stat change off an ability is xatu
+deciding what happened, which is the line this whole feature is built to
+respect. The author states it.
+
+`calcContext(node, side, attacker)` assembles field, stages, crit and which
+side attacks in **one** place, so the recompute, the freshness check at display
+and the prune before saving can never disagree about what was calculated. A
+stage of zero fingerprints identically to no stage, or stepping up and back
+down would leave the card permanently stale.
+
+**Stages ride at node level in the wire format**, like `note` and `calcs`: the
+side string packs _roster indices_, and these are sparse, signed and keyed by
+species.
+
 **Cost, measured**: one calculation plus `desc()` is **12.6µs** in Node, and a
 heavy set — 10 opponents × 8 cards × 4 attackers, 320 calculations — is
 **3.7ms**. In the browser, switching the calculator on to the first number

@@ -547,6 +547,13 @@ export const JA: Record<string, string> = {
   "Aurora Veil": "オーロラベール",
   "Helping Hand": "てだすけ",
   "Friend Guard": "フレンドガード",
+  "stat stages": "能力ランク",
+  "critical hit": "急所",
+  "✦ critical hit": "✦ 急所",
+  "stat|Atk": "攻撃",
+  "stat|Def": "防御",
+  "stat|SpA": "特攻",
+  "stat|SpD": "特防",
   "calculator on": "計算機オン",
   "calculator off": "計算機オフ",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

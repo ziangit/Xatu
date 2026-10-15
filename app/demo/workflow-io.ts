@@ -60,7 +60,19 @@ type CompactNode =
   | [number, string, string]
   | [number, string, string, string]
   | [number, string, string, string, CompactCalcs]
-  | [number, string, string, string, CompactCalcs, FieldState];
+  | [number, string, string, string, CompactCalcs, FieldState]
+  | [number, string, string, string, CompactCalcs, FieldState, CompactStages];
+
+/**
+ * Stat stages and crits, per side. They live here rather than in the side
+ * string because that string packs **roster indices**, and these are sparse,
+ * signed and keyed by species. Same reason `note` has always been a node
+ * element.
+ */
+type CompactStages = {
+  my?: { boosts?: Record<string, unknown>; crit?: string[] };
+  opp?: { boosts?: Record<string, unknown>; crit?: string[] };
+};
 
 /** Legacy: one pair per document. Still read, no longer written. */
 export interface CompactWorkflow {
@@ -206,6 +218,20 @@ function encodeTree(
     // Trailing elements are positional, so an earlier one is emitted empty
     // when a later one is present. A card with none of them encodes exactly as
     // it did before any of this existed.
+    const stages: CompactStages = {};
+    for (const side of ["my", "opp"] as const) {
+      const st = n[side];
+      if (st.boosts || st.crit)
+        stages[side] = {
+          ...(st.boosts ? { boosts: st.boosts } : {}),
+          ...(st.crit ? { crit: st.crit } : {}),
+        };
+    }
+    const hasStages = Object.keys(stages).length > 0;
+    // Trailing elements are positional, so an earlier one is emitted empty
+    // when a later one is present. A card with none of them encodes exactly as
+    // it did before any of this existed.
+    if (hasStages) return [...base, note, calcs ?? {}, n.field ?? {}, stages];
     if (n.field) return [...base, note, calcs ?? {}, n.field];
     if (calcs) return [...base, note, calcs];
     return note ? [...base, note] : base;
@@ -229,7 +255,13 @@ export function encodeGroup(
   const myRoster = my.parsed.map((m) => m.species);
   const hasCalcs = boards.some((b) =>
     b.nodes.some(
-      (n) => n.field || (n.calcs && Object.keys(n.calcs).length > 0),
+      (n) =>
+        n.field ||
+        n.my.boosts ||
+        n.my.crit ||
+        n.opp.boosts ||
+        n.opp.crit ||
+        (n.calcs && Object.keys(n.calcs).length > 0),
     ),
   );
   const group: CompactGroup = {
@@ -475,7 +507,7 @@ function decodeTree(
 ): TurnNode[] {
   const ids = t.map(() => crypto.randomUUID());
   const turns: number[] = [];
-  return t.map(([parent, myCode, opCode, note, calcs, field], i) => {
+  return t.map(([parent, myCode, opCode, note, calcs, field, stages], i) => {
     let parentIdx = -1;
     if (parent > 0 && parent <= i) {
       parentIdx = parent - 1;
@@ -532,6 +564,21 @@ function decodeTree(
       translate(lang, "{label}, opposing side", { label }),
       warn,
     );
+    // Stat stages and crits ride at node level but belong to the sides, so
+    // they are put back where the rest of the side state lives.
+    if (stages && typeof stages === "object" && !Array.isArray(stages)) {
+      for (const [sideKey, side] of [
+        ["my", my],
+        ["opp", opp],
+      ] as const) {
+        const s = (stages as CompactStages)[sideKey];
+        if (!s) continue;
+        if (s.boosts && typeof s.boosts === "object")
+          side.boosts = s.boosts as SideState["boosts"];
+        if (Array.isArray(s.crit))
+          side.crit = s.crit.filter((x) => typeof x === "string");
+      }
+    }
     return {
       id: ids[i],
       turn: turns[i],
@@ -543,7 +590,7 @@ function decodeTree(
       // author's accepted sentence, and a published page is a snapshot — a
       // later change to the maths must not move numbers under its readers.
       ...(validCalcs(calcs) ? { calcs } : {}),
-      ...(validField(field) ? { field } : {}),
+      ...(validField(field) && Object.keys(field).length > 0 ? { field } : {}),
     };
   });
 }

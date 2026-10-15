@@ -509,6 +509,13 @@ export const ZH: Record<string, string> = {
   "Aurora Veil": "极光幕",
   "Helping Hand": "帮助",
   "Friend Guard": "友情防守",
+  "stat stages": "能力等级",
+  "critical hit": "会心一击",
+  "✦ critical hit": "✦ 会心一击",
+  "stat|Atk": "攻击",
+  "stat|Def": "防御",
+  "stat|SpA": "特攻",
+  "stat|SpD": "特防",
   "calculator on": "计算器已开",
   "calculator off": "计算器已关",
   "Damage calculator — xatu computes only while this is on, and only for a move with a declared target.":

@@ -52,6 +52,14 @@ export interface SideState {
   front: string[]; // species, ≤2
   back: string[]; // species, ≤2
   fainted: string[];
+  /**
+   * Stat stages per species, −6..+6 — author-stated, never inferred. xatu does
+   * not apply Intimidate for you: reading a stat change off an ability would
+   * be deciding what happened, which is the line this project holds.
+   */
+  boosts?: Record<string, import("./calc").Boosts>;
+  /** Front species whose declared move is a critical hit. */
+  crit?: string[];
   /** Declared move per FRONT species — optional; recording only, never computed. */
   moves?: Record<string, string>;
   /** Optional move target per attacker: "ally:Species" | "foe:Species",
