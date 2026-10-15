@@ -17,23 +17,6 @@ import { GITHUB_URL } from "./site";
 // without a costume change. The hero is a miniature of the real artifact: a
 // turn tree with Showdown minisprites that draws itself on load.
 
-const MY = [
-  "Tyranitar",
-  "Excadrill",
-  "Milotic",
-  "Gholdengo",
-  "Sinistcha",
-  "Staraptor",
-];
-const OPP = [
-  "Aerodactyl",
-  "Charizard",
-  "Garchomp",
-  "Sylveon",
-  "Kingambit",
-  "Dragonite",
-];
-
 function IconRow({ species, scale }: { species: string[]; scale: number }) {
   return (
     <span className="flex">
@@ -178,18 +161,261 @@ function TreeCard({
   );
 }
 
-/** The hero artifact: Turn 0 team preview branching into a main and an
- * alternate Turn 1 — the product in miniature, drawn with its real parts. */
+/**
+ * The hero artifact — and it is not invented. These are the first two
+ * matchups of the Psyspam guide published at `/g/jcgkhgrr`, read out of its
+ * stored document and transcribed here: the same rosters, the same leads, the
+ * same declared moves.
+ *
+ * Transcribed rather than fetched, for two reasons that both matter. The
+ * landing page has to render with Supabase unconfigured, and a hero that
+ * arrives after first paint moves everything under it.
+ *
+ * And real beats invented here for a third reason: in October this hero
+ * shipped Ground into a Rock/Flying target, a play that does literally
+ * nothing, because made-up moves get no scrutiny from anyone. A plan that got
+ * a team to #1 on ladder cannot have that problem.
+ *
+ * Notes and damage calculations are deliberately left out — at 9px they would
+ * be unreadable, and what this is showing is the shape.
+ */
+type HeroMove = {
+  by: string;
+  move: string;
+  color: string;
+  at?: string;
+};
+
+type HeroBranch = {
+  /** `top` places the card in the 412x300 frame; the arrow runs `fromY` on
+   *  the preview card's right edge to `toY` on this card's left. */
+  top: number;
+  fromY: number;
+  toY: number;
+  lead: [string, string];
+  against: [string, string];
+  moves: HeroMove[];
+  /** Set on an alternate line: amber label and a dashed arrow, as the board
+   *  itself draws a sibling of the same turn. */
+  ifTheyLead?: string;
+};
+
+type HeroScene = {
+  label: string;
+  my: string[];
+  opp: string[];
+  branches: HeroBranch[];
+};
+
+const PSYSPAM = [
+  "Arcanine-Hisui",
+  "Indeedee-F",
+  "Talonflame",
+  "Kommo-o",
+  "Gardevoir-Mega",
+  "Sneasler",
+];
+
+const SCENES: HeroScene[] = [
+  {
+    // vs glitchy_potat's Baltimore Regional 2027 Team — one line written, which
+    // is what a real guide looks like: sparse by design.
+    label: "Golisopod",
+    my: PSYSPAM,
+    opp: [
+      "Golisopod",
+      "Basculegion",
+      "Pelipper",
+      "Archaludon",
+      "Sneasler",
+      "Salamence",
+    ],
+    branches: [
+      {
+        // Centred on the preview card rather than on the frame: with one
+        // line written there is nothing to balance against, and a card that
+        // starts level with its arrow reads as the whole of this plan.
+        top: 86,
+        fromY: 135,
+        toY: 120,
+        lead: ["Indeedee-F", "Gardevoir-Mega"],
+        against: ["Golisopod", "Pelipper"],
+        moves: [
+          { by: "Indeedee-F", move: "Follow Me", color: TYPE_COLORS.Normal },
+          {
+            by: "Gardevoir-Mega",
+            move: "Thunderbolt",
+            color: TYPE_COLORS.Electric,
+            at: "Pelipper",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    // vs lovejapanfrombr's Salamence Sand Team — two leads planned, which is
+    // the branch the product exists for.
+    label: "Tyranitar",
+    my: PSYSPAM,
+    opp: [
+      "Tyranitar",
+      "Excadrill",
+      "Milotic",
+      "Gholdengo",
+      "Rillaboom",
+      "Salamence",
+    ],
+    branches: [
+      {
+        top: 0,
+        fromY: 128,
+        toY: 50,
+        lead: ["Indeedee-F", "Sneasler"],
+        against: ["Tyranitar", "Excadrill"],
+        moves: [
+          { by: "Indeedee-F", move: "Follow Me", color: TYPE_COLORS.Normal },
+          {
+            by: "Sneasler",
+            move: "Close Combat",
+            color: TYPE_COLORS.Fighting,
+            at: "Excadrill",
+          },
+        ],
+      },
+      {
+        top: 172,
+        fromY: 140,
+        toY: 210,
+        ifTheyLead: "Salamence",
+        lead: ["Talonflame", "Kommo-o"],
+        against: ["Salamence", "Gholdengo"],
+        moves: [
+          { by: "Talonflame", move: "Tailwind", color: TYPE_COLORS.Flying },
+          {
+            by: "Kommo-o",
+            move: "Clanging Scales",
+            color: TYPE_COLORS.Dragon,
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/** One opponent's plan, drawn in the frame. Both scenes are mounted at once
+ *  and crossfaded, so switching between them cannot move anything. */
+function HeroPlan({ scene }: { scene: HeroScene }) {
+  const t = useT();
+  return (
+    <>
+      <svg className="pointer-events-none absolute inset-0 h-full w-full">
+        {scene.branches.map((b, i) => (
+          <g
+            key={i}
+            className="land-fade"
+            style={{ animationDelay: `${0.75 + i * 0.2}s` }}
+          >
+            <circle
+              cx="170"
+              cy={b.fromY}
+              r="3"
+              fill={b.ifTheyLead ? "#d97706" : "#b3ada4"}
+            />
+            <path
+              className={b.ifTheyLead ? undefined : "land-draw"}
+              style={b.ifTheyLead ? undefined : { animationDelay: "0.75s" }}
+              d={`M 170 ${b.fromY} C 206 ${b.fromY}, 206 ${b.toY}, 233 ${b.toY}`}
+              fill="none"
+              stroke={b.ifTheyLead ? "#d97706" : "#b3ada4"}
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeDasharray={b.ifTheyLead ? "5 4" : undefined}
+              markerEnd={`url(#land-arrow-${b.ifTheyLead ? "branch" : "main"})`}
+            />
+          </g>
+        ))}
+      </svg>
+
+      <TreeCard
+        className="left-0 top-[100px] w-[170px]"
+        style={{ animationDelay: "0.35s" }}
+      >
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">
+          {t("Turn 0 · team preview")}
+        </p>
+        <div className="mt-1.5 space-y-0.5">
+          <IconRow species={scene.my} scale={0.5} />
+          <IconRow species={scene.opp} scale={0.5} />
+        </div>
+      </TreeCard>
+
+      {scene.branches.map((b, i) => (
+        <TreeCard
+          key={i}
+          className="left-[240px] w-[172px]"
+          style={{ top: b.top, animationDelay: `${0.5 + i * 0.1}s` }}
+        >
+          <p
+            className={`text-[9px] font-semibold uppercase tracking-widest ${
+              b.ifTheyLead ? "text-amber-600" : "text-stone-400"
+            }`}
+          >
+            {b.ifTheyLead
+              ? t("⑂ if they lead {species}", { species: b.ifTheyLead })
+              : t("Turn {n}", { n: 1 })}
+          </p>
+          <div className="mt-1 flex items-center gap-1">
+            <IconRow species={b.lead} scale={0.75} />
+            <span className="px-0.5 text-[9px] text-stone-300">vs</span>
+            <IconRow species={b.against} scale={0.75} />
+          </div>
+          <div className="mt-1.5 space-y-1">
+            {b.moves.map((m) => (
+              <div key={m.by}>
+                <MoveChip
+                  attacker={m.by}
+                  move={m.move}
+                  color={m.color}
+                  target={m.at}
+                />
+              </div>
+            ))}
+          </div>
+        </TreeCard>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The hero: one opponent's plan at a time, crossfading to the next.
+ *
+ * Both scenes are mounted and stacked in the same fixed frame, so the swap is
+ * opacity alone — nothing reflows, and the frame is sized for the taller of
+ * the two whichever is showing. Under `prefers-reduced-motion` the interval
+ * never starts and the first scene simply stays.
+ */
 function HeroTree() {
   const t = useT();
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(
+      () => setShown((s) => (s + 1) % SCENES.length),
+      5200,
+    );
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div
       className="relative h-[300px] w-[412px] shrink-0"
       aria-label={t(
-        "A miniature matchup tree: team preview branching into two turn-one lines",
+        "A miniature matchup tree: a team preview, and the turn-one lines planned from it",
       )}
     >
-      <svg className="pointer-events-none absolute inset-0 h-full w-full">
+      <svg className="pointer-events-none absolute h-0 w-0">
         <defs>
           <marker
             id="land-arrow-main"
@@ -212,122 +438,18 @@ function HeroTree() {
             <path d="M1 1 L7 4 L1 7 Z" fill="#d97706" />
           </marker>
         </defs>
-        <g className="land-fade" style={{ animationDelay: "0.75s" }}>
-          <circle cx="170" cy="128" r="3" fill="#b3ada4" />
-          <path
-            className="land-draw"
-            style={{ animationDelay: "0.75s" }}
-            d="M 170 128 C 206 128, 206 50, 233 50"
-            fill="none"
-            stroke="#b3ada4"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            markerEnd="url(#land-arrow-main)"
-          />
-        </g>
-        <g className="land-fade" style={{ animationDelay: "0.95s" }}>
-          <circle cx="170" cy="140" r="3" fill="#d97706" />
-          <path
-            d="M 170 140 C 206 140, 206 210, 233 210"
-            fill="none"
-            stroke="#d97706"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeDasharray="5 4"
-            markerEnd="url(#land-arrow-branch)"
-          />
-        </g>
       </svg>
 
-      <TreeCard
-        className="left-0 top-[100px] w-[170px]"
-        style={{ animationDelay: "0.35s" }}
-      >
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">
-          {t("Turn 0 · team preview")}
-        </p>
-        <div className="mt-1.5 space-y-0.5">
-          <IconRow species={MY} scale={0.5} />
-          <IconRow species={OPP} scale={0.5} />
+      {SCENES.map((scene, i) => (
+        <div
+          key={scene.label}
+          aria-hidden={i !== shown}
+          className="absolute inset-0 transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+          style={{ opacity: i === shown ? 1 : 0 }}
+        >
+          <HeroPlan scene={scene} />
         </div>
-      </TreeCard>
-
-      <TreeCard
-        className="left-[240px] top-0 w-[172px]"
-        style={{ animationDelay: "0.5s" }}
-      >
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-stone-400">
-          {t("Turn {n}", { n: 1 })}
-        </p>
-        <div className="mt-1 flex items-center gap-1">
-          <IconRow species={["Tyranitar", "Excadrill"]} scale={0.75} />
-          <span className="px-0.5 text-[9px] text-stone-300">vs</span>
-          <IconRow species={["Aerodactyl", "Kingambit"]} scale={0.75} />
-        </div>
-        <div className="mt-1.5 space-y-1">
-          <div>
-            {/* Rock Slide is allAdjacentFoes, so it carries no target arrow —
-                the board skips the target step for spread moves and the hero
-                has to agree with it. */}
-            <MoveChip
-              attacker="Tyranitar"
-              move="Rock Slide"
-              color={TYPE_COLORS.Rock}
-            />
-          </div>
-          <div>
-            {/* Kingambit, not Aerodactyl. Ground vs Rock/Flying is 0x — the
-                hero shipped a play that does literally nothing, which is the
-                one kind of mistake this audience spots instantly. Dark/Steel
-                takes it at 2x. */}
-            <MoveChip
-              attacker="Excadrill"
-              move="High Horsepower"
-              color={TYPE_COLORS.Ground}
-              target="Kingambit"
-            />
-          </div>
-        </div>
-      </TreeCard>
-
-      <TreeCard
-        className="left-[240px] top-[172px] w-[172px]"
-        style={{ animationDelay: "0.6s" }}
-      >
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-600">
-          {t("⑂ if they lead {species}", { species: "Charizard" })}
-        </p>
-        <div className="mt-1 flex items-center gap-1">
-          <IconRow species={["Gholdengo", "Milotic"]} scale={0.75} />
-          <span className="px-0.5 text-[9px] text-stone-300">vs</span>
-          <IconRow species={["Charizard", "Sylveon"]} scale={0.75} />
-        </div>
-        <div className="mt-1.5 space-y-1">
-          <div>
-            {/* Make It Rain is allAdjacentFoes too, so the target arrow it
-                used to carry was wrong twice over — the board would never
-                offer one, and Steel into Fire/Flying is 0.5x anyway. As a
-                spread it reads correctly: resisted by Charizard, 2x on
-                Sylveon. */}
-            <MoveChip
-              attacker="Gholdengo"
-              move="Make It Rain"
-              color={TYPE_COLORS.Steel}
-            />
-          </div>
-          <div>
-            {/* Milotic used to stand there doing nothing while its partner
-                moved. Icy Wind is the speed control it is actually brought
-                for, and turn-one speed control is the thing this product is
-                for planning. */}
-            <MoveChip
-              attacker="Milotic"
-              move="Icy Wind"
-              color={TYPE_COLORS.Ice}
-            />
-          </div>
-        </div>
-      </TreeCard>
+      ))}
     </div>
   );
 }

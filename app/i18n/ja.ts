@@ -617,8 +617,8 @@ export const JA: Record<string, string> = {
     "貼るところから。データはこのブラウザに。",
   "Import a team from a pokepast.es link or a Showdown export — xatu reads both, exactly as you wrote it. Your teams and boards live in this browser. No account at all until you want one, and then it syncs and publishes.":
     "pokepast.es のリンクでも Showdown のエクスポートでも、そのまま貼れば書いたとおりに読み込めます。パーティもボードもこのブラウザの中にあります。アカウントは欲しくなるまで一切不要で、作れば同期と公開ができます。",
-  "A miniature matchup tree: team preview branching into two turn-one lines":
-    "小さなマッチアップツリー：選出画面から1ターン目の2つの展開へ分岐",
+  "A miniature matchup tree: a team preview, and the turn-one lines planned from it":
+    "縮小版のマッチアップツリー：選出と、そこから分岐する第 1 ターンのライン",
   "Turn 0 · team preview": "ターン0 · 選出",
   "⑂ if they lead {species}": "⑂ 相手が {species} を先発したら",
 };

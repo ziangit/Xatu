@@ -579,8 +579,8 @@ export const ZH: Record<string, string> = {
     "从一次粘贴开始，数据留在你的浏览器里。",
   "Import a team from a pokepast.es link or a Showdown export — xatu reads both, exactly as you wrote it. Your teams and boards live in this browser. No account at all until you want one, and then it syncs and publishes.":
     "粘贴 pokepast.es 链接或 Showdown 导出文本，xatu 两种都读得懂，并且原样保留。你的队伍和战术板都存在这个浏览器里——在你需要之前完全不用账号，有了账号才会同步和发布。",
-  "A miniature matchup tree: team preview branching into two turn-one lines":
-    "一棵缩小的对阵树：从选人画面分出两条第一回合的走法",
+  "A miniature matchup tree: a team preview, and the turn-one lines planned from it":
+    "一棵缩小的对阵树：选人阶段，以及由此规划出的第 1 回合分支",
   "Turn 0 · team preview": "第 0 回合 · 选人",
   "⑂ if they lead {species}": "⑂ 若对手首发 {species}",
 };
