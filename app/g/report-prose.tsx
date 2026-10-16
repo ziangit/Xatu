@@ -10,19 +10,21 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * public page on a site with no moderation tooling, and rendering
  * author-supplied markup there is an XSS surface with nobody watching it.
  *
- * It renders **straight onto the page, with no card** (user-directed,
- * 2026-10-15, by reference to teamsheet.gg's report layout — which reverses
- * the white card this had since 1284208). The card was arguing that white is
- * content and cream is chrome; what actually placed the text was never the
- * box but the heading above it and a column it keeps to. An article does not
- * put its paragraphs in a panel, and a report is an article.
+ * It renders as **a white card** holding the whole passage — text, artwork
+ * and set alike. The page has exactly two surfaces, white for content and
+ * cream for chrome, and prose laid straight onto the cream read as unplaced
+ * among the white boards it sits between.
+ *
+ * That was tried both ways on 2026-10-15 and this is the user's call, so do
+ * not take the card off again: the measure and the headings were the parts
+ * worth changing, and they stayed.
  *
  * Inside, three things are set differently because they *are* different:
  *
- * - **A pasted Showdown set** gets monospace, tight leading and a white card
- *   of its own. Set as prose it was a wall of hard-wrapped lines in a 1.6
- *   line-height sans, which is the one thing that made a report look broken.
- *   The lines are drawn verbatim; see `parseReportBlocks`.
+ * - **A pasted Showdown set** gets monospace and tight leading. Set as prose
+ *   it was a wall of hard-wrapped lines in a 1.6 line-height sans, which is
+ *   the one thing that made a report look broken. The lines are drawn
+ *   verbatim; see `parseReportBlocks`.
  * - **A sprite alone on its line** is an illustration, not a word, so it
  *   leaves the text flow — and a set that follows it stacks directly beneath,
  *   artwork over set, which is how every RMT introduces a Pokémon.
@@ -41,11 +43,8 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * 40×30, so this size would be an upscale of a 40px source, and native size
  * means no resampling at all — which is what keeps pixel art crisp.
  *
- * It carries no vertical margin of its own; the caller owns the spacing.
+ * The card carries no vertical margin of its own; the caller owns the spacing.
  */
-
-/** The frame a set entry sits in. `w-fit` so it hugs its own lines. */
-const CARD = "w-fit rounded-lg border border-stone-200 bg-white px-4 py-3";
 
 function MonArt({ species }: { species: string }) {
   return (
@@ -66,12 +65,11 @@ function MonArt({ species }: { species: string }) {
 /**
  * A pasted set.
  *
- * Monospace and tight leading, because that is what a set is — and, since the
- * prose around it stopped being a card, **a card**. The two decisions are the
- * same one seen from either side: exactly one thing on this page should look
- * like an object, and it is the set, not the paragraph. It hugs its own lines
- * rather than stretching to the measure — a set is about 30 characters wide
- * and a panel four times that reads as a mistake.
+ * Monospace and tight leading, because that is what a set is — but **no tint
+ * and no frame**: it already sits inside the passage's card, and a box inside
+ * a box reads as a quotation from somewhere else rather than as the author's
+ * own team. It still hugs its own lines rather than stretching to the
+ * measure, so it cannot read as a 96-character-wide block of code.
  */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
@@ -125,7 +123,7 @@ export function ReportProse({
       // entry, and the gap the card's own rhythm would put between them
       // reads as two unrelated things.
       out.push(
-        <div key={i} className={CARD}>
+        <div key={i}>
           <MonArt species={block.species} />
           <SetBlock lines={next.lines} />
         </div>,
@@ -139,11 +137,7 @@ export function ReportProse({
         </div>,
       );
     } else if (block.kind === "set") {
-      out.push(
-        <div key={i} className={CARD}>
-          <SetBlock lines={block.lines} />
-        </div>,
-      );
+      out.push(<SetBlock key={i} lines={block.lines} />);
     } else {
       out.push(<Prose key={i} block={block} />);
     }
@@ -151,7 +145,7 @@ export function ReportProse({
 
   return (
     <div
-      className={`space-y-4 text-base leading-[1.7] text-stone-700 ${className}`}
+      className={`space-y-4 rounded-lg border border-stone-200 bg-white px-5 py-4 text-base leading-[1.7] text-stone-700 ${className}`}
     >
       {out}
     </div>

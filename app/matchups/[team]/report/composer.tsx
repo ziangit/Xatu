@@ -349,15 +349,14 @@ function TextSlot({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="block w-full rounded-lg text-left transition-colors hover:bg-stone-100/70"
+        className="block w-full text-left"
         title={t("edit this text")}
       >
         {value.trim() ? (
-          // The prose has no frame on the published page, so there is no
-          // border here to light up on hover — the click target carries its
-          // own tint instead, and the text itself stays exactly as it will
-          // be read.
-          <ReportProse text={value} className="px-3 py-2" />
+          <ReportProse
+            text={value}
+            className="transition-colors hover:border-stone-400"
+          />
         ) : (
           // Same width as the card it becomes — and as the matchup below it —
           // so a slot doesn't jump when you write in it.
