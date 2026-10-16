@@ -9,7 +9,7 @@ import { PostCard } from "./feed/post-card";
 import { MonIcon, TYPE_COLORS } from "./demo/components";
 import { useT } from "./i18n/provider";
 import { LangToggle } from "./i18n/toggle";
-import { DiscordLink, GitHubLink, LegalFooter } from "./nav";
+import { GitHubLink, LegalFooter } from "./nav";
 
 // Landing page. Visual language is the sim board's own — paper ground, stone
 // ink, Simulate red, branch amber — so the page opens straight into the tool
@@ -509,7 +509,6 @@ export default function LandingPage() {
             <LangToggle />
             <span className="hidden sm:contents">
               <GitHubLink />
-              <DiscordLink />
             </span>
             <AccountLink />
           </span>

@@ -2139,9 +2139,10 @@ flex-wrap`: on a phone the nav takes its own line under the wordmark, and
   a 375px screen). On desktop nothing changes, which the toggle-position check
   in three languages confirms — the "nothing variable to the right of the
   toggle" rule still holds.
-- **The GitHub and Discord icons are hidden under `sm`.** They are chrome,
-  not actions, and the 80px they cost is what pushed the account slot off the
-  edge. `hidden sm:contents` keeps them flex items when shown.
+- **The GitHub icon is hidden under `sm`.** It is chrome, not an action, and
+  the width it cost is what pushed the account slot off the edge.
+  `hidden sm:contents` keeps it a flex item when shown. (A Discord icon sat
+  beside it until 2026-10-16, when the user took the server down.)
 - **The board's two header bands stack** under `sm` (`flex-col`), and every
   action row is `flex-wrap`. Side by side, the title column shrank to 150px
   and stacked its four buttons one word per line.

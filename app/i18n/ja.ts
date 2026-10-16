@@ -64,7 +64,6 @@ export const JA: Record<string, string> = {
   "Copied ✓": "コピーしました ✓",
   "Fetching…": "取得中…",
   github: "github",
-  discord: "Discord",
   "xatu is an unaffiliated, non-commercial fan project. Pokémon is owned by Nintendo, The Pokémon Company, Game Freak, and Creatures.":
     "xatu は非公式・非商用のファンプロジェクトです。ポケモンの権利は任天堂、株式会社ポケモン、ゲームフリーク、クリーチャーズに帰属します。",
 
