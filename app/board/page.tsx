@@ -1992,6 +1992,13 @@ export default function SimPage() {
             >
               {showHelp ? "▾" : "▸"} {t("how the board works")}
             </button>
+            {/* The one rule nothing on the board hints at by itself: a
+                right-click has no visible trigger, and a tester could not find
+                how to take a fainted Pokémon off the field. So this line stays
+                out of the collapsed list and is always on screen. */}
+            <p className="mt-1 text-[11px] text-stone-500">
+              · {t("right-click a Pokémon to faint it")}
+            </p>
             {showHelp && (
               <ul className="grow-in mt-2 grid gap-x-8 gap-y-1 text-[11px] leading-relaxed text-stone-500 sm:grid-cols-2">
                 <li>
@@ -2010,7 +2017,6 @@ export default function SimPage() {
                 <li>
                   · {t("positions carry into the next turn automatically")}
                 </li>
-                <li>· {t("right-click a Pokémon to faint it")}</li>
                 <li>
                   · {t("⑂ records an alternate version of that same turn")}
                 </li>
