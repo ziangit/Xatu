@@ -44,6 +44,7 @@ function Side({
   state,
   parent,
   moveColor,
+  foeFront,
   calcs,
 }: {
   title: string;
@@ -51,6 +52,9 @@ function Side({
   state: SideState;
   parent: SideState | null;
   moveColor: (move: string) => string | undefined;
+  /** The other side's front, so a target that has left the field is dropped
+   *  here exactly as the editor drops it. */
+  foeFront: string[];
   /** This side's stored calculations, keyed by the attacker that made them. */
   calcs: Record<string, { text: string }>;
 }) {
@@ -81,60 +85,107 @@ function Side({
           </span>
         ))}
       </span>
-      {(["front", "back"] as const).map((row) => (
-        <div key={row} className="mt-1.5 flex items-start gap-2">
-          <span className="w-10 shrink-0 pt-2 text-[10px] text-stone-400">
-            {row === "front" ? t("slot|Front") : t("slot|Back")}
-          </span>
-          <span className="flex flex-wrap gap-1.5">
-            {[0, 1].map((i) => {
-              const s = state[row][i];
-              const move = s ? state.moves?.[s] : undefined;
-              const target = s ? state.targets?.[s] : undefined;
-              const targetSpecies = target
-                ? parseTargetRef(target)?.species
-                : undefined;
-              const bg = move ? moveColor(move) : undefined;
-              return (
-                <span key={i} className="flex flex-col items-start gap-0.5">
-                  <Slot species={s} />
-                  {s &&
-                    row === "front" &&
-                    (move || switchedIn.has(s) || cameIn.has(s)) && (
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                          bg ? "text-white" : "bg-stone-100 text-stone-500"
-                        }`}
-                        style={bg ? { backgroundColor: bg } : undefined}
-                      >
-                        <MonIcon species={s} scale={0.5} />
-                        {switchedIn.has(s)
-                          ? t("switched in")
-                          : (move ?? t("came in"))}
-                        {move && targetSpecies && (
-                          <>
-                            <span className="opacity-80">→</span>
-                            <MonIcon species={targetSpecies} scale={0.5} />
-                          </>
-                        )}
-                      </span>
+      {/* The editor's structure, and it has to be: both front tiles on one
+          row, then exactly one chip line per slot beneath them, top line for
+          the left Pokémon. Pairing each chip under its own tile — which is
+          what this did — makes the pair wrap onto two rows as soon as a chip
+          is wider than its 64px cell, so the published page stopped looking
+          like the board the author composed. The fixed 22px line also keeps
+          the card heights deterministic, which `useTurnEdges` measures. */}
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <span className="w-9 text-[10px] text-stone-400">
+          {t("slot|Front")}
+        </span>
+        {[0, 1].map((i) => (
+          <div key={i} className="flex w-[64px] justify-center">
+            <Slot species={state.front[i]} />
+          </div>
+        ))}
+      </div>
+
+      <div className="ml-[42px] mt-1 space-y-1">
+        {[0, 1].map((i) => {
+          const s = state.front[i];
+          // The empty line still occupies its 22px: one slot filled and one
+          // empty must not shorten the card.
+          if (!s) return <div key={i} className="h-[22px]" />;
+          const move = state.moves?.[s];
+          // A target renders only while it is still one of the on-field four
+          // — the editor's rule. A stored node can outlive its target: record
+          // Thunderbolt on Pelipper, then record the switch that takes
+          // Pelipper off, and the target is still in the payload.
+          const ref = state.targets?.[s]
+            ? parseTargetRef(state.targets[s])
+            : null;
+          const targetSpecies =
+            ref &&
+            (ref.kind === "ally" ? state.front : foeFront).includes(ref.species)
+              ? ref.species
+              : null;
+          const bg = move ? moveColor(move) : undefined;
+          const shown = switchedIn.has(s)
+            ? t("switched in")
+            : (move ?? (cameIn.has(s) ? t("came in") : null));
+          return (
+            <div key={s}>
+              <div className="flex h-[22px] items-center">
+                {shown && (
+                  <span
+                    className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none ${
+                      bg
+                        ? "text-white"
+                        : switchedIn.has(s) || cameIn.has(s)
+                          ? "bg-sky-50 text-sky-700"
+                          : state.mega === s
+                            ? "bg-violet-600 text-white"
+                            : "bg-stone-100 text-stone-500"
+                    }`}
+                    style={bg ? { backgroundColor: bg } : undefined}
+                  >
+                    <MonIcon species={s} scale={0.5} />
+                    {state.mega === s && <span>⟡</span>}
+                    {shown}
+                    {move && targetSpecies && (
+                      <>
+                        <span className="opacity-80">→</span>
+                        <MonIcon species={targetSpecies} scale={0.5} />
+                      </>
                     )}
-                  {/* The author's calculation, stored as text and never
-                      re-derived — a published page is a snapshot, so a later
-                      change to the maths cannot move its numbers. It always
-                      renders: it is content the author saved, and a reader's
-                      own calculator preference must not erase it. */}
-                  {s && row === "front" && calcs[s] && (
-                    <span className="max-w-[18rem] whitespace-pre-wrap text-[9px] leading-snug text-stone-500">
-                      {calcs[s].text}
-                    </span>
-                  )}
-                </span>
-              );
-            })}
-          </span>
-        </div>
-      ))}
+                  </span>
+                )}
+              </div>
+              {/* The author's calculation, stored as text and never
+                  re-derived — a published page is a snapshot, so a later
+                  change to the maths cannot move its numbers. It always
+                  renders: it is content the author saved, and a reader's own
+                  calculator preference must not erase it. Same treatment as
+                  the editor gives it, under the move it describes. */}
+              {calcs[s] && (
+                <p
+                  className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
+                  style={{
+                    borderColor: bg ?? "#d6d3d1",
+                    color: bg
+                      ? `color-mix(in srgb, ${bg} 65%, #1c1917)`
+                      : undefined,
+                  }}
+                >
+                  {calcs[s].text}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-1 flex items-center gap-1.5">
+        <span className="w-9 text-[10px] text-stone-400">{t("slot|Back")}</span>
+        {[0, 1].map((i) => (
+          <div key={i} className="flex w-[64px] justify-center">
+            <Slot species={state.back[i]} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -240,6 +291,7 @@ export function BoardView({
                     roster={myRoster}
                     calcs={sideCalcs(node, "my")}
                     state={node.my}
+                    foeFront={node.opp.front}
                     parent={parentOf(node, "my")}
                     moveColor={(m) => colors[m]}
                   />
@@ -259,6 +311,7 @@ export function BoardView({
                     roster={oppRoster}
                     calcs={sideCalcs(node, "opp")}
                     state={node.opp}
+                    foeFront={node.my.front}
                     parent={parentOf(node, "opp")}
                     moveColor={(m) => colors[m]}
                   />
