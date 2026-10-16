@@ -29,7 +29,10 @@ const server = http.createServer(async (req, res) => {
   if (sprite) {
     const file = path.join(CACHE, `${sprite[1]}.png`);
     if (!fs.existsSync(file)) {
-      const r = await fetch(`https://play.pokemonshowdown.com/sprites/gen5/${sprite[1]}.png`);
+      const remote = sprite[1] === "pokemonicons-sheet"
+        ? "https://play.pokemonshowdown.com/sprites/pokemonicons-sheet.png"
+        : `https://play.pokemonshowdown.com/sprites/gen5/${sprite[1]}.png`;
+      const r = await fetch(remote);
       if (!r.ok) { res.writeHead(404).end(); return; }
       fs.writeFileSync(file, Buffer.from(await r.arrayBuffer()));
     }

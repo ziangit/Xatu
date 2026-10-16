@@ -23,10 +23,11 @@
      cold   a half-second flash-forward of the finished tree, torn away
      0–4    team preview: twelve sprites slam in on eighth notes
      4–8    "what do they lead?" — a slot machine over their six, tightening
-     8      the drop: three branches fire out of your lead
-     8–17   the tree grows; the camera flies through it
-    17–21   one path lights up — the turn you already planned for
-    21–22   the screen opens onto paper
+     8      the drop cuts to paper: the four picked land in the turn-0 card
+     8–13   the real board builds itself; the calculator types under Thunderbolt
+    13–16   the amber arrow drops to "⑂ alternate turn 1": Archaludon comes in
+    17–20   the alternate lights up — the turn you already planned for
+    20–22   the board pulls away
     22–30   xatu
 -->
 <style>
@@ -81,6 +82,7 @@ const C = {
 const TYPE = {
   Normal: "#A8A77A", Electric: "#F7D02C", Fighting: "#C22E28", Flying: "#A98FF3",
   Psychic: "#F95587", Fairy: "#D685AD", Dragon: "#6F35FC", Fire: "#EE8130",
+  Bug: "#A6B91A", Rock: "#B6A136",
 };
 
 /* -------------------------------------------------------------- sprites */
@@ -131,70 +133,156 @@ const SLOT = (() => {
 })();
 const slotAt = t => { let cur = null; for (const s of SLOT) if (s.t <= t) cur = s; return cur; };
 
-/* ------------------------------------------------------------- the tree */
-const NODES = {
-  R:  { x: 0,   y: 0,    kind: "root", sprites: ["indeedee-f", "gardevoir-mega"] },
-  A:  { x: 430, y: -290, kind: "pair", sprites: ["pelipper", "golisopod"] },
-  B:  { x: 430, y: 0,    kind: "pair", sprites: ["archaludon", "basculegion"] },
-  Cc: { x: 430, y: 290,  kind: "pair", sprites: ["salamence", "sneasler"] },
-  A1: { x: 860, y: -425, kind: "leaf" },
-  A2: { x: 860, y: -255, kind: "leaf", comesIn: "archaludon" },
-  B1: { x: 860, y: -85,  kind: "leaf" },
-  B2: { x: 860, y: 85,   kind: "leaf" },
-  C1: { x: 860, y: 255,  kind: "leaf" },
-  C2: { x: 860, y: 425,  kind: "leaf" },
+/* ------------------------------------------------------------ the board
+   The real product, built live. Cards, icons, chips, calculation lines and
+   arrows follow the board's own metrics and grammar — a grey arrow to the
+   next turn, a dashed amber one to an alternate — so the branch looks like
+   xatu, not like a diagram of it. Coordinates are board pixels: the app's
+   own CSS pixels, scaled by the camera. */
+const SHEET = new Image();
+const sheetReady = new Promise(res => {
+  SHEET.onload = SHEET.onerror = () => res();
+  SHEET.src = SERVED ? "sprites/pokemonicons-sheet.png" : "https://play.pokemonshowdown.com/sprites/pokemonicons-sheet.png";
+});
+// Offsets into Showdown's icon sheet, from @pkmn/img — the sprites the board draws.
+const ICON = {
+  "Arcanine-Hisui": [-120, -3090], "Indeedee-F": [0, -3060], "Talonflame": [-120, -1650],
+  "Kommo-o": [-160, -1950], "Gardevoir-Mega": [0, -3360], "Sneasler": [-120, -2250],
+  "Golisopod": [0, -1920], "Golisopod-Mega": [-80, -3600], "Basculegion": [-80, -2250],
+  "Pelipper": [-120, -690], "Archaludon": [-400, -2520], "Salamence": [-40, -930],
 };
-// Main line in light, alternates in dashed amber — the board's own grammar.
-const EDGES = [
-  { from: "R",  to: "A",  t0: 8.0,    dur: 1.2, main: true, chip: { text: "Thunderbolt", type: "Electric", target: "pelipper" } },
-  { from: "R",  to: "B",  t0: 8.125,  dur: 1.2, chip: { text: "Hyper Voice", type: "Fairy" } },
-  { from: "R",  to: "Cc", t0: 8.25,   dur: 1.2, chip: { text: "Expanding Force", type: "Psychic" } },
-  { from: "A",  to: "A1", t0: 10.5,   dur: 1.0, main: true, chip: { text: "Follow Me", type: "Normal" } },
-  { from: "A",  to: "A2", t0: 10.625, dur: 1.0, chip: { text: "Thunderbolt", type: "Electric", target: "archaludon" } },
-  { from: "B",  to: "B1", t0: 10.75,  dur: 1.0, main: true, chip: { text: "Protect", type: "Normal" } },
-  { from: "B",  to: "B2", t0: 10.875, dur: 1.0, chip: { text: "Expanding Force", type: "Psychic" } },
-  { from: "Cc", to: "C1", t0: 11.0,   dur: 1.0, main: true, chip: { text: "Hyper Voice", type: "Fairy" } },
-  { from: "Cc", to: "C2", t0: 11.125, dur: 1.0, chip: { text: "Follow Me", type: "Normal" } },
-];
-const ARRIVE = {};
-for (const e of EDGES) ARRIVE[e.to] = e.t0 + e.dur;
-// The line that actually happens: they switch Pelipper for Archaludon.
-const PATH = new Set(["R>A", "A>A2"]);
-const onPath = e => PATH.has(`${e.from}>${e.to}`);
-const PULSE = [{ e: "R>A", a: 17.45, b: 18.0 }, { e: "A>A2", a: 18.0, b: 18.5 }];
-
-const outX = n => n.x + (n.kind === "leaf" ? 16 : 98);
-const inX = n => n.x - (n.kind === "leaf" ? 16 : 98);
-function bez(e, u) {
-  const a = NODES[e.from], b = NODES[e.to];
-  const x0 = outX(a), y0 = a.y, x3 = inX(b), y3 = b.y, mx = (x0 + x3) / 2;
-  const v = 1 - u;
-  return [
-    v * v * v * x0 + 3 * v * v * u * mx + 3 * v * u * u * mx + u * u * u * x3,
-    v * v * v * y0 + 3 * v * v * u * y0 + 3 * v * u * u * y3 + u * u * u * y3,
-  ];
+function icon(species, x, y, scale = 1, alpha = 1, grey = false) {
+  const p = ICON[species];
+  if (!p || !SHEET.naturalWidth || alpha <= 0.002) return;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.imageSmoothingEnabled = false;
+  if (grey) ctx.filter = "grayscale(1)";
+  ctx.drawImage(SHEET, -p[0], -p[1], 40, 30, x, y, 40 * scale, 30 * scale);
+  ctx.restore();
 }
 
-/* --------------------------------------------------------------- camera */
-const CAM = [
-  { t: 8.0,  x: 0,   y: 0,    z: 1.75 },
-  { t: 9.3,  x: 220, y: 0,    z: 1.2 },
-  { t: 10.6, x: 430, y: 0,    z: 1.0 },
-  { t: 12.6, x: 560, y: 0,    z: 0.88 },
-  { t: 16.5, x: 430, y: 0,    z: 0.82 },
-  { t: 20.9, x: 540, y: -110, z: 0.98 },
+const MOVE_TYPE = { "Follow Me": "Normal", "Thunderbolt": "Electric", "Leech Life": "Bug", "Wide Guard": "Rock" };
+const MY_ROSTER = ["Arcanine-Hisui", "Indeedee-F", "Talonflame", "Kommo-o", "Gardevoir-Mega", "Sneasler"];
+const OPP_ROSTER = ["Golisopod", "Basculegion", "Pelipper", "Archaludon", "Sneasler", "Salamence"];
+// The real output of the app's calculator (runCalc in app/demo/calc.ts) on
+// these exact sets, with the Megas recorded — not numbers written for a film.
+const CALC_TBOLT = "32+ SpA Gardevoir-Mega Thunderbolt vs. 15 HP / 3 SpD Pelipper: 348-412 (232 - 274.6%) -- guaranteed OHKO";
+const CALC_LEECH = "10+ Atk Tough Claws Golisopod-Mega Leech Life vs. 32 HP / 32+ Def Indeedee-F: 182-216 (102.8 - 122%) -- guaranteed OHKO";
+
+const CW = 600, PAD = 16, SIDE_W = (CW - PAD * 2 - 36) / 2, LH = 13.5;
+const COL_X = [0, 680];
+const CARDS = [
+  { id: "c0", col: 0, turn: 0, appear: 8.0,
+    my:  { front: ["Indeedee-F", "Gardevoir-Mega"], back: ["Arcanine-Hisui", "Talonflame"], chips: [] },
+    opp: { front: ["Pelipper", "Golisopod"], back: ["Basculegion", "Archaludon"], chips: [] },
+    foot: ["+ note", "⑂ branch"] },
+  { id: "c1", col: 1, turn: 1, appear: 9.55,
+    my:  { front: ["Indeedee-F", "Gardevoir-Mega"], back: ["Arcanine-Hisui", "Talonflame"], mega: "Gardevoir-Mega",
+           chips: [{ s: "Indeedee-F", move: "Follow Me", t: 10.0 },
+                   { s: "Gardevoir-Mega", move: "Thunderbolt", target: "Pelipper", t: 10.25, calc: { text: CALC_TBOLT, t0: 11.25, t1: 12.45 } }] },
+    opp: { front: ["Golisopod", "Pelipper"], back: ["Basculegion", "Archaludon"], mega: "Golisopod",
+           chips: [{ s: "Golisopod", move: "Leech Life", target: "Indeedee-F", t: 10.5, calc: { text: CALC_LEECH, t0: 12.5, t1: 13.2 } },
+                   { s: "Pelipper", move: "Wide Guard", t: 10.75 }] },
+    foot: ["+ turn 2", "⑂ branch", "remove"] },
+  { id: "c2", col: 1, turn: 1, alt: true, appear: 13.95,
+    my:  { front: ["Indeedee-F", "Gardevoir-Mega"], back: ["Arcanine-Hisui", "Talonflame"], mega: "Gardevoir-Mega",
+           chips: [{ s: "Indeedee-F", move: "Follow Me", t: 14.9 },
+                   { s: "Gardevoir-Mega", move: "Thunderbolt", target: "Archaludon", t: 15.15 }] },
+    opp: { front: ["Golisopod", "Archaludon"], back: ["Pelipper", "Basculegion"], mega: "Golisopod", switchedIn: "Archaludon",
+           chips: [{ s: "Golisopod", move: "Leech Life", target: "Indeedee-F", t: 14.65 },
+                   { s: "Archaludon", switched: true, t: 14.4 }] },
+    foot: ["+ turn 2", "⑂ branch", "remove"] },
 ];
-let camOverride = null;   // the cold open frames the whole tree its own way
+const shownAs = (side, s) => (side.mega === s && !s.endsWith("-Mega") ? `${s}-Mega` : s);
+
+const WRAP = new Map();
+function calcLines(text) {
+  if (WRAP.has(text)) return WRAP.get(text);
+  ctx.save();
+  ctx.font = '400 10px "Geist"';
+  const words = text.split(" "), lines = [];
+  let line = "";
+  for (const w of words) {
+    const next = line ? `${line} ${w}` : w;
+    if (ctx.measureText(next).width > SIDE_W - 50 && line) { lines.push(line); line = w; } else line = next;
+  }
+  if (line) lines.push(line);
+  ctx.restore();
+  WRAP.set(text, lines);
+  return lines;
+}
+
+function sideLayout(side, card, t) {
+  const y = PAD + (card.alt ? 22 : 0);
+  const frontY = y + 51;
+  const chipYs = [];
+  let cy = frontY + 34 + 4;
+  if (card.turn > 0) for (let i = 0; i < 2; i++) {
+    chipYs.push(cy);
+    cy += 22;
+    const ch = side.chips.find(c => c.s === side.front[i]);
+    if (ch && ch.calc) cy += (calcLines(ch.calc.text).length * LH + 6) * E.outCubic(seg(t, ch.calc.t0 - 0.3, ch.calc.t0 + 0.05));
+    cy += 4;
+  }
+  const backY = card.turn > 0 ? cy : frontY + 34 + 6;
+  return { titleY: y + 9, rosterY: y + 15, frontY, chipYs, backY, bottom: backY + 34 };
+}
+function cardLayout(card, t) {
+  const L = sideLayout(card.my, card, t), R = sideLayout(card.opp, card, t);
+  const footY = Math.max(L.bottom, R.bottom) + 12;
+  return { L, R, footY, h: footY + 1 + 10 + 24 + PAD };
+}
+const cardTop = card => card.id === "c2" ? 24 + cardLayout(CARDS[1], 99).h + 28 : 24;
+const sideX = which => (which === "my" ? PAD : PAD + SIDE_W + 36);
+// where a front tile sits on the board — the team preview flies into these
+const frontTile = (card, which, i) => [
+  COL_X[card.col] + sideX(which) + 42 + i * 70 + 9 + 23,
+  cardTop(card) + sideLayout(card[which], card, 0).frontY + 17,
+];
+
+/* --------------------------------------------------------------- camera */
+let CAM = null;   // built on first use: two keys depend on measured card heights
+function camKeys() {
+  // Never the whole board until the end: in a square frame its two columns
+  // leave the cards tiny and the chips unreadable on a phone. The camera
+  // follows the action the way a screen recording zooms — the arrow, turn 1,
+  // a hard push onto the calculation, then down the amber arrow.
+  const c1 = CARDS[1], c2 = CARDS[2];
+  const c1mid = cardTop(c1) + cardLayout(c1, 99).h / 2, c2mid = cardTop(c2) + cardLayout(c2, 99).h / 2;
+  const c2top = cardTop(c2);
+  const L1 = sideLayout(c1.my, c1, 99), R1 = sideLayout(c1.opp, c1, 99);
+  const calcMid = cardTop(c1) + L1.chipYs[1] + 22 + 22;
+  const oppCalcMid = cardTop(c1) + R1.chipYs[0] + 22 + 22;
+  return [
+    { t: 8.0,   x: 300,  y: 120,        z: 1.75 },
+    { t: 8.95,  x: 300,  y: 120,        z: 1.75 },
+    { t: 9.7,   x: 640,  y: 135,        z: 1.2 },
+    { t: 10.35, x: 980,  y: c1mid,      z: 1.75 },
+    { t: 11.1,  x: 846,  y: calcMid,    z: 3.1 },
+    { t: 12.35, x: 846,  y: calcMid,    z: 3.2 },
+    { t: 12.9,  x: 1135, y: oppCalcMid, z: 2.15 },
+    { t: 13.25, x: 1135, y: oppCalcMid, z: 2.15 },
+    { t: 13.9,  x: 650,  y: 300,        z: 1.15 },
+    { t: 14.6,  x: 840,  y: c2top + 112, z: 2.1 },
+    { t: 16.15, x: 1120, y: c2top + 112, z: 2.15 },
+    { t: 16.9,  x: 960,  y: c2mid - 40,  z: 1.45 },
+    { t: 20.3,  x: 960,  y: c2mid - 40,  z: 1.55 },
+    { t: 21.5,  x: 640,  y: 330,        z: 0.3 },
+  ];
+}
+let camOverride = null;   // the cold open frames the whole board its own way
 function cam(t) {
   if (camOverride) return camOverride;
+  CAM = CAM || camKeys();
   let k = CAM[0];
   if (t >= CAM[CAM.length - 1].t) k = CAM[CAM.length - 1];
   else if (t > CAM[0].t) for (let i = 0; i < CAM.length - 1; i++) {
     const a = CAM[i], b = CAM[i + 1];
     if (t >= a.t && t <= b.t) { const u = E.inOutCubic(seg(t, a.t, b.t)); k = { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z, b.z, u) }; break; }
   }
-  const d = seg(t, 8.3, 9.6);   // drift eases in, so the hand-off at 8.0 is exact
-  return { x: k.x + Math.sin(t * 0.5) * 7 * d, y: k.y + Math.cos(t * 0.37) * 6 * d, z: k.z };
+  const d = seg(t, 8.95, 9.8) * (1 - seg(t, 20.3, 21.0));
+  return { x: k.x + Math.sin(t * 0.5) * 4 * d, y: k.y + Math.cos(t * 0.37) * 3 * d, z: k.z };
 }
 const toScreen = (wx, wy, c) => [W / 2 + (wx - c.x) * c.z, H / 2 + (wy - c.y) * c.z];
 
@@ -396,10 +484,10 @@ function scenePreview(t) {
     const lit = !!cur && cur.pair.includes(i);
     if (cur) { a *= lit ? 1 : 0.28; if (lit) size *= 1.1; }
     if (locked && LOCK.includes(i)) {
-      // the pair they lead flies off toward the node that will hold it
+      // the pair they lead flies into the turn-0 card's Front tiles
       const k = LOCK.indexOf(i);
-      const [nx, ny] = toScreen(NODES.A.x + (k === 0 ? -42 : 42), NODES.A.y, c8);
-      x = lerp(x, nx, cp); y = lerp(y, ny, cp); size = lerp(size, 84 * c8.z, cp);
+      const [nx, ny] = toScreen(...frontTile(CARDS[0], "opp", k), c8);
+      x = lerp(x, nx, cp); y = lerp(y, ny, cp); size = lerp(size, 56 * c8.z, cp);
     } else if (t > 7.3) {
       a *= 1 - seg(t, 7.3, 7.62);
       size *= 1 - 0.35 * seg(t, 7.3, 7.62);
@@ -421,8 +509,8 @@ function scenePreview(t) {
     if (!lead) a *= 1 - 0.7 * pick;
     if (lead) {
       const k = YOUR_LEADS.indexOf(i);
-      const [nx, ny] = toScreen(k === 0 ? -42 : 42, 0, c8);
-      x = lerp(x, nx, cp); y = lerp(y, ny, cp); size = lerp(size, 84 * c8.z, cp);
+      const [nx, ny] = toScreen(...frontTile(CARDS[0], "my", k), c8);
+      x = lerp(x, nx, cp); y = lerp(y, ny, cp); size = lerp(size, 56 * c8.z, cp);
       halo(x, y, size * 0.72, "255,255,255", 0.22 * pick);
     } else if (t > 7.3) {
       a *= 1 - seg(t, 7.3, 7.62);
@@ -437,157 +525,253 @@ function scenePreview(t) {
   kinetic("what do they lead?", 540, 600, t, { size: 76, align: "center", tIn: 3.8, tOut: 7.05, glow: 18 });
 }
 
-/* ------------------------------------------------- 8–21s: the tree */
-function sceneTree(t) {
+/* ------------------------------------------------ 8–21s: the board */
+const mix = (hex, other, w) => {
+  const a = parseInt(hex.slice(1), 16), b = parseInt(other.slice(1), 16);
+  const ch = s => Math.round(((a >> s) & 255) * w + ((b >> s) & 255) * (1 - w));
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+};
+
+function boardChip(side, ch, x, y, t) {
+  const p = seg(t, ch.t, ch.t + 0.28);
+  if (p <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= clamp(p * 3);
+  ctx.translate(x, y + 11);
+  const s = lerp(0.75, 1, E.outBack(p));
+  ctx.scale(s, s);
+  ctx.font = '700 10px "Geist"';
+  const label = ch.switched ? "switched in" : ch.move;
+  const mega = !ch.switched && side.mega === ch.s;
+  let w = 8 + 20 + 4 + (mega ? 10 : 0) + ctx.measureText(label).width + 8;
+  if (ch.target) w += 4 + 10 + 4 + 20;
+  ctx.fillStyle = ch.switched ? "#f0f9ff" : TYPE[MOVE_TYPE[ch.move]];
+  ctx.beginPath(); ctx.roundRect(0, -10, w, 20, 6); ctx.fill();
+  let cx = 8;
+  icon(shownAs(side, ch.s), cx, -7.5, 0.5);
+  cx += 24;
+  ctx.fillStyle = ch.switched ? "#0369a1" : "#fff";
+  ctx.textBaseline = "middle";
+  if (mega) { ctx.fillText("⟡", cx, 0.5); cx += 10; }
+  ctx.fillText(label, cx, 0.5);
+  cx += ctx.measureText(label).width + 4;
+  if (ch.target) {
+    ctx.globalAlpha *= 0.85; ctx.fillText("→", cx, 0.5); ctx.globalAlpha /= 0.85;
+    cx += 14;
+    icon(ch.target, cx, -7.5, 0.5);
+  }
+  ctx.restore();
+}
+
+function calcBlock(ch, x, y, t) {
+  const lines = calcLines(ch.calc.text);
+  const total = lines.reduce((a, l) => a + l.length, 0);
+  let left = Math.floor(total * seg(t, ch.calc.t0, ch.calc.t1));
+  const open = E.outCubic(seg(t, ch.calc.t0 - 0.3, ch.calc.t0 + 0.05));
+  if (open <= 0) return;
+  const color = TYPE[MOVE_TYPE[ch.move]];
+  ctx.save();
+  ctx.globalAlpha *= open;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 2, 2, lines.length * LH * open);
+  ctx.font = '400 10px "Geist"';
+  ctx.textBaseline = "top";
+  ctx.fillStyle = mix(color, C.ink, 0.65);
+  lines.forEach((l, i) => {
+    const shown = l.slice(0, Math.max(0, left));
+    left -= l.length;
+    if (shown) ctx.fillText(shown, x + 7, y + 3 + i * LH);
+  });
+  ctx.restore();
+}
+
+function drawSide(card, which, L, x0, t) {
+  const side = card[which];
+  ctx.save();
+  ctx.font = '600 10px "Geist"';
+  ctx.letterSpacing = "1px";
+  ctx.fillStyle = "#a8a29e";
+  ctx.fillText(which === "my" ? "MY TEAM" : "OPPOSING TEAM", x0, L.titleY);
+  ctx.restore();
+  const roster = which === "my" ? MY_ROSTER : OPP_ROSTER;
+  const placed = new Set([...side.front, ...side.back]);
+  roster.forEach((s, i) => {
+    const p = card.turn === 0 ? seg(t, card.appear + 0.05 + i * 0.0625 + (which === "opp" ? 0.03 : 0), card.appear + 0.3 + i * 0.0625) : 1;
+    const grey = card.turn > 0 && !placed.has(s);
+    if (p <= 0) return;
+    ctx.save();
+    ctx.translate(x0 + i * 42 + 20, L.rosterY + 15);
+    const sc = lerp(0.5, 1, E.outBack(p));
+    ctx.scale(sc, sc);
+    icon(s, -20, -15, 1, (grey ? 0.25 : 1) * clamp(p * 2), grey);
+    ctx.restore();
+  });
+  ctx.save();
+  ctx.font = '400 10px "Geist"';
+  ctx.fillStyle = "#a8a29e";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Front", x0, L.frontY + 17);
+  ctx.fillText("Back", x0, L.backY + 17);
+  ctx.restore();
+  const tile = (s, tx, ty, kind) => {
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(tx, ty, 46, 34, 4);
+    if (!s) { ctx.setLineDash([3, 3]); ctx.strokeStyle = "#e7e5e4"; ctx.stroke(); ctx.restore(); return; }
+    ctx.fillStyle = "#fff"; ctx.fill();
+    if (kind === "switched") { ctx.setLineDash([3, 2.5]); ctx.strokeStyle = "#7dd3fc"; }
+    else ctx.strokeStyle = kind === "mega" ? "#a78bfa" : "#d6d3d1";
+    ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+    icon(s, tx + 3, ty + 2);
+  };
+  for (let i = 0; i < 2; i++) {
+    const s = side.front[i];
+    const kind = side.switchedIn === s ? "switched" : side.mega === s ? "mega" : "";
+    tile(s ? shownAs(side, s) : null, x0 + 42 + i * 70 + 9, L.frontY, kind);
+    tile(side.back[i], x0 + 42 + i * 70 + 9, L.backY, "");
+  }
+  if (card.turn > 0) for (let i = 0; i < 2; i++) {
+    const ch = side.chips.find(c => c.s === side.front[i]);
+    if (!ch) continue;
+    boardChip(side, ch, x0 + 42, L.chipYs[i], t);
+    if (ch.calc) calcBlock(ch, x0 + 42, L.chipYs[i] + 22, t);
+  }
+}
+
+function drawCard(card, t, { dim = 0, hot = 0 } = {}) {
+  const a = seg(t, card.appear, card.appear + 0.35);
+  if (a <= 0) return;
+  const Lc = cardLayout(card, t);
+  ctx.save();
+  ctx.translate(COL_X[card.col], cardTop(card) + (1 - E.outCubic(a)) * 16);
+  ctx.globalAlpha *= clamp(a * 2) * (1 - 0.55 * dim);
+  ctx.beginPath(); ctx.roundRect(0, 0, CW, Lc.h, 8);
+  ctx.save();
+  ctx.shadowColor = hot ? `rgba(217,119,6,${0.35 * hot})` : "rgba(28,25,23,0.06)";
+  ctx.shadowBlur = hot ? 28 * hot : 6;
+  ctx.shadowOffsetY = hot ? 0 : 1;
+  ctx.fillStyle = "#fff"; ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = hot ? mix("#d97706", "#e7e5e4", hot) : "#e7e5e4";
+  ctx.lineWidth = hot ? lerp(1, 2, hot) : 1;
+  ctx.stroke();
+  if (card.alt) {
+    ctx.save();
+    ctx.font = '600 10px "Geist"'; ctx.letterSpacing = "1px"; ctx.fillStyle = "#d97706";
+    ctx.fillText("⑂ ALTERNATE TURN 1 · AFTER TURN 0", PAD, PAD + 10);
+    ctx.restore();
+  }
+  drawSide(card, "my", Lc.L, sideX("my"), t);
+  drawSide(card, "opp", Lc.R, sideX("opp"), t);
+  const sidesTop = PAD + (card.alt ? 22 : 0), sidesBottom = Lc.footY - 12;
+  const vx = PAD + SIDE_W + 18;
+  ctx.fillStyle = "#f5f5f4";
+  ctx.fillRect(vx - 0.5, sidesTop, 1, sidesBottom - sidesTop);
+  ctx.save();
+  ctx.font = '400 9px "Geist"'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const vy = (sidesTop + sidesBottom) / 2;
+  ctx.fillStyle = "#fff"; ctx.fillRect(vx - 9, vy - 7, 18, 14);
+  ctx.fillStyle = "#d6d3d1"; ctx.fillText("VS", vx, vy);
+  ctx.restore();
+  ctx.fillStyle = "#f5f5f4";
+  ctx.fillRect(PAD, Lc.footY, CW - PAD * 2, 1);
+  ctx.save();
+  ctx.font = '400 11px "Geist"'; ctx.textBaseline = "middle";
+  let bx = PAD;
+  const by = Lc.footY + 11;
+  for (const f of card.foot) {
+    if (f === "remove") { ctx.fillStyle = "#d6d3d1"; ctx.textAlign = "right"; ctx.fillText("remove", CW - PAD, by + 12); ctx.textAlign = "left"; continue; }
+    const w = ctx.measureText(f).width + 18;
+    const branch = f.startsWith("⑂");
+    ctx.beginPath(); ctx.roundRect(bx, by, w, 24, 4);
+    ctx.fillStyle = branch ? "#fffbeb" : "#fff"; ctx.fill();
+    ctx.strokeStyle = branch ? "#fde68a" : "#e7e5e4"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = branch ? "#b45309" : "#57534e";
+    ctx.fillText(f, bx + 9, by + 12.5);
+    bx += w + 8;
+  }
+  ctx.restore();
+  ctx.restore();
+}
+
+function arrow(from, to, p, amber, t, pulse = 0) {
+  if (p <= 0) return;
+  const x0 = COL_X[from.col] + CW, y0 = cardTop(from) + 96;
+  const x3 = COL_X[to.col], y3 = cardTop(to) + 96, mx = (x0 + x3) / 2;
+  const pt = u => { const v = 1 - u; return [
+    v * v * v * x0 + 3 * v * v * u * mx + 3 * v * u * u * mx + u * u * u * x3,
+    v * v * v * y0 + 3 * v * v * u * y0 + 3 * v * u * u * y3 + u * u * u * y3 ]; };
+  const color = amber ? "#d97706" : "#a8a29e";
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.2; ctx.lineCap = "round";
+  if (amber) { ctx.setLineDash([6, 5]); ctx.lineDashOffset = -t * 18; }
+  ctx.beginPath(); ctx.arc(x0, y0, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  const N = 48;
+  for (let k = 0; k <= Math.ceil(N * p); k++) { const [x, y] = pt(Math.min(p, k / N)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (p >= 0.98) { ctx.beginPath(); ctx.moveTo(x3, y3); ctx.lineTo(x3 - 9, y3 - 5); ctx.lineTo(x3 - 9, y3 + 5); ctx.closePath(); ctx.fill(); }
+  if (pulse > 0 && pulse < 1) {
+    const [px, py] = pt(E.inOutCubic(pulse));
+    const g = ctx.createRadialGradient(px, py, 0, px, py, 26);
+    g.addColorStop(0, "rgba(245,158,11,0.9)"); g.addColorStop(1, "rgba(245,158,11,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, 26, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// paper scrim behind a line of type, so the board can run under it
+function scrim(top, bottom, alpha) {
+  if (alpha <= 0) return;
+  const g = ctx.createLinearGradient(0, top, 0, bottom);
+  const solid = `rgba(250,250,248,${0.94 * alpha})`, clear = "rgba(250,250,248,0)";
+  if (top < 400) { g.addColorStop(0, solid); g.addColorStop(0.62, solid); g.addColorStop(1, clear); }
+  else { g.addColorStop(0, clear); g.addColorStop(0.38, solid); g.addColorStop(1, solid); }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, top, W, bottom - top);
+}
+const showing = (t, a, b) => seg(t, a - 0.1, a + 0.15) * (1 - seg(t, b + 0.2, b + 0.6));
+
+function sceneBoard(t) {
   const c = cam(t);
   const [sx, sy] = shakeAt(t);
+  const fade = 1 - seg(t, 20.5, 21.4);
+  if (fade <= 0) return;
   ctx.save();
+  ctx.globalAlpha = fade;
   ctx.translate(W / 2 + sx, H / 2 + sy);
   ctx.scale(c.z, c.z);
   ctx.translate(-c.x, -c.y);
 
-  // a world-space dot grid, so the camera's motion reads
-  {
-    const x0 = c.x - W / 2 / c.z - 90, x1 = c.x + W / 2 / c.z + 90;
-    const y0 = c.y - H / 2 / c.z - 90, y1 = c.y + H / 2 / c.z + 90;
-    ctx.save();
-    ctx.fillStyle = "#fff";
-    ctx.globalAlpha = 0.07 * seg(t, 8.0, 8.6);
-    for (let gx = Math.floor(x0 / 90) * 90; gx < x1; gx += 90)
-      for (let gy = Math.floor(y0 / 90) * 90; gy < y1; gy += 90) {
-        ctx.beginPath(); ctx.arc(gx, gy, 1.7 / c.z, 0, Math.PI * 2); ctx.fill();
-      }
-    ctx.restore();
-  }
-
-  const dim = seg(t, 17.2, 17.9);
-  const flash = seg(t, 20.5, 20.75) * (1 - seg(t, 20.75, 21.0));
-
-  for (const e of EDGES) {
-    const p = E.outCubic(seg(t, e.t0, e.t0 + e.dur));
-    if (p <= 0) continue;
-    const key = `${e.from}>${e.to}`;
-    const path = onPath(e);
-    const pulsed = PULSE.find(q => q.e === key);
-    const lit = pulsed ? seg(t, pulsed.a, pulsed.b) : 0;
-    const alpha = Math.min(1, (path ? 1 : 1 - 0.74 * dim) + flash);
-    const color = e.main ? C.light : C.amber;
-    ctx.save();
-    ctx.lineCap = "round";
-    if (!e.main) { ctx.setLineDash([16, 13]); ctx.lineDashOffset = -t * 46; }
-    ctx.beginPath();
-    const N = 56, upto = Math.max(2, Math.ceil(N * p));
-    for (let k = 0; k <= upto; k++) { const [x, y] = bez(e, Math.min(p, k / N)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-    glowStroke(color, path ? lerp(5, 8, lit) : 5, path ? lerp(20, 42, lit) : 20, alpha);
-    ctx.restore();
-
-    // the growth head
-    if (p < 1) {
-      const [hx, hy] = bez(e, p);
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 34);
-      g.addColorStop(0, "rgba(255,255,255,0.95)");
-      g.addColorStop(0.3, e.main ? "rgba(255,255,255,0.4)" : "rgba(245,158,11,0.5)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hx, hy, 34, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    }
-    // sparks shed behind it
-    {
-      const r = rng(900 + EDGES.indexOf(e));
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.fillStyle = e.main ? "#fff" : C.amber;
-      for (let k = 0; k < 34; k++) {
-        const u = k / 34, born = e.t0 + u * e.dur * 0.75, age = t - born, life = 0.9;
-        const jx = (r() - 0.5) * 14, jy = (r() - 0.5) * 14, vx = (r() - 0.5) * 60, vy = -20 - r() * 50, s = 1.2 + r() * 2.4;
-        if (age < 0 || age > life) continue;
-        const [bx, by] = bez(e, u);
-        ctx.globalAlpha = (1 - age / life) * 0.8 * alpha;
-        ctx.beginPath(); ctx.arc(bx + jx + vx * age, by + jy + vy * age, s, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    // the move rides the head, then settles beside its line
-    const ca = seg(t, e.t0 + e.dur * 0.1, e.t0 + e.dur * 0.1 + 0.18);
-    if (ca > 0) {
-      const settle = E.outCubic(seg(t, e.t0 + e.dur, e.t0 + e.dur + 0.4));
-      const [hx, hy] = bez(e, Math.max(p, 0.08));
-      const [mx, my] = bez(e, 0.56);
-      chip(e.chip, lerp(hx, mx, settle), lerp(hy, my, settle) - 36,
-           ca * (path ? 1 : 1 - 0.7 * dim), lerp(0.92, 1, settle) * (1 + 0.06 * lit));
-    }
-  }
-
-  // light running along the line that happens
-  for (const q of PULSE) {
-    if (t < q.a || t > q.b + 0.05) continue;
-    const e = EDGES.find(x => `${x.from}>${x.to}` === q.e);
-    const [px, py] = bez(e, E.inOutCubic(seg(t, q.a, q.b)));
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    const g = ctx.createRadialGradient(px, py, 0, px, py, 60);
-    g.addColorStop(0, "rgba(255,255,255,1)");
-    g.addColorStop(0.25, "rgba(255,214,140,0.7)");
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, 60, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-
-  for (const [id, n] of Object.entries(NODES)) {
-    const at = id === "R" ? 8.0 : ARRIVE[id];
-    if (t < at) continue;
-    const pp = seg(t, at, at + 0.45);
-    const s = id === "R" ? 1 : E.outBack(pp);
-    const onP = id === "R" || id === "A" || id === "A2";
-    const a = Math.min(1, (onP ? 1 : 1 - 0.74 * dim) + flash);
-    if (n.kind === "leaf") {
-      const hot = id === "A2";
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.translate(n.x, n.y); ctx.scale(s, s);
-      ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2);
-      ctx.strokeStyle = hot ? C.amber : "rgba(255,255,255,.85)"; ctx.lineWidth = 4;
-      ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18; ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
-      ctx.restore();
-      if (n.comesIn) sprite(n.comesIn, n.x + 66, n.y - 2, 92 * s, a);
-      ring(n.x, n.y, t, at, { r0: 12, r1: 90, color: hot ? C.amber : "#fff", width: 3 });
-      burst(n.x, n.y, t, at, 500 + id.charCodeAt(1), { n: 10, speed: 200, life: 0.5, color: hot ? C.amber : "#fff", size: 3 });
-    } else {
-      const cardA = id === "R" ? seg(t, 8.0, 8.35) : clamp(pp * 3);
-      ctx.save();
-      ctx.globalAlpha = a * cardA;
-      ctx.translate(n.x, n.y); ctx.scale(s, s);
-      ctx.beginPath(); ctx.roundRect(-98, -54, 196, 108, 22);
-      ctx.fillStyle = "rgba(255,255,255,0.055)"; ctx.fill();
-      ctx.strokeStyle = id === "R" ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.16)"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.restore();
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.translate(n.x, n.y); ctx.scale(s, s);
-      sprite(n.sprites[0], -42, 0, 84);
-      sprite(n.sprites[1], 42, 0, 84);
-      ctx.restore();
-      if (id !== "R") {
-        ring(n.x, n.y, t, at, { r0: 40, r1: 190, color: "#fff", width: 4 });
-        burst(n.x, n.y, t, at, 400 + id.charCodeAt(0) * 3 + id.length, { n: 16, speed: 300, life: 0.6, size: 4 });
-      }
-    }
-    if (id === "A") ring(n.x, n.y, t, 18.0, { r0: 30, r1: 220, color: C.amber, width: 6, life: 0.8 });
-    if (id === "A2") ring(n.x, n.y, t, 18.5, { r0: 30, r1: 160, color: C.amber, width: 6, life: 0.8 });
-  }
-
+  ctx.save();
+  ctx.font = '600 10px "Geist"'; ctx.letterSpacing = "1.6px"; ctx.fillStyle = "#a8a29e";
+  ctx.globalAlpha *= seg(t, 8.0, 8.3);
+  ctx.fillText("TURN 0 · TEAM PREVIEW", COL_X[0], 12);
+  ctx.globalAlpha = fade * seg(t, 9.45, 9.75);
+  ctx.fillText("TURN 1", COL_X[1], 12);
   ctx.restore();
-  dust(t, c);
 
-  kinetic("plan the branch,", 70, 150, t, { size: 78, tIn: 9.55, tOut: 15.75, glow: 22 });
-  kinetic("not the paragraph.", 70, 1002, t, { size: 78, tIn: 12.45, tOut: 15.85, glow: 22 });
-  kinetic("you've already seen this turn.", 70, 150, t, { size: 60, tIn: 17.45, tOut: 20.4, glow: 22 });
+  const dim = seg(t, 17.1, 17.7);
+  const hot = seg(t, 17.3, 18.0);
+  arrow(CARDS[0], CARDS[1], E.outCubic(seg(t, 9.1, 9.6)), false, t);
+  arrow(CARDS[0], CARDS[2], E.outCubic(seg(t, 13.45, 13.95)), true, t, seg(t, 17.4, 18.1));
+  drawCard(CARDS[0], t, { dim });
+  drawCard(CARDS[1], t, { dim });
+  drawCard(CARDS[2], t, { hot });
+  ctx.restore();
 
-  if (flash > 0) { ctx.save(); ctx.globalAlpha = flash * 0.18; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  ctx.save();
+  ctx.globalAlpha = fade;
+  const top = Math.max(showing(t, 11.15, 12.55), showing(t, 13.4, 16.2), showing(t, 17.0, 20.3));
+  scrim(0, 215, top);
+  scrim(865, H, showing(t, 14.3, 16.2));
+  const ink = { color: C.ink, glow: 0 };
+  kinetic("built-in damage calc.", 70, 150, t, { size: 66, tIn: 11.15, tOut: 12.55, ...ink });
+  kinetic("plan the branch,", 70, 150, t, { size: 78, tIn: 13.4, tOut: 16.2, ...ink });
+  kinetic("not the paragraph.", 70, 1002, t, { size: 78, tIn: 14.3, tOut: 16.25, ...ink });
+  kinetic("you've already seen this turn.", 70, 150, t, { size: 58, tIn: 17.0, tOut: 20.3, ...ink });
+  ctx.restore();
 }
 
 /* --------------------------------------------------- 21–30s: paper */
@@ -595,8 +779,6 @@ const URL_TEXT = "xatu-six.vercel.app";
 const URL_T0 = 24.6, URL_STEP = 1.2 / URL_TEXT.length;
 
 function sceneEnd(t) {
-  ctx.fillStyle = C.paper;
-  ctx.fillRect(0, 0, W, H);
 
   // the tree, small, as the mark: your lead, a main line, an alternate
   const ox = 330, oy = 300;
@@ -684,7 +866,8 @@ let ghostReady = false;
 function render(t) {
   if (t >= OPEN) { renderMain(t - OPEN); return; }
   if (!ghostReady) {
-    camOverride = { x: 430, y: -30, z: 0.86 };
+    const c2 = CARDS[2];
+    camOverride = { x: 960, y: cardTop(c2) + cardLayout(c2, 99).h / 2 - 40, z: 1.5 };
     renderMain(19.35);
     camOverride = null;
     ghost.getContext("2d").drawImage(cv, 0, 0);
@@ -724,31 +907,22 @@ function renderMain(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = C.night;
-  ctx.fillRect(0, 0, W, H);
-
-  if (t < 21.95) {
-    if (t < 8.0) { scenePreview(t); dust(t, null); }
-    else sceneTree(t);
+  if (t < 8.0) {
+    ctx.fillStyle = C.night;
+    ctx.fillRect(0, 0, W, H);
+    scenePreview(t);
+    dust(t, null);
     vignette();
+    return;
   }
-
-  // the screen opens onto paper from the leaf that happened
-  if (t >= 21.0) {
-    const [cx, cy] = toScreen(NODES.A2.x, NODES.A2.y, cam(21.0));
-    const r = E.inCubic(seg(t, 21.0, 21.95)) * 1750;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2); ctx.clip();
-    sceneEnd(t);
-    ctx.restore();
-    if (t < 21.95) {
-      ctx.save();
-      ctx.strokeStyle = C.amber; ctx.lineWidth = 10 * (1 - seg(t, 21.0, 21.95));
-      ctx.shadowColor = C.amber; ctx.shadowBlur = 30;
-      ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.1, r), 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
-  }
+  // The drop cuts straight to paper: the four that were picked are already in
+  // their Front tiles, and the board builds itself around them.
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(0, 0, W, H);
+  sceneBoard(t);
+  if (t >= 21.2) sceneEnd(t);
+  const flash = 1 - seg(t, 8.0, 8.18);
+  if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.85})`; ctx.fillRect(0, 0, W, H); }
 }
 
 /* ======================================================= the soundtrack
@@ -949,10 +1123,21 @@ function buildSong(ac, out, T0real) {
   for (let s = 8.5; s < 20; s += 1) clap(s);
   for (let s = 8.25; s < 20; s += 0.5) hat(s, 0.09, true);
 
-  // the tree answers: each node rings out as a note when it lands
-  ["A", "B", "Cc"].forEach((id, i) => pluck(ARRIVE[id], [76, 79, 81][i], 0.22));
-  ["A1", "A2", "B1", "B2", "C1", "C2"].forEach((id, i) => pluck(ARRIVE[id], [69, 72, 74, 76, 79, 81][i], 0.16));
-  // the path lights: a rising swell
+  // the board answers: each card, each move and each calculation lands on a note
+  for (const card of CARDS) {
+    if (card.turn > 0) pluck(card.appear, card.alt ? 72 : 79, 0.2);
+    for (const side of [card.my, card.opp]) for (const ch of side.chips) {
+      pluck(ch.t, ch.switched ? 69 : side === card.opp ? 81 : 76, 0.17);
+      if (ch.calc) {
+        const n = ch.calc.text.length;
+        for (let k = 0; k < n; k += 4) tick(ch.calc.t0 + (k / n) * (ch.calc.t1 - ch.calc.t0), 0.035);
+        pluck(ch.calc.t1, 88, 0.22); pluck(ch.calc.t1 + 0.125, 93, 0.17);
+      }
+    }
+  }
+  pluck(9.1, 74, 0.14);    // the arrow to turn 1
+  pluck(13.45, 72, 0.18);  // the amber arrow to the alternate
+  // the alternate lights: a rising swell
   pad(17.45, [76, 81, 84], 1.6, 0.05, 4200);
   pluck(18.0, 84, 0.24); pluck(18.5, 88, 0.26);
 
@@ -1010,7 +1195,7 @@ window.renderWav = async () => {
 };
 
 (async () => {
-  await spritesReady;
+  await Promise.all([spritesReady, sheetReady]);
   await Promise.all([
     document.fonts.load('800 80px "Bricolage Grotesque"'),
     document.fonts.load('700 24px "Geist"'),
