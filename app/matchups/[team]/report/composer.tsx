@@ -154,7 +154,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
           boards. It was max-w-3xl with one-line matchup rows and that is not
           what you are composing. */}
       <main className="mx-auto max-w-6xl px-6 py-12">
-        <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-stone-200 pb-4">
           <div>
             <Wordmark />
             <p className="text-xs text-stone-500">{t("Team report")}</p>
@@ -239,7 +239,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                       the board's job, not this page's. */}
                   {/* Same heading as the published page gives it — the
                       composer has to look like what it makes. */}
-                  <h2 className="mt-4 flex items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
+                  <h2 className="mt-4 flex flex-wrap items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
                     <TeamSprites team={board.setup.opp} scale={0.7} />
                     {t("vs. {team}", { team: board.setup.opp.name })}
                   </h2>

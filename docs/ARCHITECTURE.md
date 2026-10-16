@@ -2128,6 +2128,35 @@ with new matchups appended. A first publish still takes the group's order,
 since there is nothing yet to keep. Prose stays with its opponent on purpose;
 what must not move is the opponents.
 
+## Phone width (2026-10-16)
+
+Measured in WebKit with iPhone emulation (Playwright), not judged by eye, after
+a launch-day tester hit a board whose two action rows overlapped. The rules:
+
+- **Page headers wrap** (`flex-wrap`), and `HeaderNav` is `max-sm:w-full
+flex-wrap`: on a phone the nav takes its own line under the wordmark, and
+  wraps again if that line is still too narrow (Japanese, with a back link, on
+  a 375px screen). On desktop nothing changes, which the toggle-position check
+  in three languages confirms — the "nothing variable to the right of the
+  toggle" rule still holds.
+- **The GitHub and Discord icons are hidden under `sm`.** They are chrome,
+  not actions, and the 80px they cost is what pushed the account slot off the
+  edge. `hidden sm:contents` keeps them flex items when shown.
+- **The board's two header bands stack** under `sm` (`flex-col`), and every
+  action row is `flex-wrap`. Side by side, the title column shrank to 150px
+  and stacked its four buttons one word per line.
+- **A pasted set block scrolls** (`max-w-full overflow-x-auto`) rather than
+  widening a public page; the matchup heading wraps its team name under the
+  six sprites.
+- **The hero tree scales with a transform**, not `zoom`: Mobile Safari
+  combines `zoom` with its text inflation and the 9px labels wrap. The wrapper
+  is sized to the scaled box so the section below does not float up.
+- `/login` is left alone on purpose: its header is inside a narrow card and
+  `flex-wrap` there wrapped the nav at desktop width in two languages.
+
+Every page is 0px of horizontal overflow at 390px and 320px in all three
+languages, except `/login` at 320px (26px, pre-existing).
+
 ## `getUser()` is a network call (2026-10-13)
 
 `/matchups` took **1,637ms** to paint while its data arrived at 416ms. The

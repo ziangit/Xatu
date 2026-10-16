@@ -1714,7 +1714,7 @@ export default function SimPage() {
               opponents — the board is the one page where navigating away could
               throw away written work. The wordmark is a link too, so it gets
               the same guard; the account menu doesn't navigate, so it doesn't. */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <span onClickCapture={saveIfDirty}>
               <Wordmark heading={false} />
             </span>
@@ -1723,7 +1723,9 @@ export default function SimPage() {
             </HeaderNav>
           </div>
 
-          <div className="mt-4 flex items-end justify-between gap-6">
+          {/* On a phone the title column and the action row stack; side by
+              side, the column shrank to 150px and the buttons overlapped. */}
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold tracking-tight">
                 {/* This "vs." is presentational — the one inside a stored
@@ -1924,7 +1926,7 @@ export default function SimPage() {
                 )}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
               {/* Back lives with the board's actions, not up in the site nav —
                   it's the way out of *this board*, so it belongs where the
                   eye already is. Wrapped alone so Reset can't trigger a save. */}
@@ -2127,7 +2129,7 @@ export default function SimPage() {
             edge — so the board wouldn't scroll *and* you left the page, which
             is how written work went missing. Containing it keeps the gesture
             in the strip. */}
-        <div className="mt-4 overscroll-x-contain overflow-x-auto pb-4">
+        <div className="scroll-x-hint mt-4 overscroll-x-contain overflow-x-auto pb-4">
           <div ref={wrapRef} className="relative w-max">
             <EdgeLayer edges={edges} />
             <div

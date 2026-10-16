@@ -431,48 +431,54 @@ function HeroTree() {
     return () => clearInterval(id);
   }, []);
 
+  // The tree is 412px of absolute positions and does not reflow. Under 640px
+  // it is scaled to 0.78 with a transform — not `zoom`, which Mobile Safari
+  // combines with its text inflation so the 9px labels wrap — inside a box
+  // of the scaled size, so the section below it does not float up.
   return (
-    <div
-      className="relative h-[300px] w-[412px] shrink-0"
-      aria-label={t(
-        "A miniature matchup tree: a team preview, and the turn-one lines planned from it",
-      )}
-    >
-      <svg className="pointer-events-none absolute h-0 w-0">
-        <defs>
-          <marker
-            id="land-arrow-main"
-            markerWidth="8"
-            markerHeight="8"
-            refX="6.5"
-            refY="4"
-            orient="auto"
-          >
-            <path d="M1 1 L7 4 L1 7 Z" fill="#b3ada4" />
-          </marker>
-          <marker
-            id="land-arrow-branch"
-            markerWidth="8"
-            markerHeight="8"
-            refX="6.5"
-            refY="4"
-            orient="auto"
-          >
-            <path d="M1 1 L7 4 L1 7 Z" fill="#d97706" />
-          </marker>
-        </defs>
-      </svg>
+    <div className="shrink-0 max-sm:h-[234px] max-sm:w-[321px]">
+      <div
+        className="relative h-[300px] w-[412px] shrink-0 max-sm:origin-top-left max-sm:scale-[0.78]"
+        aria-label={t(
+          "A miniature matchup tree: a team preview, and the turn-one lines planned from it",
+        )}
+      >
+        <svg className="pointer-events-none absolute h-0 w-0">
+          <defs>
+            <marker
+              id="land-arrow-main"
+              markerWidth="8"
+              markerHeight="8"
+              refX="6.5"
+              refY="4"
+              orient="auto"
+            >
+              <path d="M1 1 L7 4 L1 7 Z" fill="#b3ada4" />
+            </marker>
+            <marker
+              id="land-arrow-branch"
+              markerWidth="8"
+              markerHeight="8"
+              refX="6.5"
+              refY="4"
+              orient="auto"
+            >
+              <path d="M1 1 L7 4 L1 7 Z" fill="#d97706" />
+            </marker>
+          </defs>
+        </svg>
 
-      {SCENES.map((scene, i) => (
-        <div
-          key={scene.label}
-          aria-hidden={i !== shown}
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
-          style={{ opacity: i === shown ? 1 : 0 }}
-        >
-          <HeroPlan scene={scene} />
-        </div>
-      ))}
+        {SCENES.map((scene, i) => (
+          <div
+            key={scene.label}
+            aria-hidden={i !== shown}
+            className="absolute inset-0 transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+            style={{ opacity: i === shown ? 1 : 0 }}
+          >
+            <HeroPlan scene={scene} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -501,8 +507,10 @@ export default function LandingPage() {
               {t("my matchups →")}
             </Link>
             <LangToggle />
-            <GitHubLink />
-            <DiscordLink />
+            <span className="hidden sm:contents">
+              <GitHubLink />
+              <DiscordLink />
+            </span>
             <AccountLink />
           </span>
         </header>

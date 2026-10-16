@@ -221,8 +221,12 @@ export function HeaderNav({
   onBeforeLeave?: () => void;
   children?: ReactNode;
 }) {
+  // `shrink-0` so a long page title can never squeeze the nav; on a phone the
+  // header wraps and the nav takes its own line — and when even that line is
+  // too narrow (Japanese, with a back link, on a 375px screen) the nav itself
+  // wraps rather than pushing the account slot off the edge.
   return (
-    <nav className="flex shrink-0 items-center gap-4">
+    <nav className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 max-sm:w-full">
       <span
         className="flex shrink-0 items-center gap-4"
         onClickCapture={onBeforeLeave}
@@ -235,8 +239,13 @@ export function HeaderNav({
           outside the onBeforeLeave capture with the account widget. It brings
           its own leading hairline, as AccountLink does. */}
       <LangToggle />
-      <GitHubLink />
-      <DiscordLink />
+      {/* The two icons are the first thing to go on a phone: at 390px the
+          nav is 379px wide with them and would push the account slot off the
+          edge. `contents` keeps them flex items when they are shown. */}
+      <span className="hidden sm:contents">
+        <GitHubLink />
+        <DiscordLink />
+      </span>
       {/* AccountLink brings its own leading hairline — it renders nothing at
           all in local-only builds, and a stray divider would be left behind. */}
       <AccountLink />

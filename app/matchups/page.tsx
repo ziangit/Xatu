@@ -473,7 +473,7 @@ export default function MatchupsPage() {
   return (
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-stone-200 pb-4">
           <div>
             <Wordmark />
             <p className="text-xs text-stone-400">{t("my matchups")}</p>
@@ -716,7 +716,7 @@ export default function MatchupsPage() {
                   }`}
                 >
                   <header
-                    className={`flex items-center gap-3 border-b px-4 py-2.5 ${
+                    className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5 ${
                       pasted
                         ? "border-violet-100 bg-violet-50/70"
                         : "border-stone-100 bg-[#fcfcfa]"

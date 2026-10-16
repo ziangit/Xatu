@@ -73,7 +73,7 @@ function MonArt({ species }: { species: string }) {
  */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
-    <div className="w-fit whitespace-pre font-mono text-[13px] leading-[1.6] text-stone-600">
+    <div className="w-fit max-w-full overflow-x-auto whitespace-pre font-mono text-[13px] leading-[1.6] text-stone-600">
       {lines.map((line, i) => (
         // The species line is the set's heading — without it the block has no
         // entry point and reads as eight equal lines.

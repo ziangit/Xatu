@@ -54,7 +54,7 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen w-full bg-[#fafaf8] font-sans text-stone-900">
       <main className="mx-auto max-w-4xl px-6 py-12">
-        <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-stone-200 pb-4">
           <div>
             <Wordmark />
             <p className="mt-1 text-xs text-stone-500">

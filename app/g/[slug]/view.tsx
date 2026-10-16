@@ -58,7 +58,7 @@ export function PublishedView({ slug }: { slug: string }) {
           which reads as broken rather than scrollable. The prose below keeps
           its own narrow measure. */}
       <main className="mx-auto max-w-6xl px-6 py-12">
-        <header className="flex items-baseline justify-between border-b border-stone-200 pb-4">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-stone-200 pb-4">
           <Wordmark />
           <HeaderNav back="/">
             <NavLink href="/feed">{t("published")}</NavLink>
@@ -163,7 +163,7 @@ export function PublishedView({ slug }: { slug: string }) {
                   text={post.report?.before?.[reportKey(board.opp)]}
                   className="mb-4"
                 />
-                <h2 className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
+                <h2 className="flex flex-wrap items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
                   <span className="flex">
                     {board.opp.parsed.map((m, i) => (
                       <MonIcon
