@@ -248,11 +248,10 @@ const SCENES: HeroScene[] = [
         ],
       },
       {
-        // The same two moves, and that is the point: Pelipper leaves, so
-        // Thunderbolt has nothing to aim at and the plan is the opponent's
-        // switch rather than ours. The stored node still carries the old
-        // target, which the board drops because Pelipper is no longer on the
-        // field — the hero agrees with it and draws no arrow.
+        // The same two moves as the line above, re-aimed: Pelipper leaves and
+        // Thunderbolt goes to whatever came in instead. The author re-picked
+        // that target by hand, which is the only way it can happen — xatu
+        // does not guess who a move should hit.
         top: 160,
         fromY: 140,
         toY: 198,
@@ -265,6 +264,7 @@ const SCENES: HeroScene[] = [
             by: "Gardevoir-Mega",
             move: "Thunderbolt",
             color: TYPE_COLORS.Electric,
+            at: "Archaludon",
           },
         ],
       },
