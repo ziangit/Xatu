@@ -9,8 +9,7 @@ import { PostCard } from "./feed/post-card";
 import { MonIcon, TYPE_COLORS } from "./demo/components";
 import { useT } from "./i18n/provider";
 import { LangToggle } from "./i18n/toggle";
-import { DiscordLink, GitHubLink } from "./nav";
-import { GITHUB_URL } from "./site";
+import { DiscordLink, GitHubLink, LegalFooter } from "./nav";
 
 // Landing page. Visual language is the sim board's own — paper ground, stone
 // ink, Simulate red, branch amber — so the page opens straight into the tool
@@ -642,19 +641,10 @@ export default function LandingPage() {
           </p>
         </section>
 
-        <footer className="flex flex-col gap-2 border-t border-stone-200 py-8 text-[11px] leading-relaxed text-stone-400 md:flex-row md:items-baseline md:justify-between">
-          <p>
-            {t(
-              "xatu is an unaffiliated, non-commercial fan project. Pokémon is owned by Nintendo, The Pokémon Company, Game Freak, and Creatures.",
-            )}
-          </p>
-          <a
-            href={GITHUB_URL}
-            className="shrink-0 underline-offset-2 hover:text-stone-700 hover:underline"
-          >
-            {t("github")}
-          </a>
-        </footer>
+        {/* The shared notice, now that the github link beside it is gone — the
+            header carries that mark on every page, and a second one in the
+            footer was the landing page's only reason to hand-roll this row. */}
+        <LegalFooter className="mt-0 pb-8 pt-8" />
       </main>
     </div>
   );

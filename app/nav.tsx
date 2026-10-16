@@ -247,8 +247,9 @@ export function HeaderNav({
 /**
  * The attribution notice, which has to appear in the UI. It was copy-pasted into
  * five pages; one copy means it can't drift and it's translated once. The
- * landing page keeps its own markup because it pairs the notice with a github
- * link on the same row — but it uses this same sentence.
+ * landing page hand-rolled its own row until 2026-10-15, to pair the notice
+ * with a github link — that link is gone, the header carries the mark on
+ * every page, and the landing page uses this like everywhere else.
  */
 export function LegalFooter({ className = "mt-16" }: { className?: string }) {
   const t = useT();
