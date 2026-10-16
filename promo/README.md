@@ -1,52 +1,50 @@
 # promo
 
-`intro.html` — a 60-second animated intro for posting on X.
+A 30-second intro for X, **rendered** to a video file rather than screen-recorded.
 
-Open it in a browser and screen-record the square. It is one continuous
-timeline rather than a slideshow: every beat grows out of the one before it.
+```bash
+node promo/render.mjs          # → promo/out/xatu-intro.mp4  (about 3 minutes)
+node promo/render.mjs --serve  # preview it in a browser, with sound
+```
 
-- **R** restarts from zero. **Space** pauses.
-- The square is 1080×1080 and scales to fit the window, so make the window as
-  tall as your screen allows and record that region.
-- It waits for every sprite before the first frame, so nothing pops in late.
-  Playback is identical every run — record twice and the frames match.
+Needs Chrome and ffmpeg. The output — video, soundtrack and the sprite cache —
+lands in `promo/out/`, which is gitignored: CLAUDE.md says never to commit
+sprite or audio assets, and an mp4 is both.
 
-## The timeline
+## How it works
 
-|        |                                                                       |
-| ------ | --------------------------------------------------------------------- |
-| 0–5s   | a team report's prose collapses into the turn-0 card                  |
-| 5–13s  | six sprites fly into the roster row                                   |
-| 13–20s | two step forward; the opponent appears                                |
-| 20–30s | turn 1 — the arrow draws, moves snap in                               |
-| 30–44s | **the branch** — the beat nothing else does, so it gets the most time |
-| 44–52s | it all folds into the published card                                  |
-| 52–60s | the link types itself, then the wordmark                              |
+`intro.html` is a canvas whose every frame is a pure function of time:
+`render(t)` draws frame `t`, and `buildSong()` schedules every note of an
+original soundtrack on the same clock. `render.mjs` serves the page, steps `t`
+through 900 frames at 30fps, renders the soundtrack offline, and pipes both into
+ffmpeg. So every hit lands on its frame, the file is identical on every run,
+and there is no music to license.
 
-## Why it is built this way
+## The film
 
-**Sprites are hotlinked from Showdown**, exactly as the app does, and the
-palette, type colours and card geometry are the app's own — so the video shows
-what a viewer actually gets. Nothing is a mockup of a feature that does not
-exist.
+120 BPM — a beat is 0.5s, a bar is 2s.
 
-**There is no Pokémon mascot.** Sprites appear because they identify which
-Pokémon is in which slot, which is the same footing every VGC tool stands on.
-A character animated across the frame as decoration is a different thing and a
-worse idea, legally and creatively.
+|           |                                                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| cold open | half a second of the finished tree, lit, with its last line — torn away to black. It is also frame 0, which X uses as the preview. |
+| 0–4s      | team preview: twelve sprites slam in on eighth notes, each one a note                                                              |
+| 4–8s      | "what do they lead?" — a slot machine over their six, tightening until it locks                                                    |
+| 8s        | the drop: three branches fire out of your lead                                                                                     |
+| 8–17s     | the tree grows; the camera flies through it                                                                                        |
+| 17–21s    | one path lights up — the line you already planned for                                                                              |
+| 21–22s    | the screen opens onto paper from that leaf                                                                                         |
+| 22–30s    | xatu                                                                                                                               |
 
-**It works silent.** X autoplays muted, so each beat carries its own caption
-and the motion does the pacing. Music is a reward for unmuting, not the spine
-— and it must not be Pokémon game music.
+Exported as H.264 1080×1080, broadcast-range `yuv420p`, AAC 48kHz, about
+−15 LUFS with 2dB of headroom — X normalises loudness and re-encodes, so
+peaks near 0dBFS come back clipped and full-range video can come back washed out.
 
-**Square, not 16:9.** A square takes more timeline height on a phone.
+## Three things this cost to learn
 
-## Editing it
-
-One timeline, driven by `animation-delay` from a single `.run` parent. To move
-a beat, change its delay in the block at the bottom of the `<style>`.
-
-One trap, learned the hard way: **give an element one animation, not two.**
-During the second animation's delay its backwards fill wins, so an element
-with `popIn … 44s both, out … 52s both` is visible from frame one. Where a
-thing needs both an entrance and an exit, a wrapper carries one of them.
+- **Showdown sends no CORS headers**, so a canvas that draws its sprites cannot
+  be exported. `render.mjs` proxies them from the same origin.
+- **A large value cannot come back through the DevTools socket in one
+  message.** The 7.7MB soundtrack simply never arrived and the render sat at
+  0% CPU. Values are parked on the page and pulled out in slices.
+- **Wait for Chrome to exit before deleting its profile** — it writes to the
+  directory while it shuts down.

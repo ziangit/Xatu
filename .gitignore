@@ -43,3 +43,6 @@ next-env.d.ts
 
 # ingested community-team data (regenerate with scripts/vgcpastes/ingest.mjs)
 /scripts/vgcpastes/data/
+
+# rendered video, soundtrack and the sprite cache — never committed
+promo/out/
