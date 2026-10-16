@@ -416,7 +416,10 @@ async function main() {
       unparseable.push(`${rec.source_team_id} ${rec.paste_url}`);
       continue;
     }
-    const { pasteId, ...fields } = rec;
+    // `pasteId` is the cache key, not a column — destructured off so it
+    // cannot reach the seed. Named with a leading underscore so eslint knows
+    // the discard is the point.
+    const { pasteId: _pasteId, ...fields } = rec;
     out.push({
       ...fields,
       // The paste's own format wins; the tab is only a fallback.

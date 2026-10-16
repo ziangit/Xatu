@@ -13,6 +13,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // A name starting with `_` says the value is deliberately discarded —
+      // destructuring a key off an object to keep it out of what follows is
+      // the usual case. Without this, the only way to express that is to
+      // leave a warning in the tree, which teaches contributors to ignore
+      // warnings.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
