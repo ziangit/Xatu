@@ -177,11 +177,14 @@ export function ReportComposer({ teamId }: { teamId: string }) {
               <span className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
                 {t("Summary")}
               </span>
-              {/* This is the one that leaves the site: it is the Open Graph
-                  description and the feed card's subtitle, so it is labelled
-                  by where it shows up rather than by what it is. */}
+              {/* It does two jobs, and the hint has to name both: it opens
+                  the published report as its first section, and it is the one
+                  piece of text that leaves the site — the Open Graph
+                  description and the feed card's subtitle. */}
               <p className="text-[11px] text-stone-400">
-                {t("Shown when you post the link, and on the feed.")}
+                {t(
+                  "Opens the report, and is what shows when you post the link.",
+                )}
               </p>
               <textarea
                 value={description}

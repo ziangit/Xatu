@@ -26,7 +26,12 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * - **A sprite alone on its line** is an illustration, not a word, so it
  *   leaves the text flow — and a set that follows it stacks directly beneath,
  *   artwork over set, which is how every RMT introduces a Pokémon.
- * - **Everything else** is a paragraph at a reading measure.
+ * - **Everything else** is a paragraph at a reading measure — capped at
+ *   36rem, which the card deliberately is not: the card's edges line up
+ *   with the matchup below it, and the text inside it does not have to.
+ *   The cap is in rem rather than `ch` on purpose — `ch` measures the "0"
+ *   glyph, which in Geist is 0.66em, so a 68ch cap came out at 90 characters
+ *   rather than the 68 it promises.
  *
  * The sprite is the full gen-5 artwork at its **native 96px**, not the
  * team-preview icon the rest of the app draws with: the icon sheet's tiles are
@@ -62,7 +67,7 @@ function MonArt({ species }: { species: string }) {
  */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
-    <div className="whitespace-pre font-mono text-[12px] leading-[1.6] text-stone-600">
+    <div className="w-fit whitespace-pre font-mono text-[13px] leading-[1.6] text-stone-600">
       {lines.map((line, i) => (
         // The species line is the set's heading — without it the block has no
         // entry point and reads as eight equal lines.
@@ -76,7 +81,12 @@ function SetBlock({ lines }: { lines: string[] }) {
 
 function Prose({ block }: { block: Extract<Block, { kind: "prose" }> }) {
   return (
-    <p className="whitespace-pre-wrap">
+    // The paragraph is capped, the card is not. A line of 150 characters —
+    // which is what the full 1,062px card gave at 14px — is about twice what
+    // an eye can track back to the next line, and that single number is most
+    // of what made a report look wrong. Capping the *card* instead would have
+    // broken its alignment with the matchup below it, which is load-bearing.
+    <p className="max-w-xl whitespace-pre-wrap">
       {block.segments.map((seg, i) =>
         seg.kind === "mon" ? (
           <MonArt key={i} species={seg.species} />
@@ -128,7 +138,7 @@ export function ReportProse({
 
   return (
     <div
-      className={`space-y-3 rounded-lg border border-stone-200 bg-white px-5 py-4 text-sm leading-relaxed text-stone-700 ${className}`}
+      className={`space-y-4 rounded-lg border border-stone-200 bg-white px-5 py-4 text-base leading-[1.7] text-stone-700 ${className}`}
     >
       {out}
     </div>

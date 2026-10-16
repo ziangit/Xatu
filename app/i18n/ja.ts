@@ -228,8 +228,8 @@ export const JA: Record<string, string> = {
   "That set isn’t in this browser.": "このブラウザにそのグループはありません。",
   Title: "タイトル",
   Summary: "概要",
-  "Shown when you post the link, and on the feed.":
-    "リンクを共有したときとフィードに表示されます。",
+  "Opens the report, and is what shows when you post the link.":
+    "レポートの冒頭になり、リンクを投稿したときにも表示されます。",
   "The report": "本文",
   "Write between the matchups. Type a Pokémon’s name in colons — :Incineroar: — to drop its sprite into the line.":
     "マッチアップの間に書けます。ポケモン名をコロンで挟む——:Incineroar:——とアイコンが入ります。",

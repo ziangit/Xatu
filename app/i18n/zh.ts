@@ -205,8 +205,8 @@ export const ZH: Record<string, string> = {
   "That set isn’t in this browser.": "这个浏览器里没有这一组。",
   Title: "标题",
   Summary: "简介",
-  "Shown when you post the link, and on the feed.":
-    "分享链接时和动态列表里会显示这段。",
+  "Opens the report, and is what shows when you post the link.":
+    "作为队伍报告的开头，也是你发布链接时显示的文字。",
   "The report": "报告正文",
   "Write between the matchups. Type a Pokémon’s name in colons — :Incineroar: — to drop its sprite into the line.":
     "在各个对阵之间写内容。用冒号括住宝可梦名字——:Incineroar:——就能把它的图标插进这一行。",

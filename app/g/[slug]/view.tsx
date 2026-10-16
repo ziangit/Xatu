@@ -123,15 +123,28 @@ export function PublishedView({ slug }: { slug: string }) {
                   {post.teamName}
                 </span>
               </span>
-              {post.description && (
-                <p className="mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-                  {post.description}
-                </p>
-              )}
               {/* Only offered when the document actually decoded — forking
                   something we couldn't read would write a broken group. */}
               {group && <ForkButton slug={post.slug} group={group} />}
             </div>
+
+            {/* The summary is the report's first section, not a blurb under
+                the byline — it is what the composer already calls it. So it
+                gets a heading at the same scale as each matchup's, and the
+                same white card as every other passage the author wrote.
+
+                It is also the one piece of text that leaves the site: the
+                Open Graph description and the feed card's subtitle. Nothing
+                about rendering it here changes that — `description` is still
+                its own column, read as plain text by the card and the feed. */}
+            {post.description && (
+              <section className="mt-10">
+                <h2 className="text-sm font-bold text-stone-800">
+                  {t("Summary")}
+                </h2>
+                <ReportProse text={post.description} className="mt-3" />
+              </section>
+            )}
 
             {!group && (
               <p className="mt-8 text-xs text-amber-700">
