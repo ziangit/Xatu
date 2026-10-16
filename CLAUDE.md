@@ -63,4 +63,5 @@ doubles — the "vs. common archetypes" section of an RMT as data instead of pro
 ## Where to look
 
 - Technical reference & gotchas: docs/ARCHITECTURE.md (read on demand)
+- What to walk before a release: docs/TESTING.md
 - Original brief: xatu-claude-code-prompt.md (repo root)
