@@ -621,4 +621,5 @@ export const JA: Record<string, string> = {
     "縮小版のマッチアップツリー：選出と、そこから分岐する第 1 ターンのライン",
   "Turn 0 · team preview": "ターン0 · 選出",
   "⑂ if they lead {species}": "⑂ 相手が {species} を先発したら",
+  "⑂ if they switch to {species}": "⑂ 相手が {species} に交代したら",
 };

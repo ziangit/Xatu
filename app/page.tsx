@@ -196,8 +196,9 @@ type HeroBranch = {
   against: [string, string];
   moves: HeroMove[];
   /** Set on an alternate line: amber label and a dashed arrow, as the board
-   *  itself draws a sibling of the same turn. */
-  ifTheyLead?: string;
+   *  itself draws a sibling of the same turn. `kind` is what makes the two
+   *  lines differ — the opponent's lead, or their switch. */
+  alt?: { kind: "lead" | "switch"; species: string };
 };
 
 type HeroScene = {
@@ -218,8 +219,7 @@ const PSYSPAM = [
 
 const SCENES: HeroScene[] = [
   {
-    // vs glitchy_potat's Baltimore Regional 2027 Team — one line written, which
-    // is what a real guide looks like: sparse by design.
+    // vs glitchy_potat's Baltimore Regional 2027 Team.
     label: "Golisopod",
     my: PSYSPAM,
     opp: [
@@ -232,12 +232,9 @@ const SCENES: HeroScene[] = [
     ],
     branches: [
       {
-        // Centred on the preview card rather than on the frame: with one
-        // line written there is nothing to balance against, and a card that
-        // starts level with its arrow reads as the whole of this plan.
-        top: 86,
-        fromY: 135,
-        toY: 120,
+        top: 0,
+        fromY: 128,
+        toY: 50,
         lead: ["Indeedee-F", "Gardevoir-Mega"],
         against: ["Golisopod", "Pelipper"],
         moves: [
@@ -247,6 +244,27 @@ const SCENES: HeroScene[] = [
             move: "Thunderbolt",
             color: TYPE_COLORS.Electric,
             at: "Pelipper",
+          },
+        ],
+      },
+      {
+        // The same two moves, and that is the point: Pelipper leaves, so
+        // Thunderbolt has nothing to aim at and the plan is the opponent's
+        // switch rather than ours. The stored node still carries the old
+        // target, which the board drops because Pelipper is no longer on the
+        // field — the hero agrees with it and draws no arrow.
+        top: 160,
+        fromY: 140,
+        toY: 198,
+        alt: { kind: "switch", species: "Archaludon" },
+        lead: ["Indeedee-F", "Gardevoir-Mega"],
+        against: ["Golisopod", "Archaludon"],
+        moves: [
+          { by: "Indeedee-F", move: "Follow Me", color: TYPE_COLORS.Normal },
+          {
+            by: "Gardevoir-Mega",
+            move: "Thunderbolt",
+            color: TYPE_COLORS.Electric,
           },
         ],
       },
@@ -283,10 +301,10 @@ const SCENES: HeroScene[] = [
         ],
       },
       {
-        top: 172,
+        top: 160,
         fromY: 140,
-        toY: 210,
-        ifTheyLead: "Salamence",
+        toY: 198,
+        alt: { kind: "lead", species: "Salamence" },
         lead: ["Talonflame", "Kommo-o"],
         against: ["Salamence", "Gholdengo"],
         moves: [
@@ -319,18 +337,18 @@ function HeroPlan({ scene }: { scene: HeroScene }) {
               cx="170"
               cy={b.fromY}
               r="3"
-              fill={b.ifTheyLead ? "#d97706" : "#b3ada4"}
+              fill={b.alt ? "#d97706" : "#b3ada4"}
             />
             <path
-              className={b.ifTheyLead ? undefined : "land-draw"}
-              style={b.ifTheyLead ? undefined : { animationDelay: "0.75s" }}
+              className={b.alt ? undefined : "land-draw"}
+              style={b.alt ? undefined : { animationDelay: "0.75s" }}
               d={`M 170 ${b.fromY} C 206 ${b.fromY}, 206 ${b.toY}, 233 ${b.toY}`}
               fill="none"
-              stroke={b.ifTheyLead ? "#d97706" : "#b3ada4"}
+              stroke={b.alt ? "#d97706" : "#b3ada4"}
               strokeWidth="1.75"
               strokeLinecap="round"
-              strokeDasharray={b.ifTheyLead ? "5 4" : undefined}
-              markerEnd={`url(#land-arrow-${b.ifTheyLead ? "branch" : "main"})`}
+              strokeDasharray={b.alt ? "5 4" : undefined}
+              markerEnd={`url(#land-arrow-${b.alt ? "branch" : "main"})`}
             />
           </g>
         ))}
@@ -357,12 +375,16 @@ function HeroPlan({ scene }: { scene: HeroScene }) {
         >
           <p
             className={`text-[9px] font-semibold uppercase tracking-widest ${
-              b.ifTheyLead ? "text-amber-600" : "text-stone-400"
+              b.alt ? "text-amber-600" : "text-stone-400"
             }`}
           >
-            {b.ifTheyLead
-              ? t("⑂ if they lead {species}", { species: b.ifTheyLead })
-              : t("Turn {n}", { n: 1 })}
+            {!b.alt
+              ? t("Turn {n}", { n: 1 })
+              : b.alt.kind === "lead"
+                ? t("⑂ if they lead {species}", { species: b.alt.species })
+                : t("⑂ if they switch to {species}", {
+                    species: b.alt.species,
+                  })}
           </p>
           <div className="mt-1 flex items-center gap-1">
             <IconRow species={b.lead} scale={0.75} />
