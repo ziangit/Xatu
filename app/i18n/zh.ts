@@ -582,6 +582,6 @@ export const ZH: Record<string, string> = {
   "A miniature matchup tree: a team preview, and the turn-one lines planned from it":
     "一棵缩小的对阵树：选人阶段，以及由此规划出的第 1 回合分支",
   "Turn 0 · team preview": "第 0 回合 · 选人",
-  "⑂ if they lead {species}": "⑂ 若对手首发 {species}",
-  "⑂ if they switch to {species}": "⑂ 若对手换上 {species}",
+  "⑂ if {species} leads": "⑂ 若 {species} 首发",
+  "⑂ if {species} comes in": "⑂ 若 {species} 换上场",
 };

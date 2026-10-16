@@ -378,13 +378,15 @@ function HeroPlan({ scene }: { scene: HeroScene }) {
               b.alt ? "text-amber-600" : "text-stone-400"
             }`}
           >
+            {/* The species leads, rather than "if they lead <species>".
+                Both labels then read the same way — and the card is 152px of
+                content, where "if they switch to Archaludon" needed 182 and
+                wrapped to two lines. */}
             {!b.alt
               ? t("Turn {n}", { n: 1 })
               : b.alt.kind === "lead"
-                ? t("⑂ if they lead {species}", { species: b.alt.species })
-                : t("⑂ if they switch to {species}", {
-                    species: b.alt.species,
-                  })}
+                ? t("⑂ if {species} leads", { species: b.alt.species })
+                : t("⑂ if {species} comes in", { species: b.alt.species })}
           </p>
           <div className="mt-1 flex items-center gap-1">
             <IconRow species={b.lead} scale={0.75} />
