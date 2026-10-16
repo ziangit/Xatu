@@ -55,6 +55,7 @@ export const ZH: Record<string, string> = {
   "Copied ✓": "已复制 ✓",
   "Fetching…": "获取中…",
   github: "github",
+  discord: "Discord",
   "xatu is an unaffiliated, non-commercial fan project. Pokémon is owned by Nintendo, The Pokémon Company, Game Freak, and Creatures.":
     "xatu 是非官方、非商业的粉丝项目。宝可梦版权归任天堂、宝可梦公司、Game Freak 和 Creatures 所有。",
 

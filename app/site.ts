@@ -19,3 +19,17 @@ export const SITE_URL =
  * of every page as well as the landing footer, and two copies would drift.
  */
 export const GITHUB_URL = "https://github.com/ziangit/Xatu";
+
+/**
+ * The project's Discord, if there is one.
+ *
+ * **Paste a link that never expires.** Discord's default invite dies after 7
+ * days or 100 uses, and a landing page outlives both — the link would simply
+ * stop working one week after launch, with nothing on this side to say so.
+ * In the server: the ＋person icon at the top of the channel list → *Edit
+ * invite link* → Expire after **Never**, Max uses **No limit**.
+ *
+ * Empty means the icon renders nowhere, the same way `supabaseConfigured()`
+ * lets the cloud features disappear rather than leave a hole.
+ */
+export const DISCORD_URL = "";
