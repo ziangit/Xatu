@@ -42,6 +42,27 @@ The toggle has moved the page three separate times. Measure rather than eyeball.
 
 Use two real throwaway accounts, then delete them and their `signup_ips` rows.
 
+- [ ] **With nothing but the public anon key, every table returns what it
+      should and no more.** Sweep them all, signed out: `matchups` and `teams`
+      must come back **0 rows**, and so must `app_secrets`, `rate_events` and
+      `signup_ips`. `published_groups`, `profiles` (usernames only),
+      `post_comments`, `post_likes`, `community_teams` and `feed_posts` are
+      public by design.
+
+      This is the check that matters most, because **the anon key is not a
+      secret** — it ships in the deployed JavaScript, so anyone who opens the
+      site has it. Nothing is protected by keeping it quiet; everything is
+      protected by RLS. `feed_posts` is a view, and a view carries no RLS of
+      its own: it needs `security_invoker=on` or it runs as its owner and
+      reads straight past the policies on its base tables.
+- [ ] **Anon cannot write, even as a real user.** Insert into
+      `matchups`, `published_groups` and `post_comments` with a genuine
+      `user_id` copied from an existing account: every one must be `42501`
+      with **0 rows created**. A foreign-key error is not a pass — it means
+      the FK fired before RLS was consulted, so retest with an id that exists.
+- [ ] **`claim_signup_slot` refuses without its shared secret.** It takes the
+      IP as a parameter, so without the guard anyone could lock another
+      address out of signing up.
 - [ ] **One account cannot read, update or delete another's teams or
       matchups.** By rows returned and rows changed.
 - [ ] **No email address reaches the client, anywhere.** A username is public
