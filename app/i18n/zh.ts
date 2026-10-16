@@ -515,8 +515,8 @@ export const ZH: Record<string, string> = {
   "stat|Def": "防御",
   "stat|SpA": "特攻",
   "stat|SpD": "特防",
-  "needs a set for {species} — re-import that team":
-    "需要 {species} 的配置——请重新导入该队伍",
+  "needs a set for {species} — paste one with “update sets”":
+    "{species} 还没有配置——用「更新配置」粘贴一份",
   "not saved — this browser is holding {n} matchups, its limit. Delete one to make room.":
     "未保存——此浏览器已存 {n} 个对阵，达到上限。删除一个以腾出空间。",
   "not saved — this browser is out of storage. Delete a matchup to make room.":
@@ -584,4 +584,13 @@ export const ZH: Record<string, string> = {
   "Turn 0 · team preview": "第 0 回合 · 选人",
   "⑂ if {species} leads": "⑂ 若 {species} 首发",
   "⑂ if {species} comes in": "⑂ 若 {species} 换上场",
+  "update sets": "更新配置",
+  "replace {team}'s moves and EVs from a paste":
+    "粘贴以替换 {team} 的招式与努力值",
+  "That doesn’t read as a team.": "这段内容读不出一支队伍。",
+  "That paste is a different six Pokémon — use ＋ New matchup for a new team.":
+    "这段粘贴是另外六只宝可梦——新队伍请用「＋ 新建对阵」。",
+  "Sets updated in {n}.": "已更新 {n} 的配置。",
+  "Paste {team}'s Showdown export. Every matchup in this set gets the new moves and EVs; your plans are untouched.":
+    "粘贴 {team} 的 Showdown 导出文本。这一组里的每个对阵都会用上新的招式与努力值；你的计划不受影响。",
 };

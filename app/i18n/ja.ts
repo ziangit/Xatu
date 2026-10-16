@@ -553,8 +553,8 @@ export const JA: Record<string, string> = {
   "stat|Def": "防御",
   "stat|SpA": "特攻",
   "stat|SpD": "特防",
-  "needs a set for {species} — re-import that team":
-    "{species} の構成が必要です——そのパーティを再読み込みしてください",
+  "needs a set for {species} — paste one with “update sets”":
+    "{species} の構成がありません——「構成を更新」から貼り付けてください",
   "not saved — this browser is holding {n} matchups, its limit. Delete one to make room.":
     "保存されていません——このブラウザは {n} 件の対戦を保持しており上限です。1 件削除してください。",
   "not saved — this browser is out of storage. Delete a matchup to make room.":
@@ -622,4 +622,13 @@ export const JA: Record<string, string> = {
   "Turn 0 · team preview": "ターン0 · 選出",
   "⑂ if {species} leads": "⑂ {species} が先発なら",
   "⑂ if {species} comes in": "⑂ {species} が出てきたら",
+  "update sets": "構成を更新",
+  "replace {team}'s moves and EVs from a paste":
+    "貼り付けて {team} の技と努力値を差し替える",
+  "That doesn’t read as a team.": "パーティとして読み取れません。",
+  "That paste is a different six Pokémon — use ＋ New matchup for a new team.":
+    "貼り付けられたのは別の 6 匹です——新しいパーティは「＋ 新規マッチアップ」から。",
+  "Sets updated in {n}.": "{n} の構成を更新しました。",
+  "Paste {team}'s Showdown export. Every matchup in this set gets the new moves and EVs; your plans are untouched.":
+    "{team} の Showdown エクスポートを貼り付けてください。このグループのすべてのマッチアップに新しい技と努力値が反映されます。プランはそのままです。",
 };

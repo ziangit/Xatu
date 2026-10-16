@@ -41,6 +41,8 @@ import {
   type CalcNote,
   type FieldState,
 } from "../demo/calc";
+import { importTeamText } from "@/lib/team";
+import { matchSpecies } from "@/lib/match";
 import {
   findPairMatchup,
   groupDocId,
@@ -49,6 +51,7 @@ import {
   loadMatchups,
   loadSetup,
   MAX_MATCHUPS,
+  rememberTeam,
   saveCalcOn,
   saveSetup,
   setActiveMatchupId,
@@ -744,7 +747,7 @@ function SideBoard({
                     anything whose inputs moved. */}
             {!calcs?.[s] && calcHintOf?.(s) && (
               <p className="mb-0.5 mt-0.5 pl-1.5 text-[10px] leading-snug text-stone-400">
-                {t("needs a set for {species} — re-import that team", {
+                {t("needs a set for {species} — paste one with “update sets”", {
                   species: calcHintOf(s)!.join(", "),
                 })}
               </p>
@@ -840,7 +843,7 @@ function SaveOnExit({ onLeave }: { onLeave: () => void }) {
 }
 
 export default function SimPage() {
-  const { lang, t } = useLang();
+  const { lang, t, n } = useLang();
   const [setup, setSetup] = useState<SimSetup | null>(null);
   const [nodes, setNodes] = useState<TurnNode[]>([]);
   const [ready, setReady] = useState(false);
@@ -855,6 +858,13 @@ export default function SimPage() {
   const [localSave, setLocalSave] = useState<"full" | "limit" | null>(null);
   /** Every board built with the same team of mine — the opponent switcher. */
   const [group, setGroup] = useState<SavedMatchup[]>([]);
+  /** The paste box for re-importing my team's sets, and what it last said. */
+  const [setsOpen, setSetsOpen] = useState(false);
+  const [setsText, setSetsText] = useState("");
+  const [setsNote, setSetsNote] = useState<{
+    tone: "ok" | "bad";
+    text: string;
+  } | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const { copied, copy } = useCopy();
   const [showImport, setShowImport] = useState(false);
@@ -1508,6 +1518,66 @@ export default function SimPage() {
     return current !== encodeWorkflow(stored.setup, stored.nodes);
   };
 
+  /**
+   * Re-import my team's sets from a Showdown export, and push the result into
+   * every board that uses the team.
+   *
+   * Paste rather than an editor, and that is the whole design: `ownTeam`
+   * stores the verbatim export and has to round-trip losslessly, so the only
+   * thing that can safely replace a set is another export. The author edits
+   * in Showdown, where they built the team, and brings it back.
+   *
+   * The roster has to match. `rememberTeam` identifies a team by its six
+   * species, so a paste with a different six is a *different team* — it would
+   * be saved beside this one and these boards would go on using the old one,
+   * silently. That is the one failure worth refusing outright.
+   *
+   * Plans are deliberately untouched: a recorded move is what you intended
+   * that turn, and `syncTeamIntoBoards` only rewrites the team object.
+   */
+  const applySets = () => {
+    if (!setup) return;
+    const parsed = importTeamText(setsText);
+    if (!parsed || parsed.parsed.length === 0) {
+      setSetsNote({ tone: "bad", text: t("That doesn’t read as a team.") });
+      return;
+    }
+    const key = (list: { species: string }[]) =>
+      matchSpecies(list.map((m) => m.species)).join("|");
+    if (key(parsed.parsed) !== key(setup.my.parsed)) {
+      setSetsNote({
+        tone: "bad",
+        text: t(
+          "That paste is a different six Pokémon — use ＋ New matchup for a new team.",
+        ),
+      });
+      return;
+    }
+    if (hasUnsavedWork()) save();
+    rememberTeam(
+      {
+        ...setup.my,
+        exportText: parsed.exportText,
+        parsed: parsed.parsed,
+      },
+      { authoritative: true },
+    );
+    // Whatever writes storage must re-read it: the board holds its own copy of
+    // the setup, and saving it back would undo what was just propagated.
+    const library = loadMatchups();
+    const mine = library.filter((m) => m.setup.my.id === setup.my.id);
+    setGroup(mine);
+    const fresh = mine.find((m) => m.id === matchup?.id)?.setup ?? loadSetup();
+    if (fresh) setSetup(fresh);
+    setSetsText("");
+    setSetsNote({
+      tone: "ok",
+      text: t("Sets updated in {n}.", {
+        n: n(mine.length, "matchup", "matchups"),
+      }),
+    });
+  };
+
   /** Leaving the board (back, home, any nav link) keeps what's written. */
   const saveIfDirty = () => {
     if (hasUnsavedWork()) save();
@@ -1743,6 +1813,27 @@ export default function SimPage() {
                   >
                     {t("publish set →")}
                   </Link>
+                  {/* Changing a set is a thing you want to do while looking
+                      at a plan that depends on it, and until now the only way
+                      was ＋ New matchup → import, which both reads as "make
+                      another one" and lives on another page. It acts on the
+                      whole set, like publish, so it says so. */}
+                  <button
+                    onClick={() => {
+                      setSetsOpen((v) => !v);
+                      setSetsNote(null);
+                    }}
+                    title={t("replace {team}'s moves and EVs from a paste", {
+                      team: setup.my.name,
+                    })}
+                    className={`rounded border px-2 py-1 text-[11px] transition-colors ${
+                      setsOpen
+                        ? "border-stone-500 bg-stone-100 text-stone-800"
+                        : "border-stone-300 bg-white text-stone-500 hover:border-stone-500"
+                    }`}
+                  >
+                    {t("update sets")}
+                  </button>
                   {/* A button, not the hairline link it started as — nobody saw
                       that one. Still out of the right-hand row: those act on
                       this board (Reset, Import, Copy JSON, Save) and this
@@ -1758,6 +1849,59 @@ export default function SimPage() {
                     {t("full calculator ↗")}
                   </a>
                 </span>
+                {/* In place, under the control that opened it — no dialog, the
+                    same rule as every other confirmation here. */}
+                {setsOpen && (
+                  <div className="grow-in w-full rounded-md border border-stone-200 bg-white p-3">
+                    <p className="text-[11px] text-stone-500">
+                      {t(
+                        "Paste {team}'s Showdown export. Every matchup in this set gets the new moves and EVs; your plans are untouched.",
+                        { team: setup.my.name },
+                      )}
+                    </p>
+                    <textarea
+                      value={setsText}
+                      onChange={(e) => {
+                        setSetsText(e.target.value);
+                        setSetsNote(null);
+                      }}
+                      rows={6}
+                      spellCheck={false}
+                      placeholder={t("Paste here…")}
+                      className="mt-2 w-full resize-y rounded border border-stone-300 bg-white px-2 py-1.5 font-mono text-[11px] text-stone-800 focus:border-stone-500 focus:outline-none"
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        onClick={applySets}
+                        disabled={!setsText.trim()}
+                        className="rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-700 transition-colors hover:border-stone-500 disabled:opacity-40"
+                      >
+                        {t("update sets")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSetsOpen(false);
+                          setSetsText("");
+                          setSetsNote(null);
+                        }}
+                        className="text-[11px] text-stone-400 underline-offset-2 hover:text-stone-700 hover:underline"
+                      >
+                        {t("cancel")}
+                      </button>
+                      {setsNote && (
+                        <span
+                          className={`text-[11px] ${
+                            setsNote.tone === "ok"
+                              ? "text-emerald-700"
+                              : "text-[#e5484d]"
+                          }`}
+                        >
+                          {setsNote.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
