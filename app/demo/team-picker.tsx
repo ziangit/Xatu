@@ -34,14 +34,20 @@ let presetCache: StoredTeam[] | null = null;
 /**
  * Built on first use, not at import.
  *
- * `demo-data.ts` is 23KB of Showdown exports and this parses all nineteen of
+ * `demo-data.ts` is 21KB of Showdown exports and this parses all seventeen of
  * them through `importTeamText`. Doing that at module evaluation charged the
  * cost to every page that imports this file — `/matchups` paid it on load for
  * a picker most visits never open.
  */
 export function presets(): StoredTeam[] {
-  presetCache ??= SAMPLE_TEAMS.map((s, i) => ({
-    id: `preset-${i}`,
+  presetCache ??= SAMPLE_TEAMS.map((s) => ({
+    // Named, not numbered. Picking a sample copies it into the library under
+    // this id, so an index made every id a hostage to the list's order:
+    // removing one sample shifted every id after it onto a different team, and
+    // `existingTeams` dedupes by id — so the sample that inherited a picked
+    // team's old number would quietly vanish from the list. Two samples were
+    // removed for having no EVs on 2026-10-15, which is how this surfaced.
+    id: `preset-${s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     name: s.label,
     // Each sample states its own regulation. NOT `FORMATS[0]` — that is
     // whichever regulation is current, so when the ladder rotates this would
@@ -168,7 +174,7 @@ function ExistingTeamList({
     };
   }, [search]);
   // Defaults to the current regulation rather than "all": the common case is
-  // planning for what is being played now, and 19 rows is a scroll.
+  // planning for what is being played now, and 17 rows is a scroll.
   const [reg, setReg] = useState<string>(SAMPLE_REGULATIONS[0] ?? "");
   const mine = teams.filter((tm) => !tm.id.startsWith("preset-"));
   const samples = teams.filter(

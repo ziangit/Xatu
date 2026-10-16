@@ -109,6 +109,16 @@ describe("the sample teams", () => {
    * the following team carrying none. Comments are the only record of where a
    * paste came from, so they get checked.
    */
+  it("give every sample a distinct id, so none can hide another", () => {
+    // `presets()` keys each sample by its label. Two samples sharing a label
+    // would share an id, and `existingTeams` drops the second — the list would
+    // be one team short with nothing to show for it.
+    const ids = SAMPLE_TEAMS.map((s) =>
+      s.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("each carry exactly one title and pokepaste URL above them", () => {
     const src = readFileSync(
       join(import.meta.dirname, "..", "demo-data.ts"),
