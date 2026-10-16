@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   flattenReportText,
   isEmptyReport,
+  orderLikePublished,
   parseReportBlocks,
   parseReportText,
   pruneReport,
@@ -90,6 +91,36 @@ describe("pruneReport", () => {
     expect(pruneReport({ outro: "thanks for reading" }, [])).toEqual({
       outro: "thanks for reading",
     });
+  });
+});
+
+describe("orderLikePublished", () => {
+  const key = (x: { k: string }) => x.k;
+  it("keeps the published order even when a board was re-saved since", () => {
+    // Newest-saved first, as groupByMyTeam hands them over.
+    const resaved = [{ k: "c" }, { k: "a" }, { k: "b" }];
+    expect(orderLikePublished(resaved, key, ["a", "b", "c"])).toEqual([
+      { k: "a" },
+      { k: "b" },
+      { k: "c" },
+    ]);
+  });
+  it("appends a new matchup after the ones already on the page", () => {
+    expect(
+      orderLikePublished([{ k: "new" }, { k: "b" }, { k: "a" }], key, [
+        "a",
+        "b",
+      ]),
+    ).toEqual([{ k: "a" }, { k: "b" }, { k: "new" }]);
+  });
+  it("drops nothing when a published opponent has since been deleted", () => {
+    expect(orderLikePublished([{ k: "b" }], key, ["a", "b"])).toEqual([
+      { k: "b" },
+    ]);
+  });
+  it("is the identity for a first publish", () => {
+    const first = [{ k: "y" }, { k: "x" }];
+    expect(orderLikePublished(first, key, [])).toEqual(first);
   });
 });
 

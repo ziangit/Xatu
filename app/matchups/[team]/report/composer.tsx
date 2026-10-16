@@ -17,11 +17,17 @@ import { groupByMyTeam, loadMatchups } from "../../../demo/storage";
 import type { SavedMatchup, StoredTeam } from "../../../demo/storage";
 import {
   loadMyPublished,
+  loadPublished,
   publishGroup,
   unpublishGroup,
   type MyPublished,
 } from "../../../demo/publish";
-import { reportKey, type Report } from "../../../demo/report";
+import {
+  orderLikePublished,
+  reportKey,
+  type Report,
+} from "../../../demo/report";
+import { decodeWorkflowGroup } from "../../../demo/workflow-io";
 import { SpeciesToken } from "./species-token";
 
 /**
@@ -69,7 +75,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
         setBoards(group.matchups);
         setTitle(group.team.name);
       }
-      void loadMyPublished().then((map) => {
+      void loadMyPublished().then(async (map) => {
         if (!alive) return;
         const mine = map.get(teamId) ?? null;
         setPublished(mine);
@@ -79,6 +85,21 @@ export function ReportComposer({ teamId }: { teamId: string }) {
           setBefore(mine.report?.before ?? {});
           setOutro(mine.report?.outro ?? "");
           setSlug(mine.slug);
+          // A re-publish keeps the page's order. The group arrives
+          // newest-saved first, so fixing one board would otherwise move it
+          // to the top — and the prose above "the first matchup" would stay
+          // above the opponent it was filed under. Only the set the author is
+          // re-publishing is read, and only here; a first publish has no
+          // order to keep.
+          const post = await loadPublished(mine.slug);
+          if (!alive) return;
+          const decoded = post ? decodeWorkflowGroup(post.document) : null;
+          if (decoded?.ok) {
+            const keys = decoded.boards.map((b) => reportKey(b.opp));
+            setBoards((prev) =>
+              orderLikePublished(prev, (b) => reportKey(b.setup.opp), keys),
+            );
+          }
         }
         setReady(true);
       });

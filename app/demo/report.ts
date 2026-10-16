@@ -68,6 +68,28 @@ export function pruneReport(
   return isEmptyReport(next) ? null : next;
 }
 
+/**
+ * The order a re-published set keeps: the matchups as the live page already
+ * has them, then anything new at the end.
+ *
+ * Groups everywhere else sort newest-saved first, which is right for a list
+ * and wrong for a document — re-saving one board (a fixed set, a new calc)
+ * moved it to the top of the published page while the prose written above
+ * "the first matchup" stayed filed under the opponent it had been above. The
+ * author saw their team intro slide under a different matchup. Found live,
+ * 2026-10-16.
+ */
+export function orderLikePublished<T>(
+  items: readonly T[],
+  keyOf: (item: T) => string,
+  publishedKeys: readonly string[],
+): T[] {
+  const rank = new Map(publishedKeys.map((k, i) => [k, i] as const));
+  const kept = items.filter((it) => rank.has(keyOf(it)));
+  kept.sort((a, b) => rank.get(keyOf(a))! - rank.get(keyOf(b))!);
+  return [...kept, ...items.filter((it) => !rank.has(keyOf(it)))];
+}
+
 /** A run of plain text, or one Pokémon to draw as a sprite. */
 export type Segment =
   { kind: "text"; text: string } | { kind: "mon"; species: string };

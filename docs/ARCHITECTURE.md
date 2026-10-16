@@ -2117,6 +2117,17 @@ that would watch it.
 up — it is the Open Graph description and the feed card's subtitle, so prose
 moving into the report must not take the link preview with it.
 
+**A re-publish keeps the page's matchup order** (added 2026-10-16). Groups sort
+newest-saved first everywhere, which is right for a list and wrong for a
+document: the author re-saved one board (a set update, a new calc), it jumped
+to the top, and on re-publish the team intro they had written above "the first
+matchup" was suddenly above the second — because a slot is keyed by the
+opponent it sits above, not by position. The composer now reads the live post
+and orders the set as the page already has it (`orderLikePublished`, tested),
+with new matchups appended. A first publish still takes the group's order,
+since there is nothing yet to keep. Prose stays with its opponent on purpose;
+what must not move is the opponents.
+
 ## `getUser()` is a network call (2026-10-13)
 
 `/matchups` took **1,637ms** to paint while its data arrived at 416ms. The
