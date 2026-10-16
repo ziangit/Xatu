@@ -32,4 +32,4 @@ export const GITHUB_URL = "https://github.com/ziangit/Xatu";
  * Empty means the icon renders nowhere, the same way `supabaseConfigured()`
  * lets the cloud features disappear rather than leave a hole.
  */
-export const DISCORD_URL = "";
+export const DISCORD_URL = "https://discord.gg/ByTBradA7";
