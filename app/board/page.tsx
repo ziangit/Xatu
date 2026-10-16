@@ -1566,9 +1566,29 @@ export default function SimPage() {
     // the setup, and saving it back would undo what was just propagated.
     const library = loadMatchups();
     const mine = library.filter((m) => m.setup.my.id === setup.my.id);
-    setGroup(mine);
-    const fresh = mine.find((m) => m.id === matchup?.id)?.setup ?? loadSetup();
+    // A stored calculation is always true for the sets as they are now — and
+    // these sets just moved, in every board of the set at once. `save()` only
+    // prunes the board on screen, so the other three would have kept numbers
+    // computed from the old EVs until something happened to re-save them, and
+    // publishing would have carried them out to readers. Prune all of them
+    // here, against each board's own opponent.
+    for (const entry of mine) {
+      const pruned = pruneCalcs(
+        entry.nodes,
+        entry.setup.my,
+        entry.setup.opp,
+        moveMetaOf ? (m) => moveMetaOf(m)?.target ?? null : null,
+        megaFormeFor,
+      );
+      if (pruned !== entry.nodes) upsertMatchup({ ...entry, nodes: pruned });
+    }
+    setGroup(loadMatchups().filter((m) => m.setup.my.id === setup.my.id));
+    const fresh =
+      loadMatchups().find((m) => m.id === matchup?.id)?.setup ?? loadSetup();
     if (fresh) setSetup(fresh);
+    // The open board shows the pruned nodes too, not the ones in React state.
+    const reloaded = loadMatchups().find((m) => m.id === matchup?.id);
+    if (reloaded && matchup) setNodes(reloaded.nodes);
     setSetsText("");
     setSetsNote({
       tone: "ok",
