@@ -10,12 +10,12 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * public page on a site with no moderation tooling, and rendering
  * author-supplied markup there is an XSS surface with nobody watching it.
  *
- * It renders as **a white card, the same material as a turn card**. The page
- * has exactly two surfaces — white is content, cream is chrome — so prose laid
- * straight onto the cream read as unplaced. The card spans the **full content
- * width**, the same as the matchup below it, so the report reads as one
- * document with one left and right edge rather than as a column of boxes that
- * each stop somewhere different.
+ * It renders **straight onto the page, with no card** (user-directed,
+ * 2026-10-15, by reference to teamsheet.gg's report layout — which reverses
+ * the white card this had since 1284208). The card was arguing that white is
+ * content and cream is chrome; what actually placed the text was never the
+ * box but the heading above it and a column it keeps to. An article does not
+ * put its paragraphs in a panel, and a report is an article.
  *
  * Inside, three things are set differently because they *are* different:
  *
@@ -27,9 +27,12 @@ import { parseReportBlocks, type Block } from "../demo/report";
  *   leaves the text flow — and a set that follows it stacks directly beneath,
  *   artwork over set, which is how every RMT introduces a Pokémon.
  * - **Everything else** is a paragraph at a reading measure — capped at
- *   36rem, which the card deliberately is not: the card's edges line up
- *   with the matchup below it, and the text inside it does not have to.
- *   The cap is in rem rather than `ch` on purpose — `ch` measures the "0"
+ *   48rem — about 96 characters at 16px, which is the measure the reference
+ *   article runs. That is wider than the 45-to-75 the typography books give,
+ *   and it is the width that was asked for; 36rem measured right and read as
+ *   though something had cut the lines short.
+ *
+ *   The cap is in rem rather than `ch` on purpose: `ch` measures the "0"
  *   glyph, which in Geist is 0.66em, so a 68ch cap came out at 90 characters
  *   rather than the 68 it promises.
  *
@@ -38,7 +41,7 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * 40×30, so this size would be an upscale of a 40px source, and native size
  * means no resampling at all — which is what keeps pixel art crisp.
  *
- * The card carries no vertical margin of its own; the caller owns the spacing.
+ * It carries no vertical margin of its own; the caller owns the spacing.
  */
 
 function MonArt({ species }: { species: string }) {
@@ -61,9 +64,8 @@ function MonArt({ species }: { species: string }) {
  * A pasted set.
  *
  * Monospace and tight leading, because that is what a set is — but **no tint
- * and no frame**. It already sits inside the report card, and a box inside a
- * box reads as a quotation from somewhere else rather than as the author's own
- * team. Reference RMTs run the set as plain text under the artwork.
+ * and no frame**. Reference RMTs run the set as plain text under the artwork,
+ * and monospace on the page background is already unmistakably a set.
  */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
@@ -86,7 +88,7 @@ function Prose({ block }: { block: Extract<Block, { kind: "prose" }> }) {
     // an eye can track back to the next line, and that single number is most
     // of what made a report look wrong. Capping the *card* instead would have
     // broken its alignment with the matchup below it, which is load-bearing.
-    <p className="max-w-xl whitespace-pre-wrap">
+    <p className="max-w-3xl whitespace-pre-wrap">
       {block.segments.map((seg, i) =>
         seg.kind === "mon" ? (
           <MonArt key={i} species={seg.species} />
@@ -138,7 +140,7 @@ export function ReportProse({
 
   return (
     <div
-      className={`space-y-4 rounded-lg border border-stone-200 bg-white px-5 py-4 text-base leading-[1.7] text-stone-700 ${className}`}
+      className={`space-y-4 text-base leading-[1.7] text-stone-700 ${className}`}
     >
       {out}
     </div>

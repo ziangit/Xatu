@@ -139,7 +139,7 @@ export function PublishedView({ slug }: { slug: string }) {
                 its own column, read as plain text by the card and the feed. */}
             {post.description && (
               <section className="mt-10">
-                <h2 className="text-sm font-bold text-stone-800">
+                <h2 className="font-display text-xl font-bold tracking-tight text-stone-900">
                   {t("Summary")}
                 </h2>
                 <ReportProse text={post.description} className="mt-3" />
@@ -163,7 +163,7 @@ export function PublishedView({ slug }: { slug: string }) {
                   text={post.report?.before?.[reportKey(board.opp)]}
                   className="mb-4"
                 />
-                <h2 className="flex items-center gap-2 text-sm font-bold text-stone-800">
+                <h2 className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
                   <span className="flex">
                     {board.opp.parsed.map((m, i) => (
                       <MonIcon

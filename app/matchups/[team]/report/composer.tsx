@@ -216,7 +216,9 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                       read-only. Composing against one-line rows meant not
                       seeing what you were writing around. Editing a board is
                       the board's job, not this page's. */}
-                  <h2 className="mt-4 flex items-center gap-2 text-sm font-bold text-stone-800">
+                  {/* Same heading as the published page gives it — the
+                      composer has to look like what it makes. */}
+                  <h2 className="mt-4 flex items-center gap-2 font-display text-xl font-bold tracking-tight text-stone-900">
                     <TeamSprites team={board.setup.opp} scale={0.7} />
                     {t("vs. {team}", { team: board.setup.opp.name })}
                   </h2>
@@ -347,14 +349,15 @@ function TextSlot({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="block w-full text-left"
+        className="block w-full rounded-lg text-left transition-colors hover:bg-stone-100/70"
         title={t("edit this text")}
       >
         {value.trim() ? (
-          <ReportProse
-            text={value}
-            className="transition-colors hover:border-stone-400"
-          />
+          // The prose has no frame on the published page, so there is no
+          // border here to light up on hover — the click target carries its
+          // own tint instead, and the text itself stays exactly as it will
+          // be read.
+          <ReportProse text={value} className="px-3 py-2" />
         ) : (
           // Same width as the card it becomes — and as the matchup below it —
           // so a slot doesn't jump when you write in it.
