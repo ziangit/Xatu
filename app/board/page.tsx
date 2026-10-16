@@ -17,6 +17,7 @@ import {
 } from "../demo/board";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
 import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
+import { SideFrame } from "../demo/side-frame";
 import { upsertCloudMatchup } from "../demo/cloud";
 import {
   decodeWorkflowGroup,
@@ -532,128 +533,113 @@ function SideBoard({
     state.fainted.includes(s);
 
   return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-        {title}
-      </p>
-      <div className="mt-1 flex">
-        {roster.map((s, i) => {
-          const excluded = brought !== null && !brought.has(s) && !inState(s);
-          return (
-            <button
-              key={`${s}-${i}`}
-              disabled={excluded}
-              onClick={excluded ? undefined : () => onToggle(s)}
-              onContextMenu={
-                excluded
-                  ? (e) => e.preventDefault()
-                  : (e) => {
-                      e.preventDefault();
-                      onFaint(s);
-                    }
-              }
-              title={
-                excluded
-                  ? t("{species} — not brought (chosen at turn 1)", {
-                      species: s,
-                    })
-                  : state.fainted.includes(s)
-                    ? t("{species} — fainted (right-click to revive)", {
+    <SideFrame
+      title={title}
+      front={state.front}
+      back={state.back}
+      roster={
+        <>
+          {roster.map((s, i) => {
+            const excluded = brought !== null && !brought.has(s) && !inState(s);
+            return (
+              <button
+                key={`${s}-${i}`}
+                disabled={excluded}
+                onClick={excluded ? undefined : () => onToggle(s)}
+                onContextMenu={
+                  excluded
+                    ? (e) => e.preventDefault()
+                    : (e) => {
+                        e.preventDefault();
+                        onFaint(s);
+                      }
+                }
+                title={
+                  excluded
+                    ? t("{species} — not brought (chosen at turn 1)", {
                         species: s,
                       })
-                    : s
-              }
-              className={
-                excluded
-                  ? "cursor-not-allowed opacity-25 grayscale"
-                  : "rounded hover:bg-stone-100"
-              }
-            >
-              <MonIcon
-                species={s}
-                scale={1}
-                fainted={state.fainted.includes(s)}
-              />
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">
-          {t("slot|Front")}
-        </span>
-        {[0, 1].map((i) => {
-          const s = state.front[i];
-          if (!s) {
-            return (
-              <div key={i} className="flex w-[64px] justify-center">
-                <span className="inline-block h-[34px] w-[46px] rounded border border-dashed border-stone-200" />
-              </div>
+                    : state.fainted.includes(s)
+                      ? t("{species} — fainted (right-click to revive)", {
+                          species: s,
+                        })
+                      : s
+                }
+                className={
+                  excluded
+                    ? "cursor-not-allowed opacity-25 grayscale"
+                    : "rounded hover:bg-stone-100"
+                }
+              >
+                <MonIcon
+                  species={s}
+                  scale={1}
+                  fainted={state.fainted.includes(s)}
+                />
+              </button>
             );
-          }
-          return (
-            <div key={i} className="flex w-[64px] justify-center">
-              {allowMoves ? (
-                <button
-                  onClick={(e) => {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    onOpenPicker(pickerFor === s ? null : s, {
-                      left: r.left,
-                      top: r.bottom + 4,
-                    });
-                  }}
-                  title={
-                    switchedIn.has(s)
-                      ? t("{species} — switched in this turn", { species: s })
-                      : cameIn.has(s)
-                        ? t("{species} — came in after a faint; it can move", {
-                            species: s,
-                          })
-                        : t("{species} — declare a move, Mega, or send back", {
-                            species: s,
-                          })
-                  }
-                  className={`h-[34px] w-[46px] rounded border bg-white pl-0.5 hover:border-stone-500 ${
-                    state.mega === s
-                      ? "border-violet-400"
-                      : switchedIn.has(s) || cameIn.has(s)
-                        ? "border-dashed border-sky-300"
-                        : "border-stone-300"
-                  }`}
-                >
-                  <MonIcon species={shownAs(s)} scale={1} />
-                </button>
-              ) : (
-                // Team preview: the slot is just a position — click sends back.
-                <Slot species={s} onRemove={() => onRemove(s)} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* One fixed chip line per front slot (top line = left mon) — heights
-          are deterministic, so chips can never wrap or shift the rows below. */}
-      {allowMoves && state.front.length > 0 && (
-        <div className="ml-[42px] mt-1 space-y-1">
-          {[0, 1].map((slotIndex) => {
-            const s = state.front[slotIndex];
-            if (!s) return <div key={slotIndex} className="h-[22px]" />;
-            const move = state.moves?.[s];
-            // A target renders only while it's still one of the on-field four.
-            const targetRef = state.targets?.[s]
-              ? parseTargetRef(state.targets[s])
-              : null;
-            const targetSpecies =
-              targetRef &&
-              (targetRef.kind === "ally" ? state.front : foeFront).includes(
-                targetRef.species,
-              )
-                ? targetRef.species
+          })}
+        </>
+      }
+      slot={(s, row) =>
+        row === "back" || !allowMoves ? (
+          // Team preview, and every Back slot: the tile is just a position,
+          // and clicking it sends that Pokémon back.
+          <Slot species={s} onRemove={() => s && onRemove(s)} />
+        ) : !s ? (
+          <span className="inline-block h-[34px] w-[46px] rounded border border-dashed border-stone-200" />
+        ) : (
+          <button
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              onOpenPicker(pickerFor === s ? null : s, {
+                left: r.left,
+                top: r.bottom + 4,
+              });
+            }}
+            title={
+              switchedIn.has(s)
+                ? t("{species} — switched in this turn", { species: s })
+                : cameIn.has(s)
+                  ? t("{species} — came in after a faint; it can move", {
+                      species: s,
+                    })
+                  : t("{species} — declare a move, Mega, or send back", {
+                      species: s,
+                    })
+            }
+            className={`h-[34px] w-[46px] rounded border bg-white pl-0.5 hover:border-stone-500 ${
+              state.mega === s
+                ? "border-violet-400"
+                : switchedIn.has(s) || cameIn.has(s)
+                  ? "border-dashed border-sky-300"
+                  : "border-stone-300"
+            }`}
+          >
+            <MonIcon species={shownAs(s)} scale={1} />
+          </button>
+        )
+      }
+      chip={
+        allowMoves
+          ? (s) => {
+              const move = state.moves?.[s];
+              // A target renders only while it is still one of the on-field
+              // four: a stored node can outlive its target, because recording
+              // the opponent's switch takes that Pokémon off the field and
+              // leaves the reference behind.
+              const targetRef = state.targets?.[s]
+                ? parseTargetRef(state.targets[s])
                 : null;
-            return (
-              <div key={s}>
-                <div className="flex h-[22px] items-center">
+              const targetSpecies =
+                targetRef &&
+                (targetRef.kind === "ally" ? state.front : foeFront).includes(
+                  targetRef.species,
+                )
+                  ? targetRef.species
+                  : null;
+              return (
+                <>
                   <button
                     onClick={(e) => {
                       const r = e.currentTarget.getBoundingClientRect();
@@ -741,56 +727,50 @@ function SideBoard({
                       onClose={() => onOpenPicker(null)}
                     />
                   )}
-                </div>
-                {/* Under the move it describes — the association the author
+                </>
+              );
+            }
+          : null
+      }
+      under={(s) => {
+        const move = state.moves?.[s];
+        return (
+          <>
+            {/* Under the move it describes — the association the author
                     otherwise keeps in their head. Outside the fixed 22px chip
                     row on purpose: it is a full sentence, and squeezed into a
                     slot column it wrapped six lines deep. Stored text, never
                     re-derived here, and `pruneCalcs` has already dropped
                     anything whose inputs moved. */}
-                {!calcs?.[s] && calcHintOf?.(s) && (
-                  <p className="mb-0.5 mt-0.5 pl-1.5 text-[10px] leading-snug text-stone-400">
-                    {t("needs a set for {species} — re-import that team", {
-                      species: calcHintOf(s)!.join(", "),
-                    })}
-                  </p>
-                )}
-                {calcs?.[s] && (
-                  <p
-                    className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
-                    style={{
-                      borderColor: move ? moveColor(move) : "#d6d3d1",
-                      // The move's own colour, mixed toward ink so the light
-                      // types (Electric, Ground) stay readable at 10px — a raw
-                      // #F8D030 on white is not text.
-                      color: move
-                        ? `color-mix(in srgb, ${moveColor(move)} 65%, #1c1917)`
-                        : undefined,
-                    }}
-                  >
-                    {calcs[s].text}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="mt-1 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">{t("slot|Back")}</span>
-        {[0, 1].map((i) => (
-          <div key={i} className="flex w-[64px] justify-center">
-            <Slot
-              species={state.back[i]}
-              onRemove={() => onRemove(state.back[i])}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
+            {!calcs?.[s] && calcHintOf?.(s) && (
+              <p className="mb-0.5 mt-0.5 pl-1.5 text-[10px] leading-snug text-stone-400">
+                {t("needs a set for {species} — re-import that team", {
+                  species: calcHintOf(s)!.join(", "),
+                })}
+              </p>
+            )}
+            {calcs?.[s] && (
+              <p
+                className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
+                style={{
+                  borderColor: move ? moveColor(move) : "#d6d3d1",
+                  // The move's own colour, mixed toward ink so the light
+                  // types (Electric, Ground) stay readable at 10px — a raw
+                  // #F8D030 on white is not text.
+                  color: move
+                    ? `color-mix(in srgb, ${moveColor(move)} 65%, #1c1917)`
+                    : undefined,
+                }}
+              >
+                {calcs[s].text}
+              </p>
+            )}
+          </>
+        );
+      }}
+    />
   );
 }
-
 // `Edge`, the measurement and the SVG live in `../demo/turn-edges`, so the
 // published reader draws the same arrows instead of none.
 

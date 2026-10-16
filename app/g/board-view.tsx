@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MonIcon, TYPE_COLORS } from "../demo/components";
 import { arrivals, isAlternate, layoutRows } from "../demo/board";
 import { EdgeLayer, useTurnEdges } from "../demo/turn-edges";
+import { SideFrame } from "../demo/side-frame";
 import { parseTargetRef } from "../demo/workflow-io";
 import { useT } from "../i18n/provider";
 import type { SideState, TurnNode } from "../demo/storage";
@@ -67,126 +68,89 @@ function Side({
   const switchedIn = new Set(switched);
   const cameIn = new Set(arrived);
   return (
-    <div className="min-w-0 flex-1">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
-        {title}
-      </p>
-      <span className="mt-1 flex flex-wrap">
-        {roster.map((s, i) => (
-          <span
-            key={`${s}-${i}`}
-            className={
-              state.fainted.includes(s) || !placed.has(s)
-                ? "opacity-25 grayscale"
-                : ""
-            }
-          >
-            <MonIcon species={s} scale={0.7} />
-          </span>
-        ))}
-      </span>
-      {/* The editor's structure, and it has to be: both front tiles on one
-          row, then exactly one chip line per slot beneath them, top line for
-          the left Pokémon. Pairing each chip under its own tile — which is
-          what this did — makes the pair wrap onto two rows as soon as a chip
-          is wider than its 64px cell, so the published page stopped looking
-          like the board the author composed. The fixed 22px line also keeps
-          the card heights deterministic, which `useTurnEdges` measures. */}
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">
-          {t("slot|Front")}
+    <SideFrame
+      className="min-w-0 flex-1"
+      title={title}
+      front={state.front}
+      back={state.back}
+      roster={roster.map((s, i) => (
+        <span
+          key={`${s}-${i}`}
+          className={
+            state.fainted.includes(s) || !placed.has(s)
+              ? "opacity-25 grayscale"
+              : ""
+          }
+        >
+          <MonIcon species={s} scale={0.7} />
         </span>
-        {[0, 1].map((i) => (
-          <div key={i} className="flex w-[64px] justify-center">
-            <Slot species={state.front[i]} />
-          </div>
-        ))}
-      </div>
-
-      <div className="ml-[42px] mt-1 space-y-1">
-        {[0, 1].map((i) => {
-          const s = state.front[i];
-          // The empty line still occupies its 22px: one slot filled and one
-          // empty must not shorten the card.
-          if (!s) return <div key={i} className="h-[22px]" />;
-          const move = state.moves?.[s];
-          // A target renders only while it is still one of the on-field four
-          // — the editor's rule. A stored node can outlive its target: record
-          // Thunderbolt on Pelipper, then record the switch that takes
-          // Pelipper off, and the target is still in the payload.
-          const ref = state.targets?.[s]
-            ? parseTargetRef(state.targets[s])
+      ))}
+      slot={(s) => <Slot species={s} />}
+      chip={(s) => {
+        const move = state.moves?.[s];
+        // Only while the target is still one of the on-field four — the
+        // editor's rule, from the same shape of check. A stored node can
+        // outlive its target: record Thunderbolt on Pelipper, then record the
+        // switch that takes Pelipper off, and the reference stays behind.
+        const ref = state.targets?.[s]
+          ? parseTargetRef(state.targets[s])
+          : null;
+        const targetSpecies =
+          ref &&
+          (ref.kind === "ally" ? state.front : foeFront).includes(ref.species)
+            ? ref.species
             : null;
-          const targetSpecies =
-            ref &&
-            (ref.kind === "ally" ? state.front : foeFront).includes(ref.species)
-              ? ref.species
-              : null;
-          const bg = move ? moveColor(move) : undefined;
-          const shown = switchedIn.has(s)
-            ? t("switched in")
-            : (move ?? (cameIn.has(s) ? t("came in") : null));
-          return (
-            <div key={s}>
-              <div className="flex h-[22px] items-center">
-                {shown && (
-                  <span
-                    className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none ${
-                      bg
-                        ? "text-white"
-                        : switchedIn.has(s) || cameIn.has(s)
-                          ? "bg-sky-50 text-sky-700"
-                          : state.mega === s
-                            ? "bg-violet-600 text-white"
-                            : "bg-stone-100 text-stone-500"
-                    }`}
-                    style={bg ? { backgroundColor: bg } : undefined}
-                  >
-                    <MonIcon species={s} scale={0.5} />
-                    {state.mega === s && <span>⟡</span>}
-                    {shown}
-                    {move && targetSpecies && (
-                      <>
-                        <span className="opacity-80">→</span>
-                        <MonIcon species={targetSpecies} scale={0.5} />
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-              {/* The author's calculation, stored as text and never
-                  re-derived — a published page is a snapshot, so a later
-                  change to the maths cannot move its numbers. It always
-                  renders: it is content the author saved, and a reader's own
-                  calculator preference must not erase it. Same treatment as
-                  the editor gives it, under the move it describes. */}
-              {calcs[s] && (
-                <p
-                  className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
-                  style={{
-                    borderColor: bg ?? "#d6d3d1",
-                    color: bg
-                      ? `color-mix(in srgb, ${bg} 65%, #1c1917)`
-                      : undefined,
-                  }}
-                >
-                  {calcs[s].text}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-1 flex items-center gap-1.5">
-        <span className="w-9 text-[10px] text-stone-400">{t("slot|Back")}</span>
-        {[0, 1].map((i) => (
-          <div key={i} className="flex w-[64px] justify-center">
-            <Slot species={state.back[i]} />
-          </div>
-        ))}
-      </div>
-    </div>
+        const bg = move ? moveColor(move) : undefined;
+        const shown = switchedIn.has(s)
+          ? t("switched in")
+          : (move ?? (cameIn.has(s) ? t("came in") : null));
+        if (!shown) return null;
+        return (
+          <span
+            className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-bold leading-none ${
+              bg
+                ? "text-white"
+                : switchedIn.has(s) || cameIn.has(s)
+                  ? "bg-sky-50 text-sky-700"
+                  : state.mega === s
+                    ? "bg-violet-600 text-white"
+                    : "bg-stone-100 text-stone-500"
+            }`}
+            style={bg ? { backgroundColor: bg } : undefined}
+          >
+            <MonIcon species={s} scale={0.5} />
+            {state.mega === s && <span>⟡</span>}
+            {shown}
+            {move && targetSpecies && (
+              <>
+                <span className="opacity-80">→</span>
+                <MonIcon species={targetSpecies} scale={0.5} />
+              </>
+            )}
+          </span>
+        );
+      }}
+      under={(s) => {
+        if (!calcs[s]) return null;
+        const move = state.moves?.[s];
+        const bg = move ? moveColor(move) : undefined;
+        // The author's calculation, stored as text and never re-derived — a
+        // published page is a snapshot, so a later change to the maths cannot
+        // move its numbers. It always renders: it is content the author
+        // saved, and a reader's own calculator preference must not erase it.
+        return (
+          <p
+            className="mb-0.5 mt-0.5 whitespace-pre-wrap border-l-2 pl-1.5 text-[10px] leading-snug"
+            style={{
+              borderColor: bg ?? "#d6d3d1",
+              color: bg ? `color-mix(in srgb, ${bg} 65%, #1c1917)` : undefined,
+            }}
+          >
+            {calcs[s].text}
+          </p>
+        );
+      }}
+    />
   );
 }
 
