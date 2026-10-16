@@ -19,10 +19,10 @@ import { parseReportBlocks, type Block } from "../demo/report";
  *
  * Inside, three things are set differently because they *are* different:
  *
- * - **A pasted Showdown set** gets monospace and tight leading. Set as prose
- *   it was a wall of hard-wrapped lines in a 1.6 line-height sans, which is
- *   the one thing that made a report look broken. The lines are drawn
- *   verbatim; see `parseReportBlocks`.
+ * - **A pasted Showdown set** gets monospace, tight leading and a white card
+ *   of its own. Set as prose it was a wall of hard-wrapped lines in a 1.6
+ *   line-height sans, which is the one thing that made a report look broken.
+ *   The lines are drawn verbatim; see `parseReportBlocks`.
  * - **A sprite alone on its line** is an illustration, not a word, so it
  *   leaves the text flow — and a set that follows it stacks directly beneath,
  *   artwork over set, which is how every RMT introduces a Pokémon.
@@ -44,6 +44,9 @@ import { parseReportBlocks, type Block } from "../demo/report";
  * It carries no vertical margin of its own; the caller owns the spacing.
  */
 
+/** The frame a set entry sits in. `w-fit` so it hugs its own lines. */
+const CARD = "w-fit rounded-lg border border-stone-200 bg-white px-4 py-3";
+
 function MonArt({ species }: { species: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -63,9 +66,12 @@ function MonArt({ species }: { species: string }) {
 /**
  * A pasted set.
  *
- * Monospace and tight leading, because that is what a set is — but **no tint
- * and no frame**. Reference RMTs run the set as plain text under the artwork,
- * and monospace on the page background is already unmistakably a set.
+ * Monospace and tight leading, because that is what a set is — and, since the
+ * prose around it stopped being a card, **a card**. The two decisions are the
+ * same one seen from either side: exactly one thing on this page should look
+ * like an object, and it is the set, not the paragraph. It hugs its own lines
+ * rather than stretching to the measure — a set is about 30 characters wide
+ * and a panel four times that reads as a mistake.
  */
 function SetBlock({ lines }: { lines: string[] }) {
   return (
@@ -119,20 +125,25 @@ export function ReportProse({
       // entry, and the gap the card's own rhythm would put between them
       // reads as two unrelated things.
       out.push(
-        <div key={i}>
+        <div key={i} className={CARD}>
           <MonArt species={block.species} />
           <SetBlock lines={next.lines} />
         </div>,
       );
       i += 1;
     } else if (block.kind === "art") {
+      // Artwork on its own is an illustration, not an entry — no frame.
       out.push(
         <div key={i}>
           <MonArt species={block.species} />
         </div>,
       );
     } else if (block.kind === "set") {
-      out.push(<SetBlock key={i} lines={block.lines} />);
+      out.push(
+        <div key={i} className={CARD}>
+          <SetBlock lines={block.lines} />
+        </div>,
+      );
     } else {
       out.push(<Prose key={i} block={block} />);
     }
