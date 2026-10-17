@@ -97,6 +97,27 @@ describe("workflow codec", () => {
     expect(result.setup.my.parsed.map((m) => m.species)).toEqual(MY);
   });
 
+  it("carries a line four turns deep — the cap is the editor's, not the format's", () => {
+    // The board offers "+ turn" up to turn 3 (shown), stored as turn 4. The
+    // codec derives turn from depth and has no ceiling of its own, so raising
+    // the editor's cap must never need a format change.
+    const opp = side(["Aerodactyl", "Kingambit"], ["Garchomp", "Sylveon"]);
+    const my = side(["Tyranitar", "Excadrill"], ["Milotic", "Gholdengo"]);
+    const line: TurnNode[] = [
+      { id: "t1", turn: 1, parentId: null, my, opp },
+      { id: "t2", turn: 2, parentId: "t1", my, opp },
+      { id: "t3", turn: 3, parentId: "t2", my, opp },
+      { id: "t4", turn: 4, parentId: "t3", my, opp, note: "turn 3 on screen" },
+    ];
+    const result = decodeWorkflow(encodeWorkflow(setup, line));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.warnings).toEqual([]);
+    expect(result.nodes.map((n) => n.turn)).toEqual([1, 2, 3, 4]);
+    expect(result.nodes[3].parentId).toBe(result.nodes[2].id);
+    expect(result.nodes[3].note).toBe("turn 3 on screen");
+  });
+
   it("stays compact — a few hundred bytes, not KB", () => {
     expect(encodeWorkflow(setup, nodes).length).toBeLessThan(700);
   });

@@ -472,7 +472,7 @@ export const JA: Record<string, string> = {
     "ポケモンを右クリックするとひんし状態にできます",
   "⑂ records an alternate version of that same turn":
     "⑂ は同じターンの別の展開を記録します",
-  "turn 2 is the last": "ターン2までです",
+  "turn 3 is the last": "ターン3までです",
   "account sync failed: {error}": "アカウントへの同期に失敗しました：{error}",
   "saved to this browser — couldn’t reach your account":
     "このブラウザには保存しました——アカウントには同期できませんでした",

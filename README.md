@@ -18,7 +18,7 @@ Showdown ladder, plus the older SV VGC regulations. Doubles, bring 6 / pick 4.
 
 ## What it does
 
-- **A board** — turn 0 team preview branching into turn 1 and turn 2. Positions,
+- **A board** — turn 0 team preview branching into turns 1 to 3. Positions,
   declared moves, targets, switches, faints, Mega Evolution. Branches are
   alternates of the same turn, not a sequence.
 - **Paste-first input** — a pokepast.es link, a Showdown export, or six names
@@ -49,12 +49,12 @@ and apply the SQL in `supabase/`. The catalogue is seeded separately with
 `scripts/vgcpastes/` — its data directory is gitignored, so you re-ingest
 rather than download it.
 
-| command | |
-| --- | --- |
-| `npm run dev` | dev server on port 7317 |
-| `npm test` | the unit suite — **no database needed** |
-| `npm run lint` | eslint |
-| `npm run build` | production build |
+| command         |                                         |
+| --------------- | --------------------------------------- |
+| `npm run dev`   | dev server on port 7317                 |
+| `npm test`      | the unit suite — **no database needed** |
+| `npm run lint`  | eslint                                  |
+| `npm run build` | production build                        |
 
 ## Contributing
 
@@ -66,15 +66,15 @@ that is nobody's fault but the documentation's if it was not said up front.
 
 ## Where things are
 
-| | |
-| --- | --- |
-| `app/` | the Next.js app. `app/demo/` is library code, not a route. |
-| `lib/` | pure, framework-free: the schema, team parsing, opponent matching. |
-| `supabase/` | schema and RLS policies, as applied SQL. |
-| `docs/ARCHITECTURE.md` | technical reference and the gotchas worth not rediscovering. |
-| `docs/PRODUCT.md` | what this is, and the non-goals. |
-| `docs/TESTING.md` | what to walk before a release. |
-| `CLAUDE.md`, `AGENTS.md` | instructions for AI coding agents. Humans want CONTRIBUTING.md. |
+|                          |                                                                    |
+| ------------------------ | ------------------------------------------------------------------ |
+| `app/`                   | the Next.js app. `app/demo/` is library code, not a route.         |
+| `lib/`                   | pure, framework-free: the schema, team parsing, opponent matching. |
+| `supabase/`              | schema and RLS policies, as applied SQL.                           |
+| `docs/ARCHITECTURE.md`   | technical reference and the gotchas worth not rediscovering.       |
+| `docs/PRODUCT.md`        | what this is, and the non-goals.                                   |
+| `docs/TESTING.md`        | what to walk before a release.                                     |
+| `CLAUDE.md`, `AGENTS.md` | instructions for AI coding agents. Humans want CONTRIBUTING.md.    |
 
 ## Licence
 

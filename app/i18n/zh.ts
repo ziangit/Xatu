@@ -436,7 +436,7 @@ export const ZH: Record<string, string> = {
   "right-click a Pokémon to faint it": "右键点击宝可梦可将其标记为倒下",
   "⑂ records an alternate version of that same turn":
     "⑂ 记录同一回合的另一种走法",
-  "turn 2 is the last": "最多到第 2 回合",
+  "turn 3 is the last": "最多到第 3 回合",
   "account sync failed: {error}": "账号同步失败：{error}",
   "saved to this browser — couldn’t reach your account":
     "已保存到这个浏览器——但没能同步到你的账号",

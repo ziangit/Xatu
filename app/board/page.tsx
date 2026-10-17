@@ -2022,7 +2022,7 @@ export default function SimPage() {
                 <li>
                   · {t("⑂ records an alternate version of that same turn")}
                 </li>
-                <li>· {t("turn 2 is the last")}</li>
+                <li>· {t("turn 3 is the last")}</li>
               </ul>
             )}
           </div>
@@ -2435,7 +2435,7 @@ export default function SimPage() {
 
                     <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
                       {(childCount.get(node.id) ?? 0) === 0 &&
-                        node.turn < 3 && (
+                        node.turn < 4 && (
                           <button
                             onClick={() => addNextTurn(node)}
                             className="rounded border border-stone-200 px-2 py-0.5 text-[11px] text-stone-600 hover:border-stone-400"

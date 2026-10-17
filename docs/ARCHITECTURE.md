@@ -144,6 +144,18 @@ pure, well-tested function in a shared module; the extension's core dependency.
 
 ## Board rules (`app/demo/board.ts`, 2026-08-08)
 
+**The turn cap is the editor's alone** (raised 2026-10-17, turn 2 → turn 3
+shown, at a tester's request). It is one literal: the `+ turn` button on a
+card renders only while `node.turn < 4` (stored turns start at 1, shown one
+lower). Nothing else enforces it — the codec derives turn from tree depth, the
+schema says only `int ≥ 1`, storage and `published_groups` take the whole board
+as-is, and the reader counts columns from the deepest card. A four-deep line
+round-trips in `workflow-io.test.ts`. The cost of each extra column is width:
+560px per turn, so four turns is a 2,360px scroller on every screen, inside
+the `.scroll-x-hint` wrapper that already fades at whichever edge has more.
+Raising it again means changing the literal, the "turn N is the last" hint in
+three dictionaries, and the README sentence.
+
 Three rules the author shouldn't have to maintain by hand. They live in a pure,
 unit-tested module (`app/demo/__tests__/board.test.ts`) — the sim page only wires
 them up.
