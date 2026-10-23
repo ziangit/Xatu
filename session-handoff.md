@@ -1,5 +1,16 @@
 # Session handoff
 
+> Updated 2026-10-23: **first outside bug report, and it was right** (GitHub
+> issue #1). Single-target moves into Reflect / Light Screen / Aurora Veil
+> were calculated at the singles 1/2 instead of the doubles 2/3, because a
+> lone target was sent to `@smogon/calc` as "Singles" to switch the spread
+> reduction off — and that flag also sets the screen multiplier. Now always
+> Doubles; a lone-target spread move is declared single-target through the
+> move instead. Only the previously wrong stored calcs go stale. Rules in
+> docs/ARCHITECTURE.md → the calculator section. Also this week: the board
+> allows one more turn (turn 3 is the last) and the repo is public with
+> Issues on. Top section, newest first.
+
 > Updated 2026-10-15: **the no-battle-computation rule is amended, narrowly**
 > (user's decision). An **opt-in damage calculator** is allowed — off by
 > default, behind an enable/disable toggle, two versions of the app. Its output

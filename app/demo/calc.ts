@@ -267,9 +267,18 @@ export function inputPrint(
     if (!d) return "";
     parts.push(defender, Sets.exportSet(d));
   }
-  // The spread reduction depends on how many targets are actually out, so the
-  // game type is part of the number and therefore part of the fingerprint.
-  parts.push(gameTypeFor(defenders));
+  // The spread reduction depends on how many targets are actually out, so that
+  // is part of the number and therefore part of the fingerprint. The labels
+  // are historical — until 2026-10-23 they were the game type handed to the
+  // library — and are kept verbatim so every correct stored calculation stays
+  // fresh across that fix.
+  parts.push(defenders.length > 1 ? "Doubles" : "Singles");
+  // Issue #1: a lone-target calculation under a defender-side screen used to
+  // be computed with the singles 1/2 instead of the doubles 2/3. Exactly those
+  // fingerprints change — and only those — so the wrong numbers are dropped
+  // and nothing else is.
+  if (defenders.length === 1 && hasScreen(defenderSideOf(ctx)))
+    parts.push("screens:doubles");
   parts.push(
     fieldPrint(ctx.field),
     ctx.attackerIsMySide === false ? "o" : "m",
@@ -285,16 +294,28 @@ export function inputPrint(
 }
 
 /**
- * A spread move is only reduced when it actually hits more than one Pokémon.
+ * Every calculation is a doubles calculation.
  *
- * That is how VGC works: Heat Wave into two targets is 0.75x each, and into a
- * lone survivor it is full damage. `@smogon/calc` drives the reduction off
- * `gameType` alone, and gameType changes nothing else — a single-target move
- * calculates byte-identically either way (verified) — so this is the honest
- * lever rather than a hack.
+ * A spread move is only reduced when it actually hits more than one Pokémon:
+ * Heat Wave into two targets is 0.75x each, into a lone survivor it is full
+ * damage. Until 2026-10-23 that was done by telling the library "Singles" for
+ * a lone target, on the belief that the game type changed nothing else. It
+ * does: Reflect, Light Screen and Aurora Veil are 2/3 in doubles and 1/2 in
+ * singles, and the library keys both on the same flag — so every single-target
+ * move into a screen got the singles number (GitHub issue #1). Now the game
+ * type is always Doubles and a lone-target spread move is declared as
+ * single-target through the move itself, which is the only other thing the
+ * flag ever decided.
  */
-const gameTypeFor = (defenders: readonly string[]) =>
-  defenders.length > 1 ? "Doubles" : "Singles";
+const loneTargetSpread = (moveTarget: string, defenders: readonly string[]) =>
+  defenders.length === 1 && isSpreadMove(moveTarget);
+
+/** The side the defenders stand on — the one whose screens apply. */
+const defenderSideOf = (ctx: CalcContext) =>
+  ctx.attackerIsMySide === false ? ctx.field?.my : ctx.field?.opp;
+
+const hasScreen = (s: SideField | undefined) =>
+  !!(s?.reflect || s?.lightScreen || s?.auroraVeil);
 
 /** True when a stored calculation still describes the board as it stands. */
 export const isFresh = (note: CalcNote | undefined, print: string) =>
@@ -359,6 +380,20 @@ export async function runCalc(
     isFriendGuard: !!f?.friendGuard,
   });
 
+  // A spread move with one Pokémon left to hit is declared single-target, so
+  // the library skips the spread reduction without being told "Singles" —
+  // which would also halve the screens (see `loneTargetSpread`).
+  const aimedMove = (targets: readonly string[]) => {
+    const opts = crit ? { isCrit: true } : {};
+    const m = new calc.Move(gen, move, opts);
+    return loneTargetSpread(m.target, targets)
+      ? new calc.Move(gen, move, {
+          ...opts,
+          overrides: { target: "normal" as const },
+        })
+      : m;
+  };
+
   const lines: string[] = [];
   for (const defender of defenders) {
     const d = setFor(defenderTeam, defender);
@@ -378,13 +413,13 @@ export async function runCalc(
           ctx.defenderBoosts?.[defender],
           ctx.defenderAs?.[defender],
         ),
-        new calc.Move(gen, move, crit ? { isCrit: true } : undefined),
+        aimedMove(defenders),
         // The author's stated field, mapped onto the library's shape. The
         // attacker's own side owns Helping Hand; the defender's owns the
         // screens and Friend Guard, so the two swap when the opposing side is
         // the one attacking.
         new calc.Field({
-          gameType: gameTypeFor(defenders),
+          gameType: "Doubles",
           ...(field?.weather ? { weather: field.weather } : {}),
           ...(field?.terrain ? { terrain: field.terrain } : {}),
           attackerSide: sideField(

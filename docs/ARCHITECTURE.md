@@ -1013,10 +1013,27 @@ text in the same colour mixed 65% toward ink, because a raw Electric yellow at
 
 **The spread reduction applies only when the move actually hits more than
 one.** That is how VGC works — Heat Wave into two is 0.75x each, into a lone
-survivor it is full damage. `@smogon/calc` drives the reduction off `gameType`
-alone, and gameType changes nothing else (a single-target move calculates
-byte-identically either way, verified), so `gameTypeFor(defenders)` is the
-honest lever rather than a hack. Measured: 146-174 into two, 198-234 into one.
+survivor it is full damage. Measured: 146-174 into two, 198-234 into one.
+
+**Every calculation is `gameType: "Doubles"` — the first outside bug report
+(GitHub issue #1, 2026-10-23) was this.** Until then a lone target was sent as
+"Singles" to switch the spread reduction off, on the recorded belief that the
+flag changed nothing else. It does: the library keys the **screen multiplier**
+on the same flag — Reflect, Light Screen and Aurora Veil are 2732/4096 in
+doubles and 1/2 in singles — so every single-target move into a screen, which
+is most moves, got the singles number. In the Champions mechanics the flag is
+read in exactly five places: two for spread, three for screens. Now the game
+type never changes and a lone-target spread move is declared single-target
+through the move itself (`overrides: { target: "normal" }`), which is the only
+other thing the flag decided. Three tests run the real library, and two of
+them fail on the old code.
+
+**Stored calculations from before the fix**: the fingerprint grew a marker
+for exactly the case that was wrong — one defender behind a defender-side
+screen — so those lines go stale and are dropped, while every correct one
+keeps its pre-fix fingerprint byte-for-byte and stays fresh. The historical
+"Doubles"/"Singles" labels in `inputPrint` exist only for that stability.
+Published pages are snapshots and were not touched, by rule.
 
 **`desc()` throws on a zero-damage result** — and an immune target is common
 in VGC (Flash Fire into Heat Wave, Ground into a Flying type, Levitate, Water
