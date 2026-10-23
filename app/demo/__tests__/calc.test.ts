@@ -10,6 +10,7 @@ import {
   inputPrint,
   isFresh,
   pruneCalcs,
+  runCalc,
 } from "../calc";
 import type { SideState, StoredTeam, TurnNode } from "../storage";
 
@@ -38,8 +39,23 @@ EVs: 27 HP / 16 SpD
 Hardy Nature
 - Make It Rain`;
 
+const RILLA = `Rillaboom @ Assault Vest
+Ability: Grassy Surge
+Level: 50
+EVs: 32 HP / 32 SpD / 2 Atk
+Careful Nature
+- Grassy Glide`;
+
 const mine = () => team("mine", TALON);
 const theirs = () => team("theirs", GHOLD);
+/** Both opposing sets, for a spread move that really hits two. */
+const theirsTwo = (): StoredTeam => ({
+  ...team("theirs", `${GHOLD}\n\n${RILLA}`),
+  parsed: [
+    { species: "Gholdengo", moves: [] },
+    { species: "Rillaboom", moves: [] },
+  ],
+});
 
 const side = (p: Partial<SideState>): SideState => ({
   front: [],
@@ -295,6 +311,106 @@ describe("spread damage depends on how many are actually out", () => {
       "Heat Wave",
     );
     expect(one).not.toBe(two);
+  });
+});
+
+describe("doubles rules, through the real library (issue #1)", () => {
+  // "N-M (" out of the library's sentence; the number, not the prose.
+  const range = (text: string | undefined, species: string) => {
+    const line = (text ?? "").split("\n").find((l) => l.includes(species));
+    const m = line?.match(/: (\d+)-(\d+) \(/);
+    if (!m) throw new Error(`no range for ${species} in ${text}`);
+    return [Number(m[1]), Number(m[2])] as const;
+  };
+
+  it("a screen is 2/3 in doubles, for a single-target move too", async () => {
+    // The bug: a lone target used to be calculated as "Singles" so the
+    // spread reduction would not apply, and that flag also halves screens.
+    const plain = await runCalc(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+    );
+    const screened = await runCalc(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Overheat",
+      {
+        field: { opp: { lightScreen: true } },
+      },
+    );
+    const [pMin, pMax] = range(plain?.text, "Gholdengo");
+    const [sMin, sMax] = range(screened?.text, "Gholdengo");
+    expect(screened?.text).toContain("through Light Screen");
+    // Doubles: ×2732/4096. Singles would be ×1/2, which these bounds exclude.
+    expect(sMin).toBeGreaterThan(pMin * 0.6);
+    expect(sMax).toBeGreaterThan(pMax * 0.6);
+    expect(sMax).toBeLessThanOrEqual(Math.ceil(pMax * (2732 / 4096)));
+  });
+
+  it("a spread move is full damage into a lone target and 0.75x into two", async () => {
+    const one = await runCalc(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Heat Wave",
+    );
+    const two = await runCalc(
+      mine(),
+      "Talonflame",
+      theirsTwo(),
+      ["Gholdengo", "Rillaboom"],
+      "Heat Wave",
+    );
+    const [oMin, oMax] = range(one?.text, "Gholdengo");
+    const [tMin, tMax] = range(two?.text, "Gholdengo");
+    expect(two?.text?.split("\n")).toHaveLength(2);
+    expect(tMax).toBeLessThan(oMax);
+    expect(tMin).toBeGreaterThanOrEqual(Math.floor(oMin * 0.75) - 1);
+    expect(tMax).toBeLessThanOrEqual(Math.ceil(oMax * 0.75));
+    // And the two rules compose: a lone target behind a screen is 2/3 of full,
+    // not 1/2 and not 0.75 × anything.
+    const lone = await runCalc(
+      mine(),
+      "Talonflame",
+      theirs(),
+      ["Gholdengo"],
+      "Heat Wave",
+      {
+        field: { opp: { lightScreen: true } },
+      },
+    );
+    const [lMin] = range(lone?.text, "Gholdengo");
+    expect(lMin).toBeGreaterThan(oMin * 0.6);
+  });
+
+  it("restates only the calculations that were wrong", () => {
+    // Fingerprints from before the fix are byte-identical for every case that
+    // was computed correctly, so those stay fresh; the lone-target-behind-a-
+    // screen case gets a marker and goes stale.
+    const print = (
+      defenders: string[],
+      field?: Parameters<typeof fieldPrint>[0],
+    ) =>
+      inputPrint(mine(), "Talonflame", theirsTwo(), defenders, "Heat Wave", {
+        field,
+      });
+    const screenedLone = print(["Gholdengo"], { opp: { reflect: true } });
+    const screenedTwo = print(["Gholdengo", "Rillaboom"], {
+      opp: { reflect: true },
+    });
+    const plainLone = print(["Gholdengo"]);
+    expect(screenedLone).not.toBe(plainLone);
+    expect(screenedTwo).not.toBe(screenedLone);
+    // A screen on the attacker's own side is not a screen over the target.
+    expect(print(["Gholdengo"], { my: { reflect: true } })).not.toBe(
+      screenedLone,
+    );
   });
 });
 
