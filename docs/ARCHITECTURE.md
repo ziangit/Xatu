@@ -1518,6 +1518,21 @@ Rules, in order of how easy they are to break:
 
 ## Sharing: publish, read, fork (2026-10-11)
 
+**Nothing the reader cannot draw may be published** (2026-11-02). The reader
+rejects a document naming any species the icon sheet has no tile for, with a
+fallback line that blames "a newer version". On 2026-10-29 a visitor pasted a
+team whose moves were bulleted `* Move` under a blank line; the importer — and
+Showdown's own, checked — split it into alternating Pokémon and move names, the
+six-slot cap kept three of each, the composer showed three placeholder sprites,
+and Publish went through. The page was unreadable to everyone. Import stays
+lenient (the author is the authority, and matching Showdown's parse is the
+right rule), but `publishGroup` now refuses with `unknown-species` and the
+names, before any backend call, and the composer disables the button and says
+which names are wrong. `unknownSpecies()` in `workflow-io.ts` is the one
+check both sides share with the paste importer. The row itself was repaired by
+hand (dash bullets, no blank line; backup kept) — the only time a published
+document has been edited outside the author's own re-publish.
+
 A **published group** is one of your teams against many opponents, stored under a
 short slug and read at `/g/<slug>`. The rules, in the order they matter:
 

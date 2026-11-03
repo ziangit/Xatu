@@ -27,7 +27,7 @@ import {
   reportKey,
   type Report,
 } from "../../../demo/report";
-import { decodeWorkflowGroup } from "../../../demo/workflow-io";
+import { decodeWorkflowGroup, unknownSpecies } from "../../../demo/workflow-io";
 import { SpeciesToken } from "./species-token";
 
 /**
@@ -110,6 +110,16 @@ export function ReportComposer({ teamId }: { teamId: string }) {
   }, [teamId]);
 
   const report: Report = { before, outro };
+
+  // Names the reader could not draw. A paste that split badly ("* Octolock"
+  // as a species) once went out as a public page nobody could read; the
+  // button is off until the set is fixed, and says which names are wrong.
+  const unknown = team
+    ? unknownSpecies([
+        team.parsed.map((m) => m.species),
+        ...boards.map((b) => b.setup.opp.parsed.map((m) => m.species)),
+      ])
+    : [];
 
   const publish = async () => {
     if (!team) return;
@@ -258,7 +268,7 @@ export function ReportComposer({ teamId }: { teamId: string }) {
             <div className="mt-8 flex items-center gap-3 border-t border-stone-200 pt-5">
               <button
                 onClick={() => void publish()}
-                disabled={busy || !title.trim()}
+                disabled={busy || !title.trim() || unknown.length > 0}
                 className="rounded-md bg-[#e5484d] px-5 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:opacity-85 disabled:opacity-40"
               >
                 {busy
@@ -268,18 +278,27 @@ export function ReportComposer({ teamId }: { teamId: string }) {
                     : t("Publish")}
               </button>
 
-              {problem && (
+              {unknown.length > 0 ? (
                 <span className="text-[11px] text-amber-700">
-                  {problem === "no-username"
-                    ? t("Pick a username first — it’s your byline.")
-                    : problem === "signed-out"
-                      ? t("Sign in to publish.")
-                      : problem === "rate-limited"
-                        ? t(
-                            "That’s 10 new posts today — the daily limit. Editing a post you already published still works.",
-                          )
-                        : t("Couldn’t publish — try again.")}
+                  {t(
+                    "Can’t publish — {names} aren’t Pokémon xatu can draw. Fix the team first.",
+                    { names: unknown.join(", ") },
+                  )}
                 </span>
+              ) : (
+                problem && (
+                  <span className="text-[11px] text-amber-700">
+                    {problem === "no-username"
+                      ? t("Pick a username first — it’s your byline.")
+                      : problem === "signed-out"
+                        ? t("Sign in to publish.")
+                        : problem === "rate-limited"
+                          ? t(
+                              "That’s 10 new posts today — the daily limit. Editing a post you already published still works.",
+                            )
+                          : t("Couldn’t publish — try again.")}
+                  </span>
+                )
               )}
             </div>
 
