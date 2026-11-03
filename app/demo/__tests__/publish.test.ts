@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SLUG_RE, newSlug } from "../publish";
+import { SLUG_RE, newSlug, publishGroup } from "../publish";
+import type { SavedMatchup, StoredTeam } from "../storage";
 
 describe("slugs", () => {
   it("are the shape the database accepts", () => {
@@ -59,5 +60,58 @@ describe("what a published row may contain", () => {
     expect(code).not.toMatch(/\.email/);
     expect(code).not.toMatch(/auth\.users/);
     expect(code).not.toMatch(/from\(["']users["']\)/);
+  });
+});
+
+const team = (name: string, species: string[]): StoredTeam => ({
+  id: name,
+  name,
+  format: "[Gen 9 Champions] VGC 2026 Reg M-C",
+  exportText: species.join("\n\n"),
+  parsed: species.map((s) => ({ species: s, moves: [] })),
+});
+
+const board = (my: StoredTeam, opp: StoredTeam): SavedMatchup =>
+  ({
+    id: "b1",
+    name: `${my.name} vs ${opp.name}`,
+    savedAt: 0,
+    setup: { my, opp },
+    nodes: [],
+  }) as unknown as SavedMatchup;
+
+describe("publishGroup refuses what the reader would reject", () => {
+  it("names the unknown species, before touching any backend", async () => {
+    // GitHub-era regression: a paste with `* Move` bullets published a page
+    // whose roster was three Pokémon and three move names, and the reader
+    // showed an error to everyone who opened the link.
+    const my = team("My Team", ["Grapploct", "* Octolock", "Malamar"]);
+    const opp = team("Opp", ["Salamence", "* Hyper Voice"]);
+    const r = await publishGroup({
+      my,
+      boards: [board(my, opp)],
+      title: "My Team",
+      description: "",
+      report: {},
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("unknown-species");
+    expect(r.detail).toBe("* Octolock, * Hyper Voice");
+  });
+
+  it("lets a real roster through to the sign-in check", async () => {
+    const my = team("My Team", ["Grapploct", "Malamar"]);
+    const opp = team("Opp", ["Salamence", "Whimsicott"]);
+    const r = await publishGroup({
+      my,
+      boards: [board(my, opp)],
+      title: "My Team",
+      description: "",
+      report: {},
+    });
+    // No Supabase in the test environment, so the next gate is sign-in —
+    // which is the proof the species gate did not fire.
+    expect(r).toEqual({ ok: false, reason: "signed-out" });
   });
 });

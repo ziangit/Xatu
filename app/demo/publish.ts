@@ -3,7 +3,7 @@
 import { getSupabase } from "../auth/client";
 import { currentUserId } from "../auth/session";
 import { loadMyUsername } from "../auth/profile";
-import { encodeGroup } from "./workflow-io";
+import { encodeGroup, unknownSpecies } from "./workflow-io";
 import { pruneReport, reportKey, type Report } from "./report";
 import { newSlug, SLUG_RE } from "./slug";
 import type { SavedMatchup, StoredTeam } from "./storage";
@@ -38,7 +38,13 @@ export type PublishResult =
   | { ok: true; slug: string }
   | {
       ok: false;
-      reason: "signed-out" | "no-username" | "empty" | "rate-limited" | "error";
+      reason:
+        | "signed-out"
+        | "no-username"
+        | "empty"
+        | "rate-limited"
+        | "unknown-species"
+        | "error";
       detail?: string;
     };
 
@@ -84,6 +90,16 @@ export async function publishGroup(
   input: PublishInput,
   existingSlug?: string,
 ): Promise<PublishResult> {
+  // Nothing the reader cannot draw may be published: it would reject the
+  // whole document, and the author would have a public link to an error.
+  // Checked before anything that needs a backend, so it holds signed out too.
+  const unknown = unknownSpecies([
+    input.my.parsed.map((m) => m.species),
+    ...input.boards.map((b) => b.setup.opp.parsed.map((m) => m.species)),
+  ]);
+  if (unknown.length > 0)
+    return { ok: false, reason: "unknown-species", detail: unknown.join(", ") };
+
   const supabase = getSupabase();
   if (!supabase) return { ok: false, reason: "signed-out" };
   const uid = await currentUserId();

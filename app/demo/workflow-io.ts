@@ -331,16 +331,32 @@ function isKnownSpecies(species: string): boolean {
   return !/scroll 0px 0px/.test(css.background ?? "");
 }
 
+/**
+ * The names in these rosters that the icon sheet cannot draw, deduplicated,
+ * in first-seen order. Empty means every name is a real Pokémon.
+ *
+ * Exported because publishing asks the same question: the reader rejects a
+ * document naming anything here, so a set that fails this check must not be
+ * published. (A paste with `* Move` bullets once became a public page whose
+ * roster was three Pokémon and three move names — Showdown's importer splits
+ * it the same way, so the fix is to refuse the publish, not to parse looser.)
+ */
+export function unknownSpecies(
+  rosters: readonly (readonly string[])[],
+): string[] {
+  return [...new Set(rosters.flat().filter((s) => !isKnownSpecies(s)))];
+}
+
 function unknownSpeciesError(
   rosters: string[][],
   lang: Lang = "en",
 ): string | null {
-  const unknown = rosters.flat().filter((s) => !isKnownSpecies(s));
+  const unknown = unknownSpecies(rosters);
   if (unknown.length === 0) return null;
   // The names themselves are data and stay as the author wrote them; only the
   // sentence around them is translated.
   return translate(lang, "Unknown Pokémon: {names} — not importing.", {
-    names: [...new Set(unknown)].join(", "),
+    names: unknown.join(", "),
   });
 }
 

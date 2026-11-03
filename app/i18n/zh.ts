@@ -191,6 +191,8 @@ export const ZH: Record<string, string> = {
     "{label}：选人阶段不记录招式——已忽略。",
   "Card {n}: invalid parent reference — treated as an alternate turn 1.":
     "第 {n} 张卡：上一张卡的引用无效——已作为第 1 回合的另一分支处理。",
+  "Can’t publish — {names} aren’t Pokémon xatu can draw. Fix the team first.":
+    "无法发布——{names} 不是 xatu 能识别的宝可梦。请先修正队伍。",
   "Unknown Pokémon: {names} — not importing.":
     "无法识别的宝可梦：{names}——本次不导入。",
   "That isn't valid JSON.": "这不是有效的 JSON。",

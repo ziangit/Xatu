@@ -4,6 +4,7 @@ import {
   decodeWorkflowGroup,
   encodeGroup,
   encodeWorkflow,
+  unknownSpecies,
 } from "../workflow-io";
 import type { SimSetup, TurnNode } from "../storage";
 
@@ -312,6 +313,27 @@ describe("workflow codec", () => {
 
 // One team vs. many: the same document, N opponents. A single board is N = 1,
 // so copy/paste doesn't care which one the author is looking at.
+describe("unknownSpecies — what the reader cannot draw", () => {
+  it("names the entries that are not Pokémon, once each, in order", () => {
+    // The real case: a paste with `* Move` bullets, split by the importer
+    // (and by Showdown) into alternating Pokémon and move names.
+    expect(
+      unknownSpecies([
+        ["Grapploct", "* Octolock", "Malamar", "* Superpower", "* Octolock"],
+      ]),
+    ).toEqual(["* Octolock", "* Superpower"]);
+  });
+
+  it("is empty for a real roster, formes and Megas included", () => {
+    expect(
+      unknownSpecies([
+        ["Floette-Eternal", "Raichu-Mega-X", "Ninetales-Alola", "Indeedee-F"],
+        ["Greninja-Mega", "Arcanine-Hisui"],
+      ]),
+    ).toEqual([]);
+  });
+});
+
 describe("group codec (one team vs. many opponents)", () => {
   const THIRD = [
     "Torkoal",
