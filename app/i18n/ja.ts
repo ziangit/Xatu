@@ -210,6 +210,8 @@ export const JA: Record<string, string> = {
     "{label}：選出画面では技を記録しません——無視しました。",
   "Card {n}: invalid parent reference — treated as an alternate turn 1.":
     "カード {n}：前のカードへの参照が無効です——ターン1の別分岐として扱いました。",
+  "Can’t publish — {names} aren’t Pokémon xatu can draw. Fix the team first.":
+    "公開できません——{names} は xatu が認識できるポケモンではありません。先にパーティを直してください。",
   "Unknown Pokémon: {names} — not importing.":
     "認識できないポケモン：{names}——読み込みを中止しました。",
   "That isn't valid JSON.": "有効な JSON ではありません。",

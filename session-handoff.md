@@ -1,5 +1,13 @@
 # Session handoff
 
+> Updated 2026-11-02: **a published page nobody could read.** A visitor's
+> paste used `* Move` bullets under a blank line; the importer (and Showdown's,
+> verified) read the move blocks as Pokémon, and the composer let the result be
+> published. Publishing now refuses anything the reader cannot draw, naming
+> the entries, in `publishGroup` and on the button. Their row was repaired by
+> hand. Rules in docs/ARCHITECTURE.md → **"Sharing"**, first paragraph. Top
+> section, newest first.
+
 > Updated 2026-10-23: **first outside bug report, and it was right** (GitHub
 > issue #1). Single-target moves into Reflect / Light Screen / Aurora Veil
 > were calculated at the singles 1/2 instead of the doubles 2/3, because a
